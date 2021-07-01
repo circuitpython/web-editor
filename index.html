@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    
+    <title>CircuitPython WebBluetooth Test</title>
+  </head>
+  <body>
+    <h1>CircuitPython WebBluetooth Test</h1>
+
+<p>
+The first step is selecting the device you want to use.
+</p>
+<button id="requestBluetoothDevice">Request Bluetooth Device</button>
+<p>
+If you've done this before and the persistent device API works, then you can click this intead:
+</p>
+<button id="connectToBluetoothDevices">Connect to Bluetooth Devices</button>
+<p>
+Once you are connected, we need to prompt a bond. Without this CircuitPython boards with USB won't continue to advertise after a hard reset or powerloss.
+</p>
+<button id="promptBond">Bond</button>
+
+<div id="editor"></div>
+
+<script type="module">
+
+import {FileTransferClient} from './adafruit-ble-file-transfer.js';
+const bleNusServiceUUID  = '6e400001-b5a3-f393-e0a9-e50e24dcca9e';
+const bleNusCharRXUUID   = '6e400002-b5a3-f393-e0a9-e50e24dcca9e';
+const bleNusCharTXUUID   = '6e400003-b5a3-f393-e0a9-e50e24dcca9e';
+
+var bleDevice;
+var bleServer;
+var serialService;
+var rxCharacteristic;
+var txCharacteristic;
+var client;
+
+let connect = document.querySelector('#connectToBluetoothDevices');
+let request = document.querySelector('#requestBluetoothDevice');
+let bond = document.querySelector('#promptBond');
+
+var connected = false;
+
+async function onConnectToBluetoothDevicesButtonClick() {
+  try {
+    console.log('Getting existing permitted Bluetooth devices...');
+    const devices = await navigator.bluetooth.getDevices();
+
+    console.log('> Got ' + devices.length + ' Bluetooth devices.');
+    // These devices may not be powered on or in range, so scan for
+    // advertisement packets from them before connecting.
+    for (const device of devices) {
+      connectToBluetoothDevice(device);
+    }
+  }
+  catch(error) {
+    console.log('Argh! ' + error);
+  }
+}
+
+async function switchToDevice(device) {
+  bleDevice = device;
+  bleDevice.addEventListener("gattserverdisconnected", onDisconnected);
+  bleServer = bleDevice.gatt;
+  console.log("connected", bleServer);
+
+  const services = await bleServer.getPrimaryServices();
+  console.log(services);
+
+  console.log('Getting Transfer Service...');
+  client = new FileTransferClient(bleDevice);
+
+  serialService = await bleServer.getPrimaryService(bleNusServiceUUID);
+  // TODO: create a terminal for each serial service
+  txCharacteristic = await serialService.getCharacteristic(bleNusCharTXUUID);
+  rxCharacteristic = await serialService.getCharacteristic(bleNusCharRXUUID);
+  console.log(txCharacteristic, rxCharacteristic);
+  bond.disabled = false;
+  connect.disabled = true;
+  request.disabled = true;
+}
+
+async function connectToBluetoothDevice(device) {
+  const abortController = new AbortController();
+
+  device.addEventListener('advertisementreceived', async (event) => {
+    console.log('> Received advertisement from "' + device.name + '"...');
+    // Stop watching advertisements to conserve battery life.
+    abortController.abort();
+    console.log('Connecting to GATT Server from "' + device.name + '"...');
+    try {
+      await device.gatt.connect()
+      console.log('> Bluetooth device "' +  device.name + ' connected.');
+      await switchToDevice(device);
+    }
+    catch(error) {
+      console.log('Argh! ' + error);
+    }
+  }, { once: true });
+
+  try {
+    console.log('Watching advertisements from "' + device.name + '"...');
+    await device.watchAdvertisements({ signal: abortController.signal });
+  }
+  catch(error) {
+    console.log('Argh! ' + error);
+  }
+}
+
+var unchanged = 0;
+async function onBond() {
+  console.log("bond");
+  await client.bond();
+  var contents = await client.readFile("/code.py");
+  editor.setState(EditorState.create({
+    doc: contents,
+    extensions: [
+    basicSetup,
+    python(),
+    EditorView.updateListener.of(onTextChange)]
+  }));
+  unchanged = editor.state.doc.length;
+  console.log("doc length", unchanged);
+  console.log("bond done");
+}
+
+async function onDisconnected() {
+  console.log('disconnected');
+  await bleServer.connect();
+}
+
+async function onRequestBluetoothDeviceButtonClick() {
+  try {
+    console.log('Requesting any Bluetooth device...');
+    bleDevice = await navigator.bluetooth.requestDevice({
+     filters: [{services: [0xfebb]},], // <- Prefer filters to save energy & show relevant devices.
+     // acceptAllDevices: true,,
+      optionalServices: [0xfebb, bleNusServiceUUID]
+    });
+
+    console.log('> Requested ' + bleDevice.name);
+    await bleDevice.gatt.connect();
+    switchToDevice(bleDevice);
+  }
+  catch(error) {
+    console.log('Argh! ' + error);
+  }
+}
+
+var editor;
+var currentTimeout = null;
+async function writeText() {
+    console.log("sync starting at", unchanged, "to", editor.state.doc.length);
+    if (!client) {
+      console.log("no client");
+      return;
+    }
+    let encoder = new TextEncoder();
+    let doc = editor.state.doc;
+    let same = doc.sliceString(0, unchanged);
+    let offset = encoder.encode(same).byteLength
+    let different = doc.sliceString(unchanged);
+    let contents = encoder.encode(different);
+    console.log(offset, different);
+    let oldUnchanged = unchanged;
+    unchanged = doc.length;
+    try {
+        console.log("write");
+        await client.writeFile("/code.py", offset, contents);
+    } catch (e) {
+        console.log("write error", e);
+        unchanged = Math.min(oldUnchanged, unchanged);
+        currentTimeout = setTimeout(writeText, 2000);
+    }
+}
+
+async function onTextChange(update) {
+  if (!update.docChanged) {
+    return;
+  }
+  var hasGap = false;
+  update.changes.desc.iterGaps(function(posA, posB, length) {
+    // this are unchanged gaps.
+    hasGap = true;
+    if (posA != 0 && posB != 0) {
+        return;
+    } else if (posA == 0 && posB == 0) {
+        unchanged = Math.min(length, unchanged);
+    } else {
+        unchanged = 0;
+    }
+  });
+  // Everything has changed.
+  if (!hasGap) {
+    unchanged = 0;
+  }
+
+  if (currentTimeout != null) {
+    clearTimeout(currentTimeout);
+  }
+  currentTimeout = setTimeout(writeText, 750);
+}
+
+if (navigator.bluetooth) {
+  connect.addEventListener('click', function() {
+      onConnectToBluetoothDevicesButtonClick();
+  });
+  request.addEventListener('click', function() {
+      onRequestBluetoothDeviceButtonClick();
+  });
+  bond.addEventListener('click', function() {
+      onBond();
+  });
+
+  bond.disabled = true;
+
+} else {
+  console.log("bluetooth not supported on this browser");
+}
+
+import {EditorState, EditorView, basicSetup} from "@codemirror/basic-setup"
+import {python} from "@codemirror/lang-python"
+
+editor = new EditorView({
+  parent: document.querySelector('#editor')
+})
+
+</script>
+
+  </body>
+</html>
