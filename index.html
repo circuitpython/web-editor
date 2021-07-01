@@ -26,7 +26,7 @@ Once you are connected, we need to prompt a bond. Without this CircuitPython boa
 
 <script type="module">
 
-import {FileTransferClient} from './adafruit-ble-file-transfer.js';
+import {FileTransferClient} from '@adafruit/ble-file-transfer';
 const bleNusServiceUUID  = '6e400001-b5a3-f393-e0a9-e50e24dcca9e';
 const bleNusCharRXUUID   = '6e400002-b5a3-f393-e0a9-e50e24dcca9e';
 const bleNusCharTXUUID   = '6e400003-b5a3-f393-e0a9-e50e24dcca9e';
@@ -227,6 +227,10 @@ import {EditorState, EditorView, basicSetup} from "@codemirror/basic-setup"
 import {python} from "@codemirror/lang-python"
 
 editor = new EditorView({
+  state: EditorState.create({
+    doc: "Connect to load code.py",
+    extensions: [basicSetup]
+  }),
   parent: document.querySelector('#editor')
 })
 
