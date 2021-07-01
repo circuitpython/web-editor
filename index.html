@@ -171,8 +171,10 @@ async function writeText() {
         console.log("write");
         await client.writeFile("/code.py", offset, contents);
     } catch (e) {
-        console.log("write error", e);
         unchanged = Math.min(oldUnchanged, unchanged);
+        if (currentTimeout != null) {
+            clearTimeout(currentTimeout);
+        }
         currentTimeout = setTimeout(writeText, 2000);
     }
 }

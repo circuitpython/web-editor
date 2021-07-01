@@ -1,0 +1,9 @@
+{
+  "devDependencies": {
+    "snowpack": "^3.7.1"
+  },
+  "dependencies": {
+    "@codemirror/basic-setup": "^0.18.2",
+    "@codemirror/lang-python": "^0.18.0"
+  }
+}
