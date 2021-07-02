@@ -68,11 +68,15 @@ class FileTransferClient {
     async _write(value) {
         console.log("write", value);
         try {
+            if (value.byteLength < BYTES_PER_WRITE) {
+                await this._transfer.writeValueWithoutResponse(value);
+                return;
+            }
             var offset = 0;
             while (offset < value.byteLength) {
                 let len = Math.min(value.byteLength - offset, BYTES_PER_WRITE);
-                let chunk_contents = value.subarray(offset, offset + len);
-                console.log("write subarray", base_offset, offset, chunk_contents);
+                let chunk_contents = value.slice(offset, offset + len);
+                console.log("write subarray", offset, chunk_contents);
                 // Delay to ensure the last value was written to the device.
                 await this.sleep(100);
                 await this._transfer.writeValueWithoutResponse(chunk_contents);
