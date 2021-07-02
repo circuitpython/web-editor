@@ -66,6 +66,7 @@ class FileTransferClient {
     }
 
     async _write(value) {
+        console.log("write", value);
         try {
             var offset = 0;
             while (offset < value.byteLength) {
@@ -78,8 +79,8 @@ class FileTransferClient {
                 offset += len;
             }
         } catch (e) {
-            console.log("caught write error");
-            onDisconnected();
+            console.log("caught write error", e, e.stack);
+            this.onDisconnected();
         }
     }
 
