@@ -12,7 +12,8 @@ const WRITE_DATA = 0x22;
 
 const STATUS_OK = 0x01;
 
-const BYTES_PER_WRITE = 500;
+// 500 works on mac
+const BYTES_PER_WRITE = 20;
 
 class FileTransferClient {
     constructor(bleDevice) {
@@ -66,7 +67,16 @@ class FileTransferClient {
 
     async _write(value) {
         try {
-            await this._transfer.writeValueWithoutResponse(value);
+            var offset = 0;
+            while (offset < value.byteLength) {
+                let len = Math.min(value.byteLength - offset, BYTES_PER_WRITE);
+                let chunk_contents = value.subarray(offset, offset + len);
+                console.log("write subarray", base_offset, offset, chunk_contents);
+                // Delay to ensure the last value was written to the device.
+                await this.sleep(100);
+                await this._transfer.writeValueWithoutResponse(chunk_contents);
+                offset += len;
+            }
         } catch (e) {
             console.log("caught write error");
             onDisconnected();
@@ -183,18 +193,8 @@ class FileTransferClient {
         view.setUint32(8, remaining, true);
         console.log("write header", chunk_offset, remaining);
         await this._write(header);
-        var offset = 0;
         let base_offset = chunk_offset - this._outgoingOffset;
-        while (offset < remaining) {
-            let len = Math.min(remaining - offset, BYTES_PER_WRITE);
-            let chunk_contents = this._outgoingContents.subarray(base_offset + offset, base_offset + offset + len);
-            console.log("write subarray", base_offset, offset, chunk_contents);
-            // Delay to ensure the last value was written to the device.
-            await this.sleep(100);
-            await this._write(chunk_contents);
-            console.log(this._transfer.value);
-            offset += len;
-        }
+        await this._write(this._outgoingContents.subarray(base_offset, base_offset + remaining));
         return WRITE_PACING;
     }
 
