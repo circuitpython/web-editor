@@ -17,9 +17,9 @@ jobs:
           node-version: '16'
           cache: 'npm'
 
-      - run: npm install
+      - run: npm ci
 
-      - run: npm run snowpack build
+      - run: npx snowpack build
 
       - name: Deploy
         uses: peaceiris/actions-gh-pages@v3

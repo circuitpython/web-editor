@@ -17,6 +17,6 @@ jobs:
           node-version: '16'
           cache: "npm"
 
-      - run: npm install
+      - run: npm ci
 
       - run: npx snowpack build
