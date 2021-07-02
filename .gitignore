@@ -117,3 +117,5 @@ dist
 .yarn/install-state.gz
 .pnp.*
 
+# SnowPack output
+build

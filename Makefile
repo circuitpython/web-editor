@@ -1,6 +1,6 @@
 test:
-    npm run snowpack
+	npx snowpack
 
 build:
-    npm run snowpack build
+	npx snowpack build
 
