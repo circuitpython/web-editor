@@ -190,9 +190,7 @@ class FileTransferClient {
             let chunk_contents = this._outgoingContents.subarray(base_offset + offset, base_offset + offset + len);
             console.log("write subarray", base_offset, offset, chunk_contents);
             // Delay to ensure the last value was written to the device.
-            if (offset > 0) {
-                await this.sleep(100);
-            }
+            await this.sleep(100);
             await this._write(chunk_contents);
             console.log(this._transfer.value);
             offset += len;
