@@ -16,8 +16,11 @@ jobs:
         with:
           node-version: '16'
           cache: 'npm'
+          registry-url: https://npm.pkg.github.com/
 
       - run: npm ci --verbose
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - run: npx snowpack build
 
