@@ -66,7 +66,7 @@ class FileTransferClient {
 
     async _write(value) {
         try {
-            await this._transfer.writeValue(value);
+            await this._transfer.writeValueWithoutResponse(value);
         } catch (e) {
             console.log("caught write error");
             onDisconnected();
