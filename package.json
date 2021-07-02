@@ -1,0 +1,10 @@
+{
+  "devDependencies": {
+    "snowpack": "^3.7.1"
+  },
+  "dependencies": {
+    "@adafruit/ble-file-transfer": "^0.0.1",
+    "@codemirror/basic-setup": "^0.18.2",
+    "@codemirror/lang-python": "^0.18.0"
+  }
+}
