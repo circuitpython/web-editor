@@ -66,7 +66,7 @@ class FileTransferClient {
 
     async _write(value) {
         try {
-            this._transfer.writeValue(value);
+            await this._transfer.writeValue(value);
         } catch (e) {
             console.log("caught write error");
             onDisconnected();
@@ -90,8 +90,8 @@ class FileTransferClient {
           this._command = await this.processWritePacing(new DataView(this._buffer.buffer, 0, this._offset));
       }
       if (this._command != THIS_COMMAND) {
-        console.log("reset buffer");
-        this._offset = 0;
+          console.log("reset buffer");
+          this._offset = 0;
       } else {
           console.log("wait for more");
       }
@@ -208,6 +208,15 @@ class FileTransferClient {
         let total_length = payload.getUint32(8, true);
         let chunk_length = payload.getUint32(12, true);
         console.log("read data", status, chunk_offset, total_length, chunk_length);
+        if (status != STATUS_OK) {
+            console.log("read error");
+            this._reject(status);
+            this._resolve = null;
+            this._reject = null;
+            this._incomingFile = null;
+            this._incomingOffset = 0;
+            return ANY_COMMAND;
+        }
         if (payload.byteLength < headerSize + chunk_length) {
             console.log("need more");
           return THIS_COMMAND;
@@ -239,7 +248,7 @@ class FileTransferClient {
         await this._write(header);
         console.log(this._incomingFile, );
         return READ_DATA;
-        }
+    }
 }
 
 export { FileTransferClient };
