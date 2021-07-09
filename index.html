@@ -16,6 +16,10 @@ Make sure you have enabled two flags in chrome://flags:
 These flags allow the page to reconnect to devices you've already granted them access to.
 </p>
 <p>
+The first step is selecting the USB serial device you want to use.
+</p>
+<button id="requestSerialDevice">Request Serial Device</button>
+<p>
 The first step is selecting the device you want to use.
 </p>
 <button id="requestBluetoothDevice">Request Bluetooth Device</button>
@@ -28,8 +32,11 @@ Once you are connected, we need to prompt a bond. Without this CircuitPython boa
 </p>
 <button id="promptBond">Bond</button>
 
-<div id="editor"></div>
+<div id="terminal"
+     style="position:relative; width:100%; height:200px"></div>
 
+<div id="editor"></div>
+<script src='./hterm_all.js'></script>
 <script type="module">
 
 import {FileTransferClient} from '@adafruit/ble-file-transfer';
@@ -38,15 +45,19 @@ const bleNusCharRXUUID   = '6e400002-b5a3-f393-e0a9-e50e24dcca9e';
 const bleNusCharTXUUID   = '6e400003-b5a3-f393-e0a9-e50e24dcca9e';
 
 var bleDevice;
+var serialDevice;
 var bleServer;
 var serialService;
 var rxCharacteristic;
 var txCharacteristic;
 var client;
+var terminal;
+var decoder = new TextDecoder();
 
 let connect = document.querySelector('#connectToBluetoothDevices');
 let request = document.querySelector('#requestBluetoothDevice');
 let bond = document.querySelector('#promptBond');
+let request_serial = document.querySelector('#requestSerialDevice');
 
 var connected = false;
 
@@ -87,6 +98,46 @@ async function switchToDevice(device) {
   bond.disabled = false;
   connect.disabled = true;
   request.disabled = true;
+}
+
+async function onSerialConnected(e) {
+  console.log(e, "connected!");
+}
+
+async function onSerialDisconnected(e) {
+  console.log(e, "disconnected");
+}
+
+async function switchToSerial(device) {
+  if (serialDevice) {
+    await serialDevice.close();
+  }
+  serialDevice = device;
+  device.addEventListener("connect", onSerialConnected);
+  device.addEventListener("disconnect", onSerialDisconnected);
+  console.log("switch to", device);
+  await device.open({baudRate: 115200});
+  console.log("opened");
+  let reader;
+  while (device.readable) {
+    reader = device.readable.getReader();
+    try {
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) {
+          // |reader| has been canceled.
+          break;
+        }
+        terminal.io.print(decoder.decode(value));
+      }
+    } catch (error) {
+      // Handle |error|...
+      console.log("error", error);
+    } finally {
+      reader.releaseLock();
+    }
+  }
+
 }
 
 async function connectToBluetoothDevice(device) {
@@ -153,6 +204,27 @@ async function onRequestBluetoothDeviceButtonClick() {
   }
   catch(error) {
     console.log('Argh! ' + error);
+  }
+}
+
+async function onRequestSerialDeviceButtonClick() {
+  let devices = await navigator.serial.getPorts()
+  if (devices.length == 1) {
+    let device = devices[0];
+    switchToSerial(device);
+    return;
+  }
+  try {
+    console.log('Requesting any serial device...');
+    let device = await navigator.serial.requestPort();
+
+    console.log('> Requested ');
+    console.log(device);
+    switchToSerial(device);
+    return;
+  }
+  catch(error) {
+    console.log('Argh! ');
   }
 }
 
@@ -230,6 +302,14 @@ if (navigator.bluetooth) {
   console.log("bluetooth not supported on this browser");
 }
 
+if (navigator.serial) {
+  request_serial.addEventListener('click', function() {
+    onRequestSerialDeviceButtonClick();
+  });
+} else {
+  request_serial.disabled = true;
+}
+
 import {EditorState, EditorView, basicSetup} from "@codemirror/basic-setup"
 import {python} from "@codemirror/lang-python"
 
@@ -240,6 +320,71 @@ editor = new EditorView({
   }),
   parent: document.querySelector('#editor')
 })
+
+function setupHterm() {
+  // hterm.defaultStorage = new lib.Storage.Local();
+  // profileId is the name of the terminal profile to load, or "default" if
+  // not specified.  If you're using one of the persistent storage
+  // implementations then this will scope all preferences read/writes to this
+  // name.
+  const t = new hterm.Terminal();
+  terminal = t;
+  t.onTerminalReady = function() {
+    // Create a new terminal IO object and give it the foreground.
+    // (The default IO object just prints warning messages about unhandled
+    // things to the the JS console.)
+    const io = t.io.push();
+
+    io.onVTKeystroke = async (s) => {
+      // Do something useful with str here.
+      // For example, Secure Shell forwards the string onto the NaCl plugin.
+      // console.log("key", s);
+      if (serialDevice && serialDevice.writable) {
+        const encoder = new TextEncoder();
+        const writer = serialDevice.writable.getWriter();
+        await writer.write(encoder.encode(s));
+        writer.releaseLock();
+      }
+    };
+
+    io.sendString = async (str) => {
+      // Just like a keystroke, except str was generated by the terminal itself.
+      // For example, when the user pastes a string.
+      // Most likely you'll do the same thing as onVTKeystroke.
+      // console.log("paste", str);
+      if (serialDevice && serialDevice.writable) {
+        const encoder = new TextEncoder();
+        const writer = serialDevice.writable.getWriter();
+        await writer.write(encoder.encode(str));
+        writer.releaseLock();
+      }
+    };
+
+    io.onTerminalResize = (columns, rows) => {
+      // React to size changes here.
+      // Secure Shell pokes at NaCl, which eventually results in
+      // some ioctls on the host.
+      console.log("resize", columns, rows);
+    };
+
+    // You can call io.push() to foreground a fresh io context, which can
+    // be uses to give control of the terminal to something else.  When that
+    // thing is complete, should call io.pop() to restore control to the
+    // previous io object.
+  };
+  t.decorate(document.querySelector('#terminal'));
+  t.installKeyboard();
+  t.io.print('Print a string without a newline');
+  t.io.println('Print a string and add CRLF');
+
+
+}
+
+// This will be whatever normal entry/initialization point your project uses.
+window.onload = async function() {
+  await lib.init();
+  setupHterm();
+};
 
 </script>
 

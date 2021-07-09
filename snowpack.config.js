@@ -3,7 +3,7 @@
 
 /** @type {import("snowpack").SnowpackUserConfig } */
 module.exports = {
-  exclude: ['**/Makefile'],
+  exclude: ['**/Makefile', '**/lib/google-libapps/**'],
   mount: {
     /* ... */
   },
