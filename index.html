@@ -54,6 +54,8 @@ var client;
 var terminal;
 var decoder = new TextDecoder();
 
+const BYTES_PER_WRITE = 20;
+
 let connect = document.querySelector('#connectToBluetoothDevices');
 let request = document.querySelector('#requestBluetoothDevice');
 let bond = document.querySelector('#promptBond');
@@ -78,6 +80,58 @@ async function onConnectToBluetoothDevicesButtonClick() {
   }
 }
 
+async function debugLog(msg) {
+  terminal.io.print('\x1b[93m');
+  terminal.io.print(msg);
+  terminal.io.println('\x1b[m');
+}
+
+async function onBLESerialReceive(e) {
+  // console.log("rcv", e.target.value.buffer);
+  terminal.io.print(decoder.decode(e.target.value.buffer));
+}
+
+async function serialTransmit(msg) {
+  if (serialDevice && serialDevice.writable) {
+    const encoder = new TextEncoder();
+    const writer = serialDevice.writable.getWriter();
+    await writer.write(encoder.encode(s));
+    writer.releaseLock();
+  }
+  if (rxCharacteristic) {
+    let encoder = new TextEncoder();
+    let value = encoder.encode(msg);
+    try {
+        if (value.byteLength < BYTES_PER_WRITE) {
+            await rxCharacteristic.writeValueWithoutResponse(value);
+            return;
+        }
+        var offset = 0;
+        while (offset < value.byteLength) {
+            let len = Math.min(value.byteLength - offset, BYTES_PER_WRITE);
+            let chunk_contents = value.slice(offset, offset + len);
+            console.log("write subarray", offset, chunk_contents);
+            // Delay to ensure the last value was written to the device.
+            await this.sleep(100);
+            await rxCharacteristic.writeValueWithoutResponse(chunk_contents);
+            offset += len;
+        }
+    } catch (e) {
+        console.log("caught write error", e, e.stack);
+    }
+  }
+}
+
+async function connectToBLESerial() {
+  serialService = await bleServer.getPrimaryService(bleNusServiceUUID);
+  // TODO: create a terminal for each serial service
+  txCharacteristic = await serialService.getCharacteristic(bleNusCharTXUUID);
+  rxCharacteristic = await serialService.getCharacteristic(bleNusCharRXUUID);
+
+  txCharacteristic.addEventListener('characteristicvaluechanged', onBLESerialReceive);
+  await txCharacteristic.startNotifications();
+}
+
 async function switchToDevice(device) {
   bleDevice = device;
   bleDevice.addEventListener("gattserverdisconnected", onDisconnected);
@@ -89,12 +143,9 @@ async function switchToDevice(device) {
 
   console.log('Getting Transfer Service...');
   client = new FileTransferClient(bleDevice);
+  debugLog("connected");
+  connectToBLESerial();
 
-  serialService = await bleServer.getPrimaryService(bleNusServiceUUID);
-  // TODO: create a terminal for each serial service
-  txCharacteristic = await serialService.getCharacteristic(bleNusCharTXUUID);
-  rxCharacteristic = await serialService.getCharacteristic(bleNusCharRXUUID);
-  console.log(txCharacteristic, rxCharacteristic);
   bond.disabled = false;
   connect.disabled = true;
   request.disabled = true;
@@ -151,13 +202,14 @@ async function connectToBluetoothDevice(device) {
     try {
       await device.gatt.connect()
       console.log('> Bluetooth device "' +  device.name + ' connected.');
+
       await switchToDevice(device);
     }
     catch(error) {
       console.log('Argh! ' + error);
     }
   }, { once: true });
-
+  debugLog("connecting to " + device.name);
   try {
     console.log('Watching advertisements from "' + device.name + '"...');
     await device.watchAdvertisements({ signal: abortController.signal });
@@ -185,13 +237,16 @@ async function onBond() {
 }
 
 async function onDisconnected() {
-  console.log('disconnected');
+  debugLog("disconnected");
   await bleServer.connect();
+  debugLog("connected");
+  connectToBLESerial();
 }
 
 async function onRequestBluetoothDeviceButtonClick() {
   try {
     console.log('Requesting any Bluetooth device...');
+    debugLog("Requesting device. Cancel if empty and try existing");
     bleDevice = await navigator.bluetooth.requestDevice({
      filters: [{services: [0xfebb]},], // <- Prefer filters to save energy & show relevant devices.
      // acceptAllDevices: true,,
@@ -204,6 +259,7 @@ async function onRequestBluetoothDeviceButtonClick() {
   }
   catch(error) {
     console.log('Argh! ' + error);
+    debugLog('No device selected. Try to connect to existing.');
   }
 }
 
@@ -335,29 +391,14 @@ function setupHterm() {
     // things to the the JS console.)
     const io = t.io.push();
 
-    io.onVTKeystroke = async (s) => {
-      // Do something useful with str here.
-      // For example, Secure Shell forwards the string onto the NaCl plugin.
-      // console.log("key", s);
-      if (serialDevice && serialDevice.writable) {
-        const encoder = new TextEncoder();
-        const writer = serialDevice.writable.getWriter();
-        await writer.write(encoder.encode(s));
-        writer.releaseLock();
-      }
+    debugLog("connect to a device above");
+
+    io.onVTKeystroke = async (str) => {
+      serialTransmit(str);
     };
 
     io.sendString = async (str) => {
-      // Just like a keystroke, except str was generated by the terminal itself.
-      // For example, when the user pastes a string.
-      // Most likely you'll do the same thing as onVTKeystroke.
-      // console.log("paste", str);
-      if (serialDevice && serialDevice.writable) {
-        const encoder = new TextEncoder();
-        const writer = serialDevice.writable.getWriter();
-        await writer.write(encoder.encode(str));
-        writer.releaseLock();
-      }
+      serialTransmit(str);
     };
 
     io.onTerminalResize = (columns, rows) => {
@@ -374,10 +415,6 @@ function setupHterm() {
   };
   t.decorate(document.querySelector('#terminal'));
   t.installKeyboard();
-  t.io.print('Print a string without a newline');
-  t.io.println('Print a string and add CRLF');
-
-
 }
 
 // This will be whatever normal entry/initialization point your project uses.
