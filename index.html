@@ -9,26 +9,31 @@
   <body>
     <h1>CircuitPython WebBluetooth Test</h1>
 <p>
-Make sure you have enabled two flags in chrome://flags:
-* <a href="chrome://flags/#enable-experimental-web-platform-features">chrome://flags/#enable-experimental-web-platform-features</a>
-* <a href="chrome://flags/#enable-web-bluetooth-new-permissions-backend">chrome://flags/#enable-web-bluetooth-new-permissions-backend</a>
+Make sure you have enabled two flags in <a href="chrome://flags">chrome://flags</a>:
+<ul>
+<li><a href="chrome://flags/#enable-experimental-web-platform-features">chrome://flags/#enable-experimental-web-platform-features</a></li>
+<li><a href="chrome://flags/#enable-web-bluetooth-new-permissions-backend">chrome://flags/#enable-web-bluetooth-new-permissions-backend</a></li>
+</ul>
 
 These flags allow the page to reconnect to devices you've already granted them access to.
 </p>
 <p>
-The first step is selecting the USB serial device you want to use.
+The first step is selecting the device you want to use:
 </p>
-<button id="requestSerialDevice">Request Serial Device</button>
 <p>
-The first step is selecting the device you want to use.
+One option is to use serial over USB (file transfer over USB isn't currently supported here):
+<button id="requestSerialDevice">Request Serial Device</button>
+</p>
+<p>
+Another option is to use serial and file transfer over BLE. CircuitPython boards with <a href="https://circuitpython.org/downloads?features=Bluetooth%2FBTLE">nrf chips need 7.0.0-alpha.4 or newer</a>. The first time a device is connected to your host, you'll need to enable public broadcasting by pressing reset when the faster, blue blink is happening on start up. The device will reset and the second, blue blink will be solid when done successfully.
 </p>
 <button id="requestBluetoothDevice">Request Bluetooth Device</button>
 <p>
-If you've done this before and the persistent device API works, then you can click this intead:
+If you've done this before and the persistent device API works, then you can click this instead: (If nothing is found, then try the button above even if nothing is found.)
 </p>
 <button id="connectToBluetoothDevices">Connect to Bluetooth Devices</button>
 <p>
-Once you are connected, we need to prompt a bond. Without this CircuitPython boards with USB won't continue to advertise after a hard reset or powerloss.
+Once you are connected, we need to prompt a bond. Without this CircuitPython boards with USB won't continue to advertise after a hard reset or powerloss. This button also loads code.py from the device so click it even if the device has been connected before.
 </p>
 <button id="promptBond">Bond</button>
 
