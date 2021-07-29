@@ -93,7 +93,7 @@ async function debugLog(msg) {
 
 async function onBLESerialReceive(e) {
   // console.log("rcv", e.target.value.buffer);
-  terminal.io.print(decoder.decode(e.target.value.buffer));
+  terminal.io.print(decoder.decode(e.target.value.buffer, {stream: true}));
 }
 
 async function serialTransmit(msg) {
