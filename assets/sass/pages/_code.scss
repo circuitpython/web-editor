@@ -1,0 +1,86 @@
+#landing-page {
+  .content {
+    h1 {
+      font-weight: 400;
+    }
+
+    p {
+      margin-bottom: 16px;
+    }
+
+    h2 {
+      border-bottom: 1px solid $gray-border;
+      padding-bottom: .3em;
+      margin-bottom: 16px;
+      margin-top: 24px;
+    }
+
+    ul {
+      margin-bottom: 16px;
+      li {
+        margin-top: .25em;
+      }
+    }
+    a {
+      color: #0062c7;
+      text-decoration: underline;
+    }
+  }
+}
+
+#editor-page {
+    #btn-save-run {
+        float: right;
+    }
+
+    .editor-container {
+        background: #333;
+    }
+}
+
+#serial-page {
+    .terminal-container {
+        background: #333;
+    }
+    #terminal {
+        position:relative;
+        width:100%;
+        height: calc(100vh - 215px);
+    }
+}
+
+.mode-landing {
+    #editor-page {
+        display: none;
+    }
+    #serial-page {
+        display: none;
+    }
+    #mode-buttons {
+        display: none;
+    }
+}
+
+.mode-editor {
+    #landing-page {
+        display: none;
+    }
+    #serial-page {
+        display: none;
+    }
+}
+
+.mode-serial {
+    #landing-page {
+        display: none;
+    }
+    #editor-page {
+        display: none;
+    }
+}
+
+.CodeMirror {
+    max-height: 1000px;
+    width: 100%;
+    height: 100%;
+  }
