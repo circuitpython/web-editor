@@ -5,6 +5,8 @@
   "dependencies": {
     "@adafruit/ble-file-transfer": "^0.0.7",
     "@codemirror/basic-setup": "^0.18.2",
-    "@codemirror/lang-python": "^0.18.0"
+    "@codemirror/lang-python": "^0.18.0",
+    "@snowpack/plugin-run-script": "^2.3.0",
+    "@snowpack/plugin-sass": "^1.4.0"
   }
 }
