@@ -1,0 +1,65 @@
+body  {
+  font-family: "Proxima Nova","Montserrat","Lucida Grande","Lucida Sans Unicode","Lucida Sans",Geneva,Verdana,sans-serif;
+    background-color: #ebebeb;
+}
+
+a {
+  text-decoration: none;
+}
+
+.clear {
+  clear: both;
+}
+
+h1, h2, h3, h4, h5 {
+  font-weight: 500;
+}
+
+.responsive {
+  max-width: 100%;
+  height: auto;
+}
+
+.purple-button-link,
+.mode-editor #btn-mode-editor,
+.mode-serial #btn-mode-serial {
+  display: inline-block;
+  font-size: 1.1em;
+  width: auto;
+  padding: 8px 10px 8px 10px;
+  color: #fff;
+  border-radius: 5px;
+  border: none;
+  background-color: $purple;
+  margin: 10px 0 10px 10px;
+  i {
+    padding-left: 10px;
+  }
+  cursor: pointer;
+}
+
+.purple-button-link.inverted,
+.mode-editor #btn-mode-serial,
+.mode-serial #btn-mode-editor {
+    color: $purple;
+    background-color: #c8c8c8;
+}
+
+.purple-button-link:disabled,
+.purple-button-link.inverted:disabled {
+    background-color: #d8d8d8;
+    color: #888;
+}
+
+button.purple-button-link {
+    width: 250px;
+}
+
+fieldset {
+    border: 0;
+
+    legend {
+      font-size: 1.5em;
+      font-weight: 500;
+    }
+}

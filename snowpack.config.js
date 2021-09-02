@@ -8,7 +8,14 @@ module.exports = {
     /* ... */
   },
   plugins: [
-    /* ... */
+    [
+      '@snowpack/plugin-run-script',
+      {
+        cmd: 'sass assets/sass/main.scss assets/css/style.css', 
+        watch: '$1 --watch',
+        output: 'stream',
+      },
+    ],
   ],
   packageOptions: {
     /* ... */
