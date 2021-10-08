@@ -1,7 +1,7 @@
 import {FileTransferClient} from '../../_snowpack/pkg/@adafruit/ble-file-transfer.js';
-const bleNusServiceUUID  = '6e400001-b5a3-f393-e0a9-e50e24dcca9e';
-const bleNusCharRXUUID   = '6e400002-b5a3-f393-e0a9-e50e24dcca9e';
-const bleNusCharTXUUID   = '6e400003-b5a3-f393-e0a9-e50e24dcca9e';
+const bleNusServiceUUID  = 'adaf0001-4369-7263-7569-74507974686e';
+const bleNusCharRXUUID   = 'adaf0002-4369-7263-7569-74507974686e';
+const bleNusCharTXUUID   = 'adaf0003-4369-7263-7569-74507974686e';
 
 var bleDevice;
 var serialDevice;
