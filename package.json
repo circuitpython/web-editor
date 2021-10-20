@@ -7,7 +7,6 @@
     "@codemirror/basic-setup": "^0.18.2",
     "@codemirror/lang-python": "^0.18.0",
     "@snowpack/plugin-run-script": "^2.3.0",
-    "@snowpack/plugin-sass": "^1.4.0",
-    "@aksel/structjs": "git+ssh://git@github.com/lyngklip/structjs.git"
+    "@snowpack/plugin-sass": "^1.4.0"
   }
 }
