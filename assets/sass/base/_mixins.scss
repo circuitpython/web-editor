@@ -35,3 +35,12 @@
     background: rgba(0, 0, 0, 0.6);
   }
 }
+
+// Clearfix
+@mixin clearfix {
+    &:after {
+      content: "";
+      display: table;
+      clear: both;
+    }
+  }
