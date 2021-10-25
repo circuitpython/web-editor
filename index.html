@@ -12,6 +12,7 @@
     </head>
 
     <body>
+        <div class="body-blackout"></div>
         <header id="site-header">
             <div class="wrapper">
                 <div class="content">
@@ -134,6 +135,9 @@
             </div>
             <div id="editor-page" class="wrapper">
                 <div class="container">
+                    <a class="purple-button-link" id="btn-new">New<i class="fas fa-plus"></i></a>
+                    <a class="purple-button-link" id="btn-open">Open<i class="fas fa-folder-open"></i></a>
+                    <a class="purple-button-link" id="btn-save-as">Save As<i class="fas fa-download"></i></a>
                     <a class="purple-button-link" id="btn-save-run">Save + Run<i class="fas fa-play"></i></a>
                 </div>
                 <div>
@@ -159,8 +163,27 @@
                 <a class="mode-button purple-button-link active" id="btn-mode-serial">Serial</a>
             </div>
         </div>
+        <div 
+            class="popup-modal shadow" 
+            data-popup-modal="files">
+            <span id="current-path"></span>
+            <i class="fas fa-2x fa-times text-white bg-primary p-3 popup-modal__close"></i>
+            <div id="file-list" style="border:1px solid #888"></div>
+            <div class="buttons">
+                <input type=text" id="filename" />
+                <button class="ok-button">Ok</button>
+                <button class="cancel-button">Cancel</button>
+            </div>
+    </div>
+        <div 
+            class="popup-modal shadow" 
+            data-popup-modal="save-dialog">
+            <button class="ok-button">Save</button>
+            <button class="not-ok-button">Don't Save</button>
+            <button class="cancel-button">Cancel</button>
+        </div>
         <script src="assets/js/hterm_all.js"></script>
+        <script src="assets/js/file_dialog.js"></script>
         <script type="module" src="assets/js/script.js"></script>
     </body>
-
 </html>

@@ -3,7 +3,7 @@
     "snowpack": "^3.7.1"
   },
   "dependencies": {
-    "@adafruit/ble-file-transfer": "^0.0.7",
+    "@adafruit/ble-file-transfer": "^0.9.1",
     "@codemirror/basic-setup": "^0.18.2",
     "@codemirror/lang-python": "^0.18.0",
     "@snowpack/plugin-run-script": "^2.3.0",
