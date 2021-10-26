@@ -23,10 +23,11 @@ let request_serial = document.querySelector('#requestSerialDevice');
 const btnModeEditor = document.getElementById('btn-mode-editor');
 const btnModeSerial = document.getElementById('btn-mode-serial');
 const mainContent = document.getElementById('main-content');
-const btnNew = document.getElementById('btn-new');
-const btnOpen = document.getElementById('btn-open');
-const btnSaveAs = document.getElementById('btn-save-as');
-const btnSaveRun = document.getElementById('btn-save-run');
+
+const btnNew = document.querySelectorAll('a.btn-new');
+const btnOpen = document.querySelectorAll('a.btn-open');
+const btnSaveAs = document.querySelectorAll('a.btn-save-as');
+const btnSaveRun = document.querySelectorAll('a.btn-save-run');
 
 const MODE_EDITOR = 1;
 const MODE_SERIAL = 2;
@@ -39,7 +40,6 @@ const editorTheme = EditorView.theme({
       backgroundColor: "#333",
       lineHeight: 1.5,
       fontFamily: "'Operator Mono', 'Source Code Pro', Menlo, Monaco, Consolas, Courier New, monospace",
-      height: "calc(100vh - 215px)",
     },
     ".cm-activeLine": {
         backgroundColor: "#333",
@@ -89,49 +89,56 @@ const editorExtensions = [
     EditorView.updateListener.of(onTextChange)
 ]
 // New Button
-btnNew.addEventListener('click', async function(e) {
-    if (await checkSaved()) {
-        loadEditorContents("");
-        unchanged = editor.state.doc.length;
-        currentFilename = null;  
-        console.log("Current File Changed to: " + currentFilename);  
-    }
-    e.preventDefault();
-    e.stopPropagation();    
+btnNew.forEach((element) => {
+    element.addEventListener('click',  async function(e) {
+        if (await checkSaved()) {
+            loadEditorContents("");
+            unchanged = editor.state.doc.length;
+            setFilename(null);
+            console.log("Current File Changed to: " + currentFilename);
+        }
+        e.preventDefault();
+        e.stopPropagation();
+    });
 });
 
 // Open Button
-btnOpen.addEventListener('click', async function(e) {
-    if (await checkSaved()) {
-        let path = await fileDialog.open(client, FILE_DIALOG_OPEN);
-        if (path !== null) {
-            let contents = await client.readFile(path);
-            loadEditorContents(contents);
-            unchanged = editor.state.doc.length;
-            currentFilename = path;
-            console.log("Current File Changed to: " + currentFilename);
+btnOpen.forEach((element) => {
+    element.addEventListener('click', async function(e) {
+        if (await checkSaved()) {
+            let path = await fileDialog.open(client, FILE_DIALOG_OPEN);
+            if (path !== null) {
+                let contents = await client.readFile(path);
+                loadEditorContents(contents);
+                unchanged = editor.state.doc.length;
+                setFilename(path);
+                console.log("Current File Changed to: " + currentFilename);
+            }
         }
-    }
-    e.preventDefault();
-    e.stopPropagation();    
+        e.preventDefault();
+        e.stopPropagation();
+    });
 });
 
 // Save As Button
-btnSaveAs.addEventListener('click', async function(e) {
-    let path = await saveAs();
-    if (path !== null) {
-        currentFilename = path;
-        console.log("Current File Changed to: " + currentFilename);
-    }
-    e.preventDefault();
-    e.stopPropagation();    
+btnSaveAs.forEach((element) => {
+    element.addEventListener('click', async function(e) {
+        let path = await saveAs();
+        if (path !== null) {
+            console.log("Current File Changed to: " + currentFilename);
+        }
+        e.preventDefault();
+        e.stopPropagation();
+    });
 });
 
 // Save + Run Button
-btnSaveRun.addEventListener('click', async function(e) {
-    await saveFile();
-    e.preventDefault();
-    e.stopPropagation();    
+btnSaveRun.forEach((element) => {
+    element.addEventListener('click', async function(e) {
+        await saveFile();
+        e.preventDefault();
+        e.stopPropagation();
+    });
 });
 
 // Mode Buttons
@@ -146,6 +153,15 @@ btnModeSerial.addEventListener('click', function(e) {
     e.preventDefault();
     e.stopPropagation();
 });
+
+function setFilename(path) {
+    currentFilename = path;
+    if (path === null) {
+        path = "[New Document]";
+    }
+    document.querySelector('#editor-bar .file-path').innerHTML = path;
+    document.querySelector('#mobile-editor-bar .file-path').innerHTML = path.split("/")[path.split("/").length - 1];
+}
 
 // Use the editors functions to check if anything has changed
 function isDirty() {
@@ -172,21 +188,21 @@ async function checkSaved() {
     return true;
 }
 
-async function saveFile(filename) {
+async function saveFile(path) {
     const previousFile = currentFilename;
-    if (filename !== undefined) {
+    if (path !== undefined) {
         // All good, continue
     } else if (currentFilename !== null) {
-        filename = currentFilename;
+        path = currentFilename;
     } else {
-        filename = saveAs();
+        path = saveAs();
     }
-    if (filename !== null) {
-        if (filename !== previousFile) {
+    if (path !== null) {
+        if (path !== previousFile) {
             // This is a different file, so we write everything
             unchanged = 0;
         }
-        currentFilename = filename;
+        setFilename(path);
         await writeText();
         return true;
     }
@@ -445,9 +461,10 @@ async function onBond() {
         console.log("bond");
         await client.bond();
         if (await fileExists("/code.py")) {
-            currentFilename = "/code.py";
+            setFilename("/code.py");
             var contents = await client.readFile(currentFilename);
         } else {
+            setFilename(null);
             contents = "";
         }
         loadEditorContents(contents);

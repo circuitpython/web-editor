@@ -358,7 +358,7 @@ html {
 }
 
 *, *:before, *:after {
-  box-sizing: inherit;
+  box-sizing: border-box;
 }
 
 html, body {
@@ -403,9 +403,10 @@ button,
   color: #fff;
   border-radius: 5px;
   border: none;
-  background-color: #652f8f;
+  background-color: #64338f;
   margin: 10px 0 10px 10px;
   cursor: pointer;
+  white-space: nowrap;
 }
 button i,
 .purple-button-link i,
@@ -417,7 +418,7 @@ button i,
 .purple-button-link.inverted,
 .mode-editor #btn-mode-serial,
 .mode-serial #btn-mode-editor {
-  color: #652f8f;
+  color: #64338f;
   background-color: #c8c8c8;
 }
 
@@ -429,7 +430,7 @@ button:disabled,
 }
 
 button.purple-button-link {
-  width: 250px;
+  min-width: 250px;
 }
 
 fieldset {
@@ -442,7 +443,6 @@ fieldset legend {
 
 .container {
   width: 100%;
-  max-width: 480px;
   margin: 0 auto;
 }
 
@@ -464,16 +464,6 @@ fieldset legend {
 .common-layout {
   padding: 20px 0 150px 0;
   background-color: #fff;
-  /*display: grid;
-  grid-template-columns:
-      [full-start] minmax(1em, 1fr)
-      [main-start] minmax(0, 80em) [main-end]
-      minmax(1em, 1fr) [full-end];
-  grid-row-gap: 1em;
-
-  &> * {
-    grid-column: main;
-  }*/
 }
 .common-layout .step {
   display: flex;
@@ -498,6 +488,22 @@ fieldset legend {
   padding: 40px;
 }
 
+@media (max-width: 767px) {
+  .common-layout .step .step-number {
+    width: 50px;
+    height: 50px;
+    color: #333;
+    font-size: 36px;
+    font-weight: 600;
+    line-height: 36px;
+    margin: 20px 20px 0 0;
+    border: solid 5px #333;
+    min-width: 50px;
+  }
+  .common-layout.content {
+    padding: 20px;
+  }
+}
 #site-header {
   display: grid;
   grid-template-rows: 1fr 3px;
@@ -608,8 +614,26 @@ fieldset legend {
   background-color: #e71c8c;
 }
 
+.file-path {
+  font-size: 20px;
+  line-height: 59px;
+  margin-left: 10px;
+  display: inline;
+  flex: auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#editor-bar {
+  display: flex;
+}
+
 @media (max-width: 767px) {
   #site-header {
+    display: none !important;
+  }
+
+  #editor-bar {
     display: none !important;
   }
 }
@@ -633,37 +657,54 @@ fieldset legend {
 #mobile-header .site-logo {
   float: left;
 }
-#mobile-header #mobile-menu {
-  float: right;
-}
-#mobile-header #mobile-menu .menu-toggle {
-  font-size: 34px;
-  padding: 10px 20px 10px 0;
-}
-#mobile-header #mobile-menu .menu-toggle a {
-  color: #fff;
-  outline: none;
-}
-#mobile-header #mobile-menu-contents.hidden {
-  display: none;
-}
-#mobile-header #mobile-menu-contents ul {
-  list-style: none;
-  padding-left: 20px;
-  font-size: 20px;
-}
-#mobile-header #mobile-menu-contents ul li {
-  padding: 5px 0 5px 0;
-}
-#mobile-header #mobile-menu-contents ul li a {
-  color: #fff;
-}
 #mobile-header .bottom-bar {
   height: 3px;
 }
 
-@media (min-width: 767px) {
+#mobile-editor-bar #mobile-menu {
+  float: left;
+}
+#mobile-editor-bar #mobile-menu .menu-toggle {
+  font-size: 34px;
+  padding: 10px 0 10px 10px;
+}
+#mobile-editor-bar #mobile-menu .menu-toggle a {
+  color: #333333;
+  outline: none;
+}
+#mobile-editor-bar #mobile-menu-contents.hidden {
+  display: none;
+}
+#mobile-editor-bar #mobile-menu-contents ul {
+  list-style: none;
+  padding-left: 0;
+  margin-bottom: 0;
+  font-size: 20px;
+}
+#mobile-editor-bar #mobile-menu-contents ul li {
+  padding: 20px 0 20px 20px;
+  border-bottom: 1px solid #dddddd;
+  background-color: #f0f0f0;
+}
+#mobile-editor-bar #mobile-menu-contents ul li a {
+  color: #64338f;
+}
+#mobile-editor-bar #mobile-menu-contents ul li a i {
+  padding-left: 10px;
+}
+#mobile-editor-bar #btn-save-run {
+  float: right;
+}
+#mobile-editor-bar .file-path {
+  float: left;
+}
+
+@media (min-width: 768px) {
   #mobile-header {
+    display: none !important;
+  }
+
+  #mobile-editor-bar {
     display: none !important;
   }
 }
@@ -690,11 +731,14 @@ fieldset legend {
   text-decoration: underline;
 }
 
-#editor-page #btn-save-run {
-  float: right;
+#editor-page .btn-save-run {
+  margin-right: 10px;
 }
 #editor-page .editor-container {
   background: #333;
+}
+#editor-page .editor-container .cm-editor {
+  height: calc(100vh - 185px);
 }
 
 #serial-page .terminal-container {
@@ -703,9 +747,18 @@ fieldset legend {
 #serial-page #terminal {
   position: relative;
   width: 100%;
-  height: calc(100vh - 215px);
+  height: calc(100vh - 185px);
 }
 
+@media (min-width: 768px) {
+  #serial-page #terminal {
+    height: calc(100vh - 215px);
+  }
+
+  #editor-page .editor-container .cm-editor {
+    height: calc(100vh - 215px);
+  }
+}
 .mode-landing #editor-page {
   display: none;
 }
@@ -755,10 +808,10 @@ fieldset legend {
 }
 
 .popup-modal {
-  height: 365px;
-  width: 650px;
+  max-height: 365px;
+  max-width: 650px;
   background-color: #fff;
-  border: 2px solid #652f8f;
+  border: 2px solid #64338f;
   border-radius: 5px;
   position: absolute;
   left: 50%;
@@ -769,10 +822,12 @@ fieldset legend {
   pointer-events: none;
   transition: all 300ms ease-in-out;
   z-index: 1011;
+  display: none;
 }
 .popup-modal.is--visible {
   opacity: 1;
   pointer-events: auto;
+  display: block;
 }
 .popup-modal__close {
   position: absolute;

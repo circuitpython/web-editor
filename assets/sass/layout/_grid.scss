@@ -1,13 +1,12 @@
 .container {
     width: 100%;
-    max-width: $screen-xs;
     margin: 0 auto;
 }
 
 @media (min-width: 768px) {
     .container {
         max-width: $screen-sm;
-    }        
+    }
 }
 
 @media (min-width: 992px) {
@@ -25,17 +24,6 @@
 .common-layout {
   padding: 20px 0 150px 0;
   background-color: #fff;
-
-  /*display: grid;
-  grid-template-columns:
-      [full-start] minmax(1em, 1fr)
-      [main-start] minmax(0, 80em) [main-end]
-      minmax(1em, 1fr) [full-end];
-  grid-row-gap: 1em;
-  
-  &> * {
-    grid-column: main;
-  }*/
 
   .step {
     display: flex;
@@ -60,4 +48,26 @@
     border-radius: 5px;
     padding: 40px;
   }
+}
+
+@media (max-width: $screen-xs-max) {
+    .common-layout {
+        .step {
+          .step-number {
+              width: 50px;
+              height: 50px;
+              color: #333;
+              font-size: 36px;
+              font-weight: 600;
+              line-height: 36px;
+              margin: 20px 20px 0 0;
+              border: solid 5px #333;
+              min-width: 50px;
+          }
+        }
+
+        &.content {
+          padding: 20px;
+        }
+    }
 }
