@@ -692,7 +692,7 @@ fieldset legend {
 #mobile-editor-bar #mobile-menu-contents ul li a i {
   padding-left: 10px;
 }
-#mobile-editor-bar #btn-save-run {
+#mobile-editor-bar .btn-save-run {
   float: right;
 }
 #mobile-editor-bar .file-path {
@@ -881,6 +881,52 @@ fieldset legend {
   flex-grow: 1;
   font-size: 1.2em;
   padding: 5px;
+}
+
+.cm-editor {
+  color: #ddd;
+  background-color: #333;
+  line-height: 1.5;
+  font-family: "Operator Mono", "Source Code Pro", Menlo, Monaco, Consolas, Courier New, monospace;
+}
+.cm-editor .cm-activeLine {
+  background-color: #333;
+}
+.cm-editor .cm-content {
+  caret-color: orange;
+}
+.cm-editor .cm-comment {
+  font-style: italic;
+  color: #676B79;
+}
+.cm-editor .cm-operator {
+  color: #f3f3f3;
+}
+.cm-editor .cm-string {
+  color: #19F9D8;
+}
+.cm-editor .cm-string-2 {
+  color: #FFB86C;
+}
+.cm-editor .cm-tag {
+  color: #ff2c6d;
+}
+.cm-editor .cm-meta {
+  color: #b084eb;
+}
+.cm-editor.cm-focused .cm-cursor {
+  border-left-color: orange;
+}
+.cm-editor.cm-focused .cm-selectionBackground, .cm-editor ::selection {
+  background-color: orange;
+}
+.cm-editor .cm-gutters {
+  background-color: #292a2b;
+  color: #ddd;
+  border: none;
+}
+.cm-editor .cm-scroller {
+  overflow: auto;
 }
 
 /*# sourceMappingURL=style.css.map */

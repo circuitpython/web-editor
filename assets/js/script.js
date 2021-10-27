@@ -22,6 +22,7 @@ let request_serial = document.querySelector('#requestSerialDevice');
 
 const btnModeEditor = document.getElementById('btn-mode-editor');
 const btnModeSerial = document.getElementById('btn-mode-serial');
+const btnRestart = document.getElementById('btn-restart');
 const mainContent = document.getElementById('main-content');
 
 const btnNew = document.querySelectorAll('a.btn-new');
@@ -32,55 +33,12 @@ const btnSaveRun = document.querySelectorAll('a.btn-save-run');
 const MODE_EDITOR = 1;
 const MODE_SERIAL = 2;
 const MODE_LANDING = 3;
+const CHAR_CTRL_C = '\x03';
+const CHAR_CTRL_D = '\x04';
+const CHAR_ENTER = '\x0a\x0d';
 const fileDialog = new FileDialog("files", ".body-blackout");
 
-const editorTheme = EditorView.theme({
-    "&": {
-      color: "#ddd",
-      backgroundColor: "#333",
-      lineHeight: 1.5,
-      fontFamily: "'Operator Mono', 'Source Code Pro', Menlo, Monaco, Consolas, Courier New, monospace",
-    },
-    ".cm-activeLine": {
-        backgroundColor: "#333",
-    },
-    ".cm-content": {
-        caretColor: "orange"
-    },
-    ".cm-comment": {
-        fontStyle: "italic",
-        color: "#676B79"
-    },
-    ".cm-operator": {
-        color: "#f3f3f3"
-    },
-    ".cm-string": {
-        color: "#19F9D8"
-    },
-    ".cm-string-2": {
-        color: "#FFB86C"
-    },
-    ".cm-tag": {
-        color: "#ff2c6d"
-    },
-    ".cm-meta": {
-        color: "#b084eb"
-    },
-    "&.cm-focused .cm-cursor": {
-        borderLeftColor: "orange"
-    },
-    "&.cm-focused .cm-selectionBackground, ::selection": {
-        backgroundColor: "orange"
-    },
-    ".cm-gutters": {
-        backgroundColor: "#292a2b",
-        color: "#ddd",
-        border: "none"
-    },
-    ".cm-scroller": {
-        overflow: "auto"
-    }
-}, {dark: true})
+const editorTheme = EditorView.theme({}, {dark: true})
 
 const editorExtensions = [
     basicSetup,
@@ -88,7 +46,7 @@ const editorExtensions = [
     editorTheme,
     EditorView.updateListener.of(onTextChange)
 ]
-// New Button
+// New Buttons
 btnNew.forEach((element) => {
     element.addEventListener('click',  async function(e) {
         if (await checkSaved()) {
@@ -102,7 +60,7 @@ btnNew.forEach((element) => {
     });
 });
 
-// Open Button
+// Open Buttons
 btnOpen.forEach((element) => {
     element.addEventListener('click', async function(e) {
         if (await checkSaved()) {
@@ -120,7 +78,7 @@ btnOpen.forEach((element) => {
     });
 });
 
-// Save As Button
+// Save As Buttons
 btnSaveAs.forEach((element) => {
     element.addEventListener('click', async function(e) {
         let path = await saveAs();
@@ -132,13 +90,22 @@ btnSaveAs.forEach((element) => {
     });
 });
 
-// Save + Run Button
+// Save + Run Buttons
 btnSaveRun.forEach((element) => {
     element.addEventListener('click', async function(e) {
         await saveFile();
+        await runCode(currentFilename);
         e.preventDefault();
         e.stopPropagation();
     });
+});
+
+// Restart Button
+btnRestart.addEventListener('click', async function(e) {
+    // Send the Ctrl+D control character to the board via serial
+    await serialTransmit(CHAR_CTRL_D);
+    e.preventDefault();
+    e.stopPropagation();
 });
 
 // Mode Buttons
@@ -174,6 +141,27 @@ function loadEditorContents(content) {
         doc: content,
         extensions: editorExtensions
     }));
+}
+
+async function runCode(path) {
+    if (path == "/code.py") {
+        await serialTransmit(CHAR_CTRL_D);
+    }
+
+    let extension = path.split('.').pop();
+    if (extension === null) {
+        console.log("Extension not found");
+        return false;
+    }
+    if (String(extension).toLowerCase() != "py") {
+        console.log("Extension not py, twas " + String(extension).toLowerCase());
+        return false;
+    }
+    path = path.substr(1, path.length - 4);
+    path = path.replace(/\//g, ".");
+
+    changeMode(MODE_SERIAL);
+    await serialTransmit(CHAR_CTRL_C + "import " + path + CHAR_ENTER);
 }
 
 async function checkSaved() {
@@ -302,9 +290,9 @@ async function debugLog(msg) {
 async function onBLESerialReceive(e) {
     // console.log("rcv", e.target.value.buffer);
     terminal.io.print(decoder.decode(e.target.value.buffer, {stream: true}));
-    }
+}
 
-    async function serialTransmit(msg) {
+async function serialTransmit(msg) {
     if (serialDevice && serialDevice.writable) {
         const encoder = new TextEncoder();
         const writer = serialDevice.writable.getWriter();
@@ -379,7 +367,7 @@ async function switchToDevice(device) {
     console.log(services);
 
     console.log('Getting Transfer Service...');
-    client = new FileTransferClient(bleDevice);
+    client = new FileTransferClient(bleDevice, 65536);
     debugLog("connected");
     connectToBLESerial();
 
