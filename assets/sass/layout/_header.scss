@@ -80,9 +80,6 @@
   align-items: flex-end;
 }
 
-.site-logo {
-}
-
 .site-banner {
   font-size: 20px;
   padding-left: 120px;
@@ -119,8 +116,25 @@
   background-color: #e71c8c;
 }
 
+.file-path {
+    font-size: 20px;
+    line-height: 59px;
+    margin-left: 10px;
+    display: inline;
+    flex: auto;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+#editor-bar {
+    display: flex;
+}
+
 @media (max-width: $screen-xs-max) {
   #site-header {
+    display: none !important;
+  }
+  #editor-bar {
     display: none !important;
   }
 }

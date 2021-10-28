@@ -1,8 +1,11 @@
-$purple: #652f8f;
+$purple: #64338f;
 $light-purple: #652f8f5d;
 $pink: #e90e8b;
 $gray: #999999;
 $gray-border: #cecece;
+
+$terminal-height: calc(100vh - 215px);
+$terminal-height-mobile: calc(100vh - 185px);
 
 // derived from bootstrap variables
 

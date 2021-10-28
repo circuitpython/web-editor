@@ -1,0 +1,46 @@
+.cm-editor {
+  color: #ddd;
+  background-color: #333;
+  line-height: 1.5;
+  font-family: 'Operator Mono', 'Source Code Pro', Menlo, Monaco, Consolas, Courier New, monospace;
+
+  .cm-activeLine {
+      background-color: #333;
+  }
+  .cm-content {
+      caret-color: orange;
+  }
+  .cm-comment {
+      font-style: italic;
+      color: #676B79;
+  }
+  .cm-operator {
+      color: #f3f3f3;
+  }
+  .cm-string {
+      color: #19F9D8;
+  }
+  .cm-string-2 {
+      color: #FFB86C;
+  }
+  .cm-tag {
+      color: #ff2c6d;
+  }
+  .cm-meta {
+      color: #b084eb;
+  }
+  &.cm-focused .cm-cursor {
+      border-left-color: orange;
+  }
+  &.cm-focused .cm-selectionBackground, ::selection {
+      background-color: orange;
+  }
+  .cm-gutters {
+      background-color: #292a2b;
+      color: #ddd;
+      border: none;
+  }
+  .cm-scroller {
+      overflow: auto;
+  }
+}

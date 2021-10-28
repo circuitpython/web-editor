@@ -3,7 +3,7 @@ html {
 }
 
 *, *:before, *:after {
-  box-sizing: inherit;
+  box-sizing: border-box;
 }
 
 html, body  {
@@ -54,6 +54,7 @@ button,
     padding-left: 10px;
   }
   cursor: pointer;
+  white-space: nowrap;
 }
 
 .purple-button-link.inverted,
@@ -71,7 +72,7 @@ button:disabled,
 }
 
 button.purple-button-link {
-    width: 250px;
+    min-width: 250px;
 }
 
 fieldset {
