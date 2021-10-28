@@ -29,13 +29,13 @@ const FLAG_DIRECTORY = 0x01;
 const BYTES_PER_WRITE = 20;
 
 class FileTransferClient {
-    constructor(bleDevice) {
+    constructor(bleDevice, bufferSize=4096) {
         this._resolve = null;
         this._reject = null;
         this._command = ANY_COMMAND;
         this._offset = 0;
         // We have a ton of memory so just buffer everything :-)
-        this._buffer = new Uint8Array(4096);
+        this._buffer = new Uint8Array(bufferSize);
         this._transfer = null;
         this._device = bleDevice;
         bleDevice.addEventListener("gattserverdisconnected", this.onDisconnected.bind(this));

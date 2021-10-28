@@ -142,6 +142,7 @@ class FileDialog {
     async _openFolder(path) {
         const fileList = this._currentModal.querySelector("#file-list");
         const okButton = this._currentModal.querySelector("button.ok-button");
+        const fileName = this._currentModal.querySelector("#filename");
         this._removeAllChildNodes(fileList);
         if (path !== undefined) {
             this._currentPath = path;
@@ -167,6 +168,7 @@ class FileDialog {
         } catch(e) {
             console.log(e);
         }
+        fileName.value = "";
         okButton.disabled = true;
     }
 
@@ -218,26 +220,31 @@ class FileDialog {
 
     async _openItem(item) {
         const fileNameField = this._currentModal.querySelector("#filename");
+        const fileList = this._currentModal.querySelector("#file-list");
         let filetype, filename;
+        let selectedItem = null;
+
+        // Loop through items and see if any have data-selected
+        for (let listItem of fileList.childNodes) {
+            if ((/true/i).test(listItem.getAttribute("data-selected"))) {
+                selectedItem = listItem;
+            }
+        }
 
         if (item !== undefined) {
             filetype = item.getAttribute("data-type");
             filename = item.querySelector("span").innerHTML;
         } else if (this._validFilename(fileNameField.value)) {
-            filename = fileNameField.value;
-            filetype = "text";
-        } else {
-            // Loop through items and see if any have data-selected
-            const fileList = this._currentModal.querySelector("#file-list");
-            for (let listItem of fileList.childNodes) {
-                if ((/true/i).test(listItem.getAttribute("data-selected"))) {
-                    item = listItem;
-                }
+            if (selectedItem !== null && fileNameField.value != selectedItem.querySelector("span").innerHTML) {
+                filetype = selectedItem.getAttribute("data-type");
+                filename = selectedItem.querySelector("span").innerHTML;
+            } else {
+                filename = fileNameField.value;
+                filetype = "text";
             }
-            if (item !== undefined) {
-                filetype = item.getAttribute("data-type");
-                filename = item.querySelector("span").innerHTML;
-            }
+        } else if (selectedItem !== null) {
+            filetype = selectedItem.getAttribute("data-type");
+            filename = selectedItem.querySelector("span").innerHTML;
         }
 
         if (filename !== undefined && filetype !== undefined) {
