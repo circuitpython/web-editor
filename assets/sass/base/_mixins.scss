@@ -43,4 +43,14 @@
       display: table;
       clear: both;
     }
-  }
+}
+
+@mixin viewport-height($offset, $property: height) {
+    @if $offset == 0 {
+        #{$property}: 100vh;
+        #{$property}: calc(var(--vh, 1vh) * 100);
+    } @else {
+        #{$property}: calc(100vh - #{$offset});
+        #{$property}: calc(var(--vh, 1vh) * 100 - #{$offset});
+    }
+}

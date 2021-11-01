@@ -14,8 +14,8 @@ html, body  {
 }
 
 body {
-  min-height: 100vh;
-  height: 100vh;
+  @include viewport-height(0, min-height);
+  @include viewport-height(0);
   position: relative;
 }
 

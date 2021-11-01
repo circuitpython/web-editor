@@ -25,7 +25,7 @@
                             </a>
                         </div>
                         <div class="get-started">
-                            <a href="#!" id="connectToBluetoothDevices">Connect</a>
+                            <a href="#!" class="btn-connect">Connect</a>
                         </div>
                     </nav>
                 </div>
@@ -43,7 +43,7 @@
                         </a>
                     </div>
                     <div class="get-started">
-                        <a href="#!" id="connectToBluetoothDevices">Connect</a>
+                        <a href="#!" class="btn-connect">Connect</a>
                     </div>
                 </nav>
             </div>
@@ -53,7 +53,7 @@
             <div id="landing-page" class="wrapper">
                 <div class="common-layout content">
                     <div class="container">
-                        <p>If you are new here, follow the steps below. Otherwise click the Connect button in the upper
+                        <p>If you are connecting to a new device, follow the steps below. Otherwise click the Connect button in the upper
                             right.</p>
                         <section class="step">
                             <div class="step-number">1</div>
@@ -161,6 +161,7 @@
                 <a class="mode-button purple-button-link active" id="btn-mode-serial">Serial</a>
             </div>
         </div>
+        <div class="loader"><div><img src="assets/images/loading-bluetooth.gif" alt="Loading Animation" height="100" width="100"></div></div>
         <div 
             class="popup-modal shadow" 
             data-popup-modal="files">
@@ -175,13 +176,16 @@
     </div>
         <div 
             class="popup-modal shadow" 
-            data-popup-modal="save-dialog">
-            <button class="ok-button">Save</button>
-            <button class="not-ok-button">Don't Save</button>
-            <button class="cancel-button">Cancel</button>
+            data-popup-modal="unsaved">
+            <div id="message"></div>
+            <div class="buttons">
+                <button class="ok-button">Save</button>
+                <button class="not-ok-button">Don't Save</button>
+                <button class="cancel-button">Cancel</button>
+            </div>
         </div>
         <script src="assets/js/hterm_all.js"></script>
-        <script src="assets/js/file_dialog.js"></script>
+        <script src="assets/js/dialogs.js"></script>
         <script src="assets/js/header_mobile.js"></script>
         <script type="module" src="assets/js/script.js"></script>
     </body>
