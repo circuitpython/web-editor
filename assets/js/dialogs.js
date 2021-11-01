@@ -21,9 +21,10 @@ const extensions = {
 }
 
 class FileDialog {
-    constructor(modalId, blackoutSelector) {
+    constructor(modalId, blackoutSelector, showBusy) {
         this._blackoutSelector = blackoutSelector;
         this._modalId = modalId;
+        this._showBusy = showBusy;
         this._currentPath = "/";
         this._currentModal = null;
         this._fileClient = null;
@@ -159,7 +160,7 @@ class FileDialog {
         }
 
         try {
-            const files = this._sortAlpha(await this._fileClient.listDir(this._currentPath));
+            const files = this._sortAlpha(await this._showBusy(this._fileClient.listDir(this._currentPath)));
 
             for (let fileObj of files) {
                 if (fileObj.path[0] == ".") continue;
@@ -308,5 +309,88 @@ class FileDialog {
         fileItem.appendChild(iconElement);
         fileItem.appendChild(filename);
         fileList.appendChild(fileItem);
+    }
+}
+
+class UnsavedDialog {
+    constructor(modalId, blackoutSelector) {
+        this._blackoutSelector = blackoutSelector;
+        this._modalId = modalId;
+        this._currentModal = null;
+        this._resolve = null;
+        this._reject = null;
+        this.closeModal = this._closeModal.bind(this);
+        this.handleSaveButton = this._handleSaveButton.bind(this);
+        this.handleDontSaveButton = this._handleDontSaveButton.bind(this);
+    }    
+
+    _openModal() {
+        const bodyBlackout = document.querySelector(this._blackoutSelector);
+        const modal = document.querySelector(`[data-popup-modal="${this._modalId}"]`);
+        modal.classList.add('is--visible');
+        bodyBlackout.classList.add('is-blacked-out');
+        
+        bodyBlackout.addEventListener('click', this.closeModal);
+        document.body.style.overflow = 'hidden';
+        bodyBlackout.style.top = `${window.scrollY}px`;
+
+        return modal;
+    }
+
+    _closeModal() { // Same as Cancel
+        if (this._resolve !== null) {
+            // Returns null, which means cancelled
+            this._resolve(null);
+        }
+        const bodyBlackout = document.querySelector(this._blackoutSelector);
+        bodyBlackout.removeEventListener('click', this.closeModal);
+        this._currentModal.classList.remove('is--visible');
+        bodyBlackout.classList.remove('is-blacked-out');
+        const scrollY = document.body.style.top;
+        document.body.style.overflow = '';
+        window.scrollTo(0, parseInt(scrollY || '0') * -1);
+        const cancelButton = this._currentModal.querySelector("button.cancel-button");
+        cancelButton.removeEventListener("click", this.closeModal);
+        const saveButton = this._currentModal.querySelector("button.ok-button");
+        saveButton.removeEventListener("click", this.handleSaveButton);
+        const dontSaveButton = this._currentModal.querySelector("button.not-ok-button");
+        dontSaveButton.removeEventListener("click", this.handleDontSaveButton);
+        this._currentModal = null;
+    }
+
+    _handleSaveButton() {
+        console.log("Save pressed");
+        this._returnValue(true);
+    }
+
+    _handleDontSaveButton() {
+        console.log("Don't Save pressed");
+        this._returnValue(false);
+    }
+
+    _returnValue(value) {
+        this._resolve(value);
+        this._resolve = null;
+        this._reject = null;
+        this._closeModal();
+    }
+
+    async open(message) {
+        this._currentModal = this._openModal();
+        const cancelButton = this._currentModal.querySelector("button.cancel-button");
+        cancelButton.addEventListener("click", this.closeModal);
+        const saveButton = this._currentModal.querySelector("button.ok-button");
+        saveButton.addEventListener("click", this.handleSaveButton);
+        const dontSaveButton = this._currentModal.querySelector("button.not-ok-button");
+        dontSaveButton.addEventListener("click", this.handleDontSaveButton);
+        const messageLabel = this._currentModal.querySelector("#message");
+        messageLabel.innerHTML = message;
+
+        let p = new Promise((resolve, reject) => {
+            this._resolve = resolve;
+            this._reject = reject;
+        });
+
+        return p;
     }
 }

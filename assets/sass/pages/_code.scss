@@ -37,7 +37,7 @@
         background: #333;
 
         .cm-editor {
-            height: $terminal-height-mobile;
+            @include viewport-height($terminal-height-offset-mobile);
         }
     }
 }
@@ -49,21 +49,21 @@
     #terminal {
         position:relative;
         width:100%;
-        height: $terminal-height-mobile;
+        @include viewport-height($terminal-height-offset-mobile);
     }
 }
 
 @media (min-width: $screen-sm) {
     #serial-page {
         #terminal {
-            height: $terminal-height;
+            @include viewport-height($terminal-height-offset);
         }
     }
 
     #editor-page {
         .editor-container {
             .cm-editor {
-                height: $terminal-height;
+                @include viewport-height($terminal-height-offset);
             }
         }
     }
@@ -105,6 +105,30 @@
     height: 100%;
 }
 
+.loader {
+    display: none;
+    z-index: 9998;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, .35);
+    position: fixed;
+
+    div {
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        transition: all 300ms ease-in-out;
+        position: fixed;
+        z-index: 9999;
+    }
+
+    &.busy {
+        display: block;
+    }
+}
+
 .body-blackout {
     position: absolute;
     z-index: 1010;
@@ -123,7 +147,7 @@
   .popup-trigger {
     display: inline-block;
   }
-  
+
   .popup-modal {
     max-height: 365px;
     max-width: 650px;

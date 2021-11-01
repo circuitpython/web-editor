@@ -370,7 +370,9 @@ html, body {
 
 body {
   min-height: 100vh;
+  min-height: calc(var(--vh, 1vh) * 100);
   height: 100vh;
+  height: calc(var(--vh, 1vh) * 100);
   position: relative;
 }
 
@@ -739,6 +741,7 @@ fieldset legend {
 }
 #editor-page .editor-container .cm-editor {
   height: calc(100vh - 185px);
+  height: calc(var(--vh, 1vh) * 100 - 185px);
 }
 
 #serial-page .terminal-container {
@@ -748,15 +751,18 @@ fieldset legend {
   position: relative;
   width: 100%;
   height: calc(100vh - 185px);
+  height: calc(var(--vh, 1vh) * 100 - 185px);
 }
 
 @media (min-width: 768px) {
   #serial-page #terminal {
-    height: calc(100vh - 215px);
+    height: calc(100vh - 220px);
+    height: calc(var(--vh, 1vh) * 100 - 220px);
   }
 
   #editor-page .editor-container .cm-editor {
-    height: calc(100vh - 215px);
+    height: calc(100vh - 220px);
+    height: calc(var(--vh, 1vh) * 100 - 220px);
   }
 }
 .mode-landing #editor-page {
@@ -787,6 +793,28 @@ fieldset legend {
   max-height: 1000px;
   width: 100%;
   height: 100%;
+}
+
+.loader {
+  display: none;
+  z-index: 9998;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.35);
+  position: fixed;
+}
+.loader div {
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  transition: all 300ms ease-in-out;
+  position: fixed;
+  z-index: 9999;
+}
+.loader.busy {
+  display: block;
 }
 
 .body-blackout {
@@ -888,6 +916,7 @@ fieldset legend {
   background-color: #333;
   line-height: 1.5;
   font-family: "Operator Mono", "Source Code Pro", Menlo, Monaco, Consolas, Courier New, monospace;
+  /* Highlight Tags */
 }
 .cm-editor .cm-activeLine {
   background-color: #333;
@@ -927,6 +956,33 @@ fieldset legend {
 }
 .cm-editor .cm-scroller {
   overflow: auto;
+}
+.cm-editor .cmt-comment {
+  color: #7F848E;
+}
+.cm-editor .cmt-variableName {
+  color: #61AFEF;
+}
+.cm-editor .cmt-operator {
+  color: #56B6C2;
+}
+.cm-editor .cmt-string {
+  color: #98C379;
+}
+.cm-editor .cmt-punctuation {
+  color: #fff;
+}
+.cm-editor .cmt-number {
+  color: #E5C07B;
+}
+.cm-editor .cmt-keyword {
+  color: #C678DD;
+}
+.cm-editor .cmt-propertyName {
+  color: #D19A66;
+}
+.cm-editor .cmt-atom, .cm-editor .cmt-bool {
+  color: #E06C75;
 }
 
 /*# sourceMappingURL=style.css.map */
