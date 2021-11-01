@@ -1,7 +1,12 @@
 import {FileTransferClient} from '../../_snowpack/pkg/@adafruit/ble-file-transfer.js';
+import {EditorState, EditorView, basicSetup, } from "../../_snowpack/pkg/@codemirror/basic-setup.js"
+import {python} from "../../_snowpack/pkg/@codemirror/lang-python.js"
+import {classHighlightStyle} from "../../_snowpack/pkg/@codemirror/highlight.js"
+
 const bleNusServiceUUID  = 'adaf0001-4369-7263-7569-74507974686e';
 const bleNusCharRXUUID   = 'adaf0002-4369-7263-7569-74507974686e';
 const bleNusCharTXUUID   = 'adaf0003-4369-7263-7569-74507974686e';
+
 var bleDevice;
 var serialDevice;
 var bleServer;
@@ -15,16 +20,14 @@ var currentFilename = null;
 
 const BYTES_PER_WRITE = 20;
 
-let connect = document.querySelector('#connectToBluetoothDevices');
-let request = document.querySelector('#requestBluetoothDevice');
-let bond = document.querySelector('#promptBond');
-let request_serial = document.querySelector('#requestSerialDevice');
-
+const btnRequestBluetoothDevice = document.querySelector('#requestBluetoothDevice');
+const btnBond = document.querySelector('#promptBond');
+const loader = document.querySelector('.loader');
 const btnModeEditor = document.getElementById('btn-mode-editor');
 const btnModeSerial = document.getElementById('btn-mode-serial');
 const btnRestart = document.getElementById('btn-restart');
 const mainContent = document.getElementById('main-content');
-
+const btnConnect = document.querySelectorAll('a.btn-connect');
 const btnNew = document.querySelectorAll('a.btn-new');
 const btnOpen = document.querySelectorAll('a.btn-open');
 const btnSaveAs = document.querySelectorAll('a.btn-save-as');
@@ -35,90 +38,91 @@ const MODE_SERIAL = 2;
 const MODE_LANDING = 3;
 const CHAR_CTRL_C = '\x03';
 const CHAR_CTRL_D = '\x04';
-const CHAR_ENTER = '\x0a\x0d';
-const fileDialog = new FileDialog("files", ".body-blackout");
+const CHAR_CRLF = '\x0a\x0d';
+const fileDialog = new FileDialog("files", ".body-blackout", showBusy);
+const unsavedDialog = new UnsavedDialog("unsaved", ".body-blackout");
 
 const editorTheme = EditorView.theme({}, {dark: true})
-
 const editorExtensions = [
     basicSetup,
     python(),
     editorTheme,
+    classHighlightStyle,
     EditorView.updateListener.of(onTextChange)
 ]
 // New Buttons
 btnNew.forEach((element) => {
     element.addEventListener('click',  async function(e) {
+        e.preventDefault();
+        e.stopPropagation();
         if (await checkSaved()) {
             loadEditorContents("");
             unchanged = editor.state.doc.length;
             setFilename(null);
             console.log("Current File Changed to: " + currentFilename);
         }
-        e.preventDefault();
-        e.stopPropagation();
     });
 });
 
 // Open Buttons
 btnOpen.forEach((element) => {
     element.addEventListener('click', async function(e) {
+        e.preventDefault();
+        e.stopPropagation();
         if (await checkSaved()) {
             let path = await fileDialog.open(client, FILE_DIALOG_OPEN);
             if (path !== null) {
-                let contents = await client.readFile(path);
+                let contents = await showBusy(client.readFile(path));
                 loadEditorContents(contents);
                 unchanged = editor.state.doc.length;
                 setFilename(path);
                 console.log("Current File Changed to: " + currentFilename);
             }
         }
-        e.preventDefault();
-        e.stopPropagation();
     });
 });
 
 // Save As Buttons
 btnSaveAs.forEach((element) => {
     element.addEventListener('click', async function(e) {
+        e.preventDefault();
+        e.stopPropagation();
         let path = await saveAs();
         if (path !== null) {
             console.log("Current File Changed to: " + currentFilename);
         }
-        e.preventDefault();
-        e.stopPropagation();
     });
 });
 
 // Save + Run Buttons
 btnSaveRun.forEach((element) => {
     element.addEventListener('click', async function(e) {
-        await saveFile();
-        await runCode(currentFilename);
         e.preventDefault();
         e.stopPropagation();
+        await saveFile();
+        await runCode(currentFilename);
     });
 });
 
 // Restart Button
 btnRestart.addEventListener('click', async function(e) {
     // Send the Ctrl+D control character to the board via serial
-    await serialTransmit(CHAR_CTRL_D);
     e.preventDefault();
     e.stopPropagation();
+    await serialTransmit(CHAR_CTRL_D);
 });
 
 // Mode Buttons
 btnModeEditor.addEventListener('click', function(e) {
-    changeMode(MODE_EDITOR);
     e.preventDefault();
     e.stopPropagation();
+    changeMode(MODE_EDITOR);
 });
 
 btnModeSerial.addEventListener('click', function(e) {
-    changeMode(MODE_SERIAL);
     e.preventDefault();
     e.stopPropagation();
+    changeMode(MODE_SERIAL);
 });
 
 function setFilename(path) {
@@ -161,19 +165,27 @@ async function runCode(path) {
     path = path.replace(/\//g, ".");
 
     changeMode(MODE_SERIAL);
-    await serialTransmit(CHAR_CTRL_C + "import " + path + CHAR_ENTER);
+    await serialTransmit(CHAR_CTRL_C + "import " + path + CHAR_CRLF);
 }
 
 async function checkSaved() {
     if (isDirty()) {
-        if (window.confirm("Current changes will be lost. Click OK to continue.")) {
-            if (await saveFile()) {
+        let result = await unsavedDialog.open("Current changes will be lost. Do you want to save?");
+        if (result !== null) {
+            if (!result || await saveFile()) {
                 return true;
             }
         }
         return false;
     }
     return true;
+}
+
+async function showBusy(functionPromise) {
+    loader.classList.add("busy");
+    let result = await functionPromise;
+    loader.classList.remove("busy");
+    return result;
 }
 
 async function saveFile(path) {
@@ -204,7 +216,7 @@ async function fileExists(path) {
     const folder = pathParts.join("/");
 
     // Get a list of files in current path
-    const files = await client.listDir(folder);
+    const files = await showBusy(client.listDir(folder));
 
     // See if the file is in the list of files
     for (let fileObj of files) {
@@ -216,15 +228,12 @@ async function fileExists(path) {
     return false;
 }
 
-// Currently it disconnects while saving over an existing file. We may have to delete the file first.
-
 async function saveAs() {
     let path = await fileDialog.open(client, FILE_DIALOG_SAVE);
     if (path !== null) {
         // check if filename exists
-        if (await fileExists(path)) {
+        if (path != currentFilename && await fileExists(path)) {
             if (window.confirm("Overwrite existing file '" + path + "'?")) {
-                await client.delete(path);
                 await saveFile(path);
             } else {
                 return null;
@@ -334,25 +343,26 @@ async function connectToBLESerial() {
         await txCharacteristic.startNotifications();    
     } catch(e) {
         console.log(e, e.stack);
-        //returnToLanding();
     }
-}
-
-function returnToLanding() {
-    // We need to be in landing Screen Mode
-    updateUIConnected(false);
-    changeMode(MODE_LANDING);
 }
 
 function updateUIConnected(isConnected) {
     if (isConnected) {
-        connect.innerHTML = "Disconnect";
-        connect.disabled = false;
+        // Set to Connected State
+        console.log("Connected");
+        btnConnect.forEach((element) => { 
+            element.innerHTML = "Disconnect"; 
+            element.disabled = false;
+        });
     } else {
-        connect.innerHTML = "Connect";
-        bond.disabled = true;
-        connect.disabled = false;
-        request.disabled = false;
+        // Set to Disconnected State
+        console.log("Disconnected");
+        btnConnect.forEach((element) => { 
+            element.innerHTML = "Connect";
+            element.disabled = false; 
+        });
+        btnBond.disabled = true;
+        btnRequestBluetoothDevice.disabled = false;
     }
     connected = isConnected;
 }
@@ -362,8 +372,13 @@ async function switchToDevice(device) {
     bleDevice.addEventListener("gattserverdisconnected", onDisconnected);
     bleServer = bleDevice.gatt;
     console.log("connected", bleServer);
+    let services;
 
-    const services = await bleServer.getPrimaryServices();
+    try {
+        services = await bleServer.getPrimaryServices();
+    } catch(e) {
+        console.log(e, e.stack);
+    }
     console.log(services);
 
     console.log('Getting Transfer Service...');
@@ -371,9 +386,10 @@ async function switchToDevice(device) {
     debugLog("connected");
     connectToBLESerial();
 
-    bond.disabled = false;
-    connect.disabled = true;
-    request.disabled = true;
+    btnBond.disabled = false;
+    btnConnect.forEach((element) => { element.disabled = true; });
+    btnRequestBluetoothDevice.disabled = true;
+    await loadEditor();
 }
 
 async function onSerialConnected(e) {
@@ -383,6 +399,19 @@ async function onSerialConnected(e) {
 async function onSerialDisconnected(e) {
     console.log(e, "disconnected");
 }
+
+function fixViewportHeight() {
+    let vh = window.innerHeight * 0.01;
+    document.documentElement.style.setProperty('--vh', `${vh}px`);  
+}
+
+window.onbeforeunload = () => {
+    if (connected) {
+        return "You are still connected, exit anyways?"
+    }
+}
+fixViewportHeight();
+window.addEventListener("resize", fixViewportHeight);
 
 async function switchToSerial(device) {
     if (serialDevice) {
@@ -448,71 +477,53 @@ async function onBond() {
     try {
         console.log("bond");
         await client.bond();
-        if (await fileExists("/code.py")) {
-            setFilename("/code.py");
-            var contents = await client.readFile(currentFilename);
-        } else {
-            setFilename(null);
-            contents = "";
-        }
-        loadEditorContents(contents);
-        unchanged = editor.state.doc.length;
-        console.log("doc length", unchanged);
-        updateUIConnected(true);
-        changeMode(MODE_EDITOR);
         console.log("bond done");
     } catch(e) {
         console.log(e, e.stack);
     }
+    await loadEditor();
+}
+
+async function loadEditor() {
+    if (await fileExists("/code.py")) {
+        setFilename("/code.py");
+        var contents = await showBusy(client.readFile(currentFilename));
+    } else {
+        setFilename(null);
+        contents = "";
+    }
+    loadEditorContents(contents);
+    unchanged = editor.state.doc.length;
+    console.log("doc length", unchanged);
+    updateUIConnected(true);
+    changeMode(MODE_EDITOR);
 }
 
 async function onDisconnected() {
     debugLog("disconnected");
-    updateUIConnected(false);
     await bleServer.connect();
-    updateUIConnected(true);
+    console.log(bleServer.connected);
     debugLog("connected");
     connectToBLESerial();
 }
 
-async function onRequestBluetoothDeviceButtonClick() {
+async function onRequestBluetoothDeviceButtonClick(e) {
     try {
         console.log('Requesting any Bluetooth device...');
         debugLog("Requesting device. Cancel if empty and try existing");
         bleDevice = await navigator.bluetooth.requestDevice({
-        filters: [{services: [0xfebb]},], // <- Prefer filters to save energy & show relevant devices.
-        // acceptAllDevices: true,,
-        optionalServices: [0xfebb, bleNusServiceUUID]
+            filters: [{services: [0xfebb]},], // <- Prefer filters to save energy & show relevant devices.
+            // acceptAllDevices: true,,
+            optionalServices: [0xfebb, bleNusServiceUUID]
         });
 
         console.log('> Requested ' + bleDevice.name);
         await bleDevice.gatt.connect();
-        switchToDevice(bleDevice);
+        await switchToDevice(bleDevice);
     }
     catch(error) {
-        console.log('Argh! ' + error);
+        console.log('Argh: ' + error);
         debugLog('No device selected. Try to connect to existing.');
-    }
-}
-
-async function onRequestSerialDeviceButtonClick() {
-    let devices = await navigator.serial.getPorts()
-    if (devices.length == 1) {
-        let device = devices[0];
-        switchToSerial(device);
-        return;
-    }
-    try {
-        console.log('Requesting any serial device...');
-        let device = await navigator.serial.requestPort();
-
-        console.log('> Requested ');
-        console.log(device);
-        switchToSerial(device);
-        return;
-    }
-    catch(error) {
-        console.log('Argh! ');
     }
 }
 
@@ -535,7 +546,7 @@ async function writeText() {
     unchanged = doc.length;
     try {
         console.log("write");
-        await client.writeFile(currentFilename, offset, contents);
+        await showBusy(client.writeFile(currentFilename, offset, contents));
     } catch (e) {
         console.log("write failed", e, e.stack);
         unchanged = Math.min(oldUnchanged, unchanged);
@@ -574,38 +585,29 @@ async function onTextChange(update) {
 }
 
 if (navigator.bluetooth) {
-    connect.addEventListener('click', function(e) {
-        onConnectToBluetoothDevicesButtonClick();
+    btnConnect.forEach((element) => {
+        element.addEventListener('click', async function(e) {
+            e.preventDefault();
+            e.stopPropagation();    
+            await onConnectToBluetoothDevicesButtonClick();
+        });
+    });
+    btnRequestBluetoothDevice.addEventListener('click', async function(e) {
         e.preventDefault();
         e.stopPropagation();    
+        await onRequestBluetoothDeviceButtonClick();
     });
-    request.addEventListener('click', function(e) {
-        onRequestBluetoothDeviceButtonClick();
-        e.preventDefault();
-        e.stopPropagation();    
-    });
-    bond.addEventListener('click', function(e) {
-        onBond();
+    btnBond.addEventListener('click', async function(e) {
+        await onBond();
         e.preventDefault();
         e.stopPropagation();    
     });
 
-    bond.disabled = true;
+    btnBond.disabled = true;
 
 } else {
     console.log("bluetooth not supported on this browser");
 }
-
-/*if (navigator.serial) {
-    request_serial.addEventListener('click', function() {
-        onRequestSerialDeviceButtonClick();
-    });
-} else {
-    request_serial.disabled = true;
-}*/
-
-import {EditorState, EditorView, basicSetup} from "../../_snowpack/pkg/@codemirror/basic-setup.js"
-import {python} from "../../_snowpack/pkg/@codemirror/lang-python.js"
 
 editor = new EditorView({
     state: EditorState.create({

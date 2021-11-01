@@ -2,6 +2,7 @@
   "imports": {
     "@adafruit/ble-file-transfer": "./@adafruit/ble-file-transfer.js",
     "@codemirror/basic-setup": "./@codemirror/basic-setup.js",
+    "@codemirror/highlight": "./@codemirror/highlight.js",
     "@codemirror/lang-python": "./@codemirror/lang-python.js"
   }
 }

@@ -124,7 +124,7 @@ class FileTransferClient {
       } else if (this._command == MOVE_STATUS) {
           this._command = await this.processMoveStatus(new DataView(this._buffer.buffer, 0, this._offset));                  
       } else {
-          console.log("Unknown Command :" + this._command);
+          console.log("Unknown Command: " + this._command);
       }
       if (this._command != THIS_COMMAND) {
           //reset buffer
@@ -196,13 +196,12 @@ class FileTransferClient {
         let freeSpace = payload.getUint32(16, true);
         if (status != STATUS_OK) {
             if (status == STATUS_ERROR_USB_MOUNTED) {
-                console.log("Unable to write while USB connected");
+                this._reject("Unable to write while USB connected");
             } else if (status == STATUS_ERROR) {
-                console.log("Invalid Path");
+                this._reject("Invalid Path");
             } else {
-                console.log("Unknown Status", status);
+                this._reject("Unknown Status: " + status);
             }
-            this._reject(status);
             this._reject = null;
             this._resolve = null;
             return ANY_COMMAND;
@@ -235,13 +234,12 @@ class FileTransferClient {
         let chunkLength = payload.getUint32(12, true);
         if (status != STATUS_OK) {
             if (status == STATUS_ERROR_USB_MOUNTED) {
-                console.log("Unable to read while USB connected");
+                this._reject("Unable to read while USB connected");
             } else if (status == STATUS_ERROR) {
-                console.log("Invalid Path");
+                this._reject("Invalid Path");
             } else {
-                console.log("Unknown Status", status);
+                this._reject("Unknown Status: " + status);
             }
-            this._reject(status);
             this._resolve = null;
             this._reject = null;
             this._incomingFile = null;
@@ -284,23 +282,19 @@ class FileTransferClient {
         let b = this._buffer.buffer;
         const headerSize = 28;
         let cmd, path;
+        let flags, modificationTime, fileSize;
         let status = payload.getUint8(1);
         let pathLength = payload.getUint16(2, true);
         let i = payload.getUint32(4, true);
         let totalItems = payload.getUint32(8, true);
-        let flags = payload.getUint32(12, true);
-        let modificationTime = payload.getBigUint64(16, true);
-        let fileSize = payload.getUint32(24, true);
-        
         if (status != STATUS_OK) {
             if (status == STATUS_ERROR_USB_MOUNTED) {
-                console.log("Unable to read while USB connected");
+                this._reject("Unable to read while USB connected");
             } else if (status == STATUS_ERROR) {
-                console.log("Invalid Path");
+                this._reject("Invalid Path");
             } else {
-                console.log("Unknown Status", status);
+                this._reject("Unknown Status: " + status);
             }
-            this._reject(status);
             this._resolve = null;
             this._reject = null;
             return ANY_COMMAND;
@@ -312,28 +306,21 @@ class FileTransferClient {
             if (offset + headerSize + pathLength > payload.byteLength) {
                 break;
             }
-            cmd = payload.getUint8(offset + 0);
-            status = payload.getUint8(offset + 1);
             pathLength = payload.getUint16(offset + 2, true);
             i = payload.getUint32(offset + 4, true);
             totalItems = payload.getUint32(offset + 8, true);
-            flags = payload.getUint32(offset + 12, true);
-            modificationTime = payload.getBigUint64(offset + 16, true);
-            fileSize = payload.getUint32(offset + 24, true);
             offset += headerSize + pathLength;
         }
 
-        if (i < totalItems - 1) {
+        // Check if we have all items and all expected data for last item
+        if (i < totalItems - 1 || payload.byteLength < offset + headerSize) {
             // need more
             return THIS_COMMAND;
         }
-        // full payload
 
+        // full payload, now process it
         offset = 0;
         while (offset < payload.byteLength) {
-            if (offset + headerSize > payload.byteLength) {
-                break;
-            }
             cmd = payload.getUint8(offset + 0);
             status = payload.getUint8(offset + 1);
             pathLength = payload.getUint16(offset + 2, true);
@@ -342,7 +329,6 @@ class FileTransferClient {
             flags = payload.getUint32(offset + 12, true);
             modificationTime = payload.getBigUint64(offset + 16, true);
             fileSize = payload.getUint32(offset + 24, true);
-    
             if (cmd != LISTDIR_ENTRY) {
                 throw new ProtocolError();
             }
@@ -381,13 +367,12 @@ class FileTransferClient {
 
         if (status != STATUS_OK) {
             if (status == STATUS_ERROR_USB_MOUNTED) {
-                console.log("Unable to write while USB connected");
+                this._reject("Unable to write while USB connected");
             } else if (status == STATUS_ERROR) {
-                console.log("Invalid Path");
+                this._reject("Invalid Path");
             } else {
-                console.log("Unknown Status", status);
+                this._reject("Unknown Status: " + status);
             }
-            this._reject(status);
         } else {
             this._resolve(true);
         }
@@ -407,13 +392,12 @@ class FileTransferClient {
         let status = payload.getUint8(1);
         if (status != STATUS_OK) {
             if (status == STATUS_ERROR_USB_MOUNTED) {
-                console.log("Unable to write while USB connected");
+                this._reject("Unable to write while USB connected");
             } else if (status == STATUS_ERROR) {
-                console.log("File or Folder not found");
+                this._reject("File or Folder not found");
             } else {
-                console.log("Unknown Status", status);
+                this._reject("Unknown Status: " + status);
             }
-            this._reject(status);
         } else {
             this._resolve(true);
         }
@@ -433,13 +417,12 @@ class FileTransferClient {
         let status = payload.getUint8(1);
         if (status != STATUS_OK) {
             if (status == STATUS_ERROR_USB_MOUNTED) {
-                console.log("Unable to write while USB connected");
+                this._reject("Unable to write while USB connected");
             } else if (status == STATUS_ERROR) {
-                console.log("Unable to move file");
+                this._reject("Unable to move file");
             } else {
-                console.log("Unknown Status", status);
+                this._reject("Unknown Status: " + status);
             }
-            this._reject(status);
         } else {
             this._resolve(true);
         }
@@ -475,9 +458,6 @@ class FileTransferClient {
     // Returns a list of tuples, one tuple for each file or directory in the given path
     async listDir(path) {
         await this.checkConnection();
-
-        this._incomingOffset = 0;
-
         let encoded = new TextEncoder().encode(path);
         var header = new ArrayBuffer(4);
         var view = new DataView(header);

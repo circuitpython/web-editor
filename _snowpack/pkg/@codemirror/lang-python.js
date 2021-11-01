@@ -1,4 +1,4 @@
-import { Q as DefaultBufferLength, U as NodeSet, X as NodeType, Y as stringInput, Z as Tree, _ as TreeBuffer, N as NodeProp, $ as LezerLanguage, a0 as indentNodeProp, a1 as continuedIndent, a2 as foldNodeProp, a3 as foldInside, a4 as styleTags, a5 as tags, a6 as LanguageSupport } from '../common/index-3bdc3557.js';
+import { U as DefaultBufferLength, X as NodeSet, Y as NodeType, Z as stringInput, _ as Tree, $ as TreeBuffer, N as NodeProp, a0 as LezerLanguage, a1 as indentNodeProp, a2 as continuedIndent, a3 as foldNodeProp, a4 as foldInside, a5 as styleTags, a6 as tags, a7 as LanguageSupport } from '../common/index-1631759d.js';
 
 /* SNOWPACK PROCESS POLYFILL (based on https://github.com/calvinmetcalf/node-process-es6) */
 function defaultSetTimout() {
