@@ -2,7 +2,7 @@
 
 This is an online Code Editor that leverages Web Bluetooth to allow editing and debugging on nrf52-based devices.
 
-A live copy of the tool is hosted here: https://code.circuitpython.com
+A live copy of the tool is hosted here: https://code.circuitpython.org
 
 ## Environment Setup
 
