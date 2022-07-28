@@ -1,28 +1,15 @@
-import {FileTransferClient} from '@adafruit/ble-file-transfer';
 import {EditorState, EditorView, basicSetup, } from "@codemirror/basic-setup"
 import {python} from "@codemirror/lang-python"
 import {classHighlightStyle} from "@codemirror/highlight"
+import {BLEWorkflow, loaderId} from '../workflows/ble.js'
 
-const bleNusServiceUUID  = 'adaf0001-4369-7263-7569-74507974686e';
-const bleNusCharRXUUID   = 'adaf0002-4369-7263-7569-74507974686e';
-const bleNusCharTXUUID   = 'adaf0003-4369-7263-7569-74507974686e';
-
-var bleDevice;
-var serialDevice;
-var bleServer;
-var serialService;
-var rxCharacteristic;
-var txCharacteristic;
-var client;
 var terminal;
-var decoder = new TextDecoder();
 var currentFilename = null;
+var unchanged = 0;
 
-const BYTES_PER_WRITE = 20;
+const workflow = new BLEWorkflow();
 
-const btnRequestBluetoothDevice = document.querySelector('#requestBluetoothDevice');
-const btnBond = document.querySelector('#promptBond');
-const loader = document.querySelector('.loader');
+const loader = document.getElementById(loaderId);
 const btnModeEditor = document.getElementById('btn-mode-editor');
 const btnModeSerial = document.getElementById('btn-mode-serial');
 const btnRestart = document.getElementById('btn-restart');
@@ -50,7 +37,7 @@ const editorExtensions = [
     classHighlightStyle,
     EditorView.updateListener.of(onTextChange)
 ]
-// New Buttons
+// New Buttons (Mobile and Desktop Layout)
 btnNew.forEach((element) => {
     element.addEventListener('click',  async function(e) {
         e.preventDefault();
@@ -64,15 +51,15 @@ btnNew.forEach((element) => {
     });
 });
 
-// Open Buttons
+// Open Buttons (Mobile and Desktop Layout)
 btnOpen.forEach((element) => {
     element.addEventListener('click', async function(e) {
         e.preventDefault();
         e.stopPropagation();
         if (await checkSaved()) {
-            let path = await fileDialog.open(client, FILE_DIALOG_OPEN);
+            let path = await fileDialog.open(workflow.fileClient, FILE_DIALOG_OPEN);
             if (path !== null) {
-                let contents = await showBusy(client.readFile(path));
+                let contents = await showBusy(workflow.fileClient.readFile(path));
                 loadEditorContents(contents);
                 unchanged = editor.state.doc.length;
                 setFilename(path);
@@ -82,7 +69,7 @@ btnOpen.forEach((element) => {
     });
 });
 
-// Save As Buttons
+// Save As Buttons (Mobile and Desktop Layout)
 btnSaveAs.forEach((element) => {
     element.addEventListener('click', async function(e) {
         e.preventDefault();
@@ -94,7 +81,7 @@ btnSaveAs.forEach((element) => {
     });
 });
 
-// Save + Run Buttons
+// Save + Run Buttons (Mobile and Desktop Layout)
 btnSaveRun.forEach((element) => {
     element.addEventListener('click', async function(e) {
         e.preventDefault();
@@ -109,7 +96,7 @@ btnRestart.addEventListener('click', async function(e) {
     // Send the Ctrl+D control character to the board via serial
     e.preventDefault();
     e.stopPropagation();
-    await serialTransmit(CHAR_CTRL_D);
+    await workflow.serialTransmit(CHAR_CTRL_D);
 });
 
 // Mode Buttons
@@ -149,7 +136,7 @@ function loadEditorContents(content) {
 
 async function runCode(path) {
     if (path == "/code.py") {
-        await serialTransmit(CHAR_CTRL_D);
+        await workflow.serialTransmit(CHAR_CTRL_D);
     }
 
     let extension = path.split('.').pop();
@@ -165,7 +152,7 @@ async function runCode(path) {
     path = path.replace(/\//g, ".");
 
     changeMode(MODE_SERIAL);
-    await serialTransmit(CHAR_CTRL_C + "import " + path + CHAR_CRLF);
+    await workflow.serialTransmit(CHAR_CTRL_C + "import " + path + CHAR_CRLF);
 }
 
 async function checkSaved() {
@@ -216,7 +203,7 @@ async function fileExists(path) {
     const folder = pathParts.join("/");
 
     // Get a list of files in current path
-    const files = await showBusy(client.listDir(folder));
+    const files = await showBusy(workflow.fileClient.listDir(folder));
 
     // See if the file is in the list of files
     for (let fileObj of files) {
@@ -229,7 +216,7 @@ async function fileExists(path) {
 }
 
 async function saveAs() {
-    let path = await fileDialog.open(client, FILE_DIALOG_SAVE);
+    let path = await fileDialog.open(workflow.fileClient, FILE_DIALOG_SAVE);
     if (path !== null) {
         // check if filename exists
         if (path != currentFilename && await fileExists(path)) {
@@ -258,92 +245,12 @@ function changeMode(mode) {
     }
 }
 
-function sleep(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
-}
-
 var connected = false;
-
-async function onConnectToBluetoothDevicesButtonClick() {
-    if (connected) {
-        // Disconnect BlueTooth and Reset things
-        if (bleDevice !== undefined && bleDevice.gatt.connected) {
-            bleDevice.gatt.disconnect();
-        }
-        changeMode(MODE_LANDING);
-        updateUIConnected(false);
-    } else {
-        try {
-            console.log('Getting existing permitted Bluetooth devices...');
-            const devices = await navigator.bluetooth.getDevices();
-
-            console.log('> Got ' + devices.length + ' Bluetooth devices.');
-            // These devices may not be powered on or in range, so scan for
-            // advertisement packets from them before connecting.
-            for (const device of devices) {
-                connectToBluetoothDevice(device);
-            }
-        }
-        catch(error) {
-            console.log('Argh! ' + error);
-        }
-    }
-}
 
 async function debugLog(msg) {
     terminal.io.print('\x1b[93m');
     terminal.io.print(msg);
     terminal.io.println('\x1b[m');
-}
-
-async function onBLESerialReceive(e) {
-    // console.log("rcv", e.target.value.buffer);
-    terminal.io.print(decoder.decode(e.target.value.buffer, {stream: true}));
-}
-
-async function serialTransmit(msg) {
-    if (serialDevice && serialDevice.writable) {
-        const encoder = new TextEncoder();
-        const writer = serialDevice.writable.getWriter();
-        await writer.write(encoder.encode(s));
-        writer.releaseLock();
-    }
-    if (rxCharacteristic) {
-        let encoder = new TextEncoder();
-        let value = encoder.encode(msg);
-        try {
-            if (value.byteLength < BYTES_PER_WRITE) {
-                await rxCharacteristic.writeValueWithoutResponse(value);
-                return;
-            }
-            var offset = 0;
-            while (offset < value.byteLength) {
-                let len = Math.min(value.byteLength - offset, BYTES_PER_WRITE);
-                let chunk_contents = value.slice(offset, offset + len);
-                console.log("write subarray", offset, chunk_contents);
-                // Delay to ensure the last value was written to the device.
-                await sleep(100);
-                await rxCharacteristic.writeValueWithoutResponse(chunk_contents);
-                offset += len;
-            }
-        } catch (e) {
-            console.log("caught write error", e, e.stack);
-        }
-    }
-}
-
-async function connectToBLESerial() {
-    try {
-        serialService = await bleServer.getPrimaryService(bleNusServiceUUID);
-        // TODO: create a terminal for each serial service
-        txCharacteristic = await serialService.getCharacteristic(bleNusCharTXUUID);
-        rxCharacteristic = await serialService.getCharacteristic(bleNusCharRXUUID);
-    
-        txCharacteristic.addEventListener('characteristicvaluechanged', onBLESerialReceive);
-        await txCharacteristic.startNotifications();    
-    } catch(e) {
-        console.log(e, e.stack);
-    }
 }
 
 function updateUIConnected(isConnected) {
@@ -361,43 +268,10 @@ function updateUIConnected(isConnected) {
             element.innerHTML = "Connect";
             element.disabled = false; 
         });
-        btnBond.disabled = true;
-        btnRequestBluetoothDevice.disabled = false;
     }
+    // Update any workflow specific UI changes
+    workflow.updateConnected(isConnected);
     connected = isConnected;
-}
-
-async function switchToDevice(device) {
-    bleDevice = device;
-    bleDevice.addEventListener("gattserverdisconnected", onDisconnected);
-    bleServer = bleDevice.gatt;
-    console.log("connected", bleServer);
-    let services;
-
-    try {
-        services = await bleServer.getPrimaryServices();
-    } catch(e) {
-        console.log(e, e.stack);
-    }
-    console.log(services);
-
-    console.log('Getting Transfer Service...');
-    client = new FileTransferClient(bleDevice, 65536);
-    debugLog("connected");
-    connectToBLESerial();
-
-    btnBond.disabled = false;
-    btnConnect.forEach((element) => { element.disabled = true; });
-    btnRequestBluetoothDevice.disabled = true;
-    await loadEditor();
-}
-
-async function onSerialConnected(e) {
-    console.log(e, "connected!");
-}
-
-async function onSerialDisconnected(e) {
-    console.log(e, "disconnected");
 }
 
 function fixViewportHeight() {
@@ -413,81 +287,10 @@ window.onbeforeunload = () => {
 fixViewportHeight();
 window.addEventListener("resize", fixViewportHeight);
 
-async function switchToSerial(device) {
-    if (serialDevice) {
-        await serialDevice.close();
-    }
-    serialDevice = device;
-    device.addEventListener("connect", onSerialConnected);
-    device.addEventListener("disconnect", onSerialDisconnected);
-    console.log("switch to", device);
-    await device.open({baudRate: 115200});
-    console.log("opened");
-    let reader;
-    while (device.readable) {
-        reader = device.readable.getReader();
-        try {
-        while (true) {
-            const { value, done } = await reader.read();
-            if (done) {
-            // |reader| has been canceled.
-            break;
-            }
-            terminal.io.print(decoder.decode(value));
-        }
-        } catch (error) {
-        // Handle |error|...
-        console.log("error", error);
-        } finally {
-        reader.releaseLock();
-        }
-    }
-}
-
-async function connectToBluetoothDevice(device) {
-    const abortController = new AbortController();
-
-    device.addEventListener('advertisementreceived', async (event) => {
-        console.log('> Received advertisement from "' + device.name + '"...');
-        // Stop watching advertisements to conserve battery life.
-        abortController.abort();
-        console.log('Connecting to GATT Server from "' + device.name + '"...');
-        try {
-            await device.gatt.connect()
-            console.log('> Bluetooth device "' +  device.name + ' connected.');
-
-            await switchToDevice(device);
-        }
-        catch(error) {
-            console.log('Argh! ' + error);
-        }
-    }, { once: true });
-    debugLog("connecting to " + device.name);
-    try {
-        console.log('Watching advertisements from "' + device.name + '"...');
-        await device.watchAdvertisements({ signal: abortController.signal });
-    }
-    catch(error) {
-        console.log('Argh! ' + error);
-    }
-}
-
-var unchanged = 0;
-async function onBond() {
-    try {
-        console.log("bond");
-        await client.bond();
-        console.log("bond done");
-    } catch(e) {
-        console.log(e, e.stack);
-    }
-    await loadEditor();
-}
-
 async function loadEditor() {
     if (await fileExists("/code.py")) {
         setFilename("/code.py");
-        var contents = await showBusy(client.readFile(currentFilename));
+        var contents = await showBusy(workflow.fileClient.readFile(currentFilename));
     } else {
         setFilename(null);
         contents = "";
@@ -499,40 +302,12 @@ async function loadEditor() {
     changeMode(MODE_EDITOR);
 }
 
-async function onDisconnected() {
-    debugLog("disconnected");
-    await bleServer.connect();
-    console.log(bleServer.connected);
-    debugLog("connected");
-    connectToBLESerial();
-}
-
-async function onRequestBluetoothDeviceButtonClick(e) {
-    try {
-        console.log('Requesting any Bluetooth device...');
-        debugLog("Requesting device. Cancel if empty and try existing");
-        bleDevice = await navigator.bluetooth.requestDevice({
-            filters: [{services: [0xfebb]},], // <- Prefer filters to save energy & show relevant devices.
-            // acceptAllDevices: true,,
-            optionalServices: [0xfebb, bleNusServiceUUID]
-        });
-
-        console.log('> Requested ' + bleDevice.name);
-        await bleDevice.gatt.connect();
-        await switchToDevice(bleDevice);
-    }
-    catch(error) {
-        console.log('Argh: ' + error);
-        debugLog('No device selected. Try to connect to existing.');
-    }
-}
-
 var editor;
 var currentTimeout = null;
 async function writeText() {
     console.log("sync starting at", unchanged, "to", editor.state.doc.length);
-    if (!client) {
-        console.log("no client");
+    if (!workflow.fileClient) {
+        console.log("no file client");
         return;
     }
     let encoder = new TextEncoder();
@@ -546,7 +321,7 @@ async function writeText() {
     unchanged = doc.length;
     try {
         console.log("write");
-        await showBusy(client.writeFile(currentFilename, offset, contents));
+        await showBusy(workflow.fileClient.writeFile(currentFilename, offset, contents));
     } catch (e) {
         console.log("write failed", e, e.stack);
         unchanged = Math.min(oldUnchanged, unchanged);
@@ -584,29 +359,9 @@ async function onTextChange(update) {
     //currentTimeout = setTimeout(writeText, 750);
 }
 
-if (navigator.bluetooth) {
-    btnConnect.forEach((element) => {
-        element.addEventListener('click', async function(e) {
-            e.preventDefault();
-            e.stopPropagation();    
-            await onConnectToBluetoothDevicesButtonClick();
-        });
-    });
-    btnRequestBluetoothDevice.addEventListener('click', async function(e) {
-        e.preventDefault();
-        e.stopPropagation();    
-        await onRequestBluetoothDeviceButtonClick();
-    });
-    btnBond.addEventListener('click', async function(e) {
-        await onBond();
-        e.preventDefault();
-        e.stopPropagation();    
-    });
-
-    btnBond.disabled = true;
-
-} else {
-    console.log("bluetooth not supported on this browser");
+function disconnectCallback() {
+    changeMode(MODE_LANDING);
+    updateUIConnected(false);
 }
 
 editor = new EditorView({
@@ -637,11 +392,11 @@ function setupHterm() {
         debugLog("connect to a device above");
 
         io.onVTKeystroke = async (str) => {
-            serialTransmit(str);
+            workflow.serialTransmit(str);
         };
 
         io.sendString = async (str) => {
-            serialTransmit(str);
+            workflow.serialTransmit(str);
         };
 
         io.onTerminalResize = (columns, rows) => {
@@ -664,4 +419,19 @@ function setupHterm() {
 window.onload = async function() {
     await lib.init();
     setupHterm();
+    if (navigator.bluetooth) {
+        btnConnect.forEach((element) => {
+            element.addEventListener('click', async function(e) {
+                e.preventDefault();
+                e.stopPropagation();    
+                await workflow.connectButtonHandler();
+            });
+        });
+    }
+    workflow.init({
+        terminal: terminal,
+        loadEditorFunc: loadEditor,
+        debugLogFunc: debugLog,
+        disconnectFunc: disconnectCallback
+    });
 };
