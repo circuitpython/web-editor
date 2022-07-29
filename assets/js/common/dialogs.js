@@ -236,7 +236,8 @@ class FileDialog {
             filetype = item.getAttribute("data-type");
             filename = item.querySelector("span").innerHTML;
         } else if (this._validFilename(fileNameField.value)) {
-            if (selectedItem !== null && fileNameField.value != selectedItem.querySelector("span").innerHTML) {
+            // This only makes sense if opening a file, otherwise it should be the opposite
+            if (selectedItem !== null && fileNameField.value != selectedItem.querySelector("span").innerHTML && this._currentModal.getAttribute("data-type") == "open") {
                 filetype = selectedItem.getAttribute("data-type");
                 filename = selectedItem.querySelector("span").innerHTML;
             } else {

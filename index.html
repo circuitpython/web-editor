@@ -5,7 +5,7 @@
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <link rel="icon" href="assets/images/favicon.ico" type="image/x-icon" />
-        <title>CircuitPython WebBluetooth Editor</title>
+        <title>CircuitPython Code Editor</title>
         <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.5.0/css/all.css"
             integrity="sha384-B4dIYHKNBt8Bc12p+WXckhzcICo0wtJAoU8YZTY5qE0Id1GSseTk6S+L3BlXeVIU" crossorigin="anonymous">
         <link rel="stylesheet" href="assets/css/style.css">
@@ -166,7 +166,7 @@
                 <a class="mode-button purple-button-link active" id="btn-mode-serial">Serial</a>
             </div>
         </div>
-        <div class="loader"><div><img src="assets/images/loading-bluetooth.gif" alt="Loading Animation" height="100" width="100"></div></div>
+        <div class="loader" id="ble-loader"><div><img src="assets/images/loading-bluetooth.gif" alt="Loading Animation" height="100" width="100"></div></div>
         <div 
             class="popup-modal shadow" 
             data-popup-modal="files">
@@ -189,9 +189,9 @@
                 <button class="cancel-button">Cancel</button>
             </div>
         </div>
-        <script src="assets/js/hterm_all.js"></script>
-        <script src="assets/js/dialogs.js"></script>
-        <script src="assets/js/header_mobile.js"></script>
-        <script type="module" src="assets/js/script.js"></script>
+        <script src="assets/js/common/hterm_all.js"></script>
+        <script src="assets/js/common/dialogs.js"></script>
+        <script src="assets/js/common/header_mobile.js"></script>
+        <script type="module" src="assets/js/common/script.js"></script>
     </body>
 </html>
