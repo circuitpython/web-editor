@@ -1,6 +1,9 @@
 const FILE_DIALOG_OPEN = 1;
 const FILE_DIALOG_SAVE = 2;
 
+const SELECTOR_CLOSE_BUTTON = ".popup-modal__close";
+const SELECTOR_BLACKOUT = ".body-blackout";
+
 // This is for mapping file extensions to font awesome icons
 const extensions = {
     "wav": {icon: "file-audio", type: "bin"},
@@ -21,8 +24,7 @@ const extensions = {
 }
 
 class FileDialog {
-    constructor(modalId, blackoutSelector, showBusy) {
-        this._blackoutSelector = blackoutSelector;
+    constructor(modalId, showBusy) {
         this._modalId = modalId;
         this._showBusy = showBusy;
         this._currentPath = "/";
@@ -36,7 +38,7 @@ class FileDialog {
     }
 
     _openModal() {
-        const bodyBlackout = document.querySelector(this._blackoutSelector);
+        const bodyBlackout = document.querySelector(SELECTOR_BLACKOUT);
         const modal = document.querySelector(`[data-popup-modal="${this._modalId}"]`);
         modal.classList.add('is--visible');
         bodyBlackout.classList.add('is-blacked-out');
@@ -51,7 +53,7 @@ class FileDialog {
 
     _closeModal() {
         this._currentModal.querySelector('.popup-modal__close').removeEventListener('click', this.closeModal);
-        const bodyBlackout = document.querySelector(this._blackoutSelector);
+        const bodyBlackout = document.querySelector(SELECTOR_BLACKOUT);
         bodyBlackout.removeEventListener('click', this.closeModal);
         this._currentModal.classList.remove('is--visible');
         bodyBlackout.classList.remove('is-blacked-out');
@@ -314,8 +316,7 @@ class FileDialog {
 }
 
 class UnsavedDialog {
-    constructor(modalId, blackoutSelector) {
-        this._blackoutSelector = blackoutSelector;
+    constructor(modalId) {
         this._modalId = modalId;
         this._currentModal = null;
         this._resolve = null;
@@ -326,12 +327,13 @@ class UnsavedDialog {
     }    
 
     _openModal() {
-        const bodyBlackout = document.querySelector(this._blackoutSelector);
         const modal = document.querySelector(`[data-popup-modal="${this._modalId}"]`);
         modal.classList.add('is--visible');
-        bodyBlackout.classList.add('is-blacked-out');
-        
-        bodyBlackout.addEventListener('click', this.closeModal);
+        const bodyBlackout = document.querySelector(SELECTOR_BLACKOUT);
+        if (bodyBlackout) {
+            bodyBlackout.classList.add('is-blacked-out');
+            bodyBlackout.addEventListener('click', this.closeModal);
+        }
         document.body.style.overflow = 'hidden';
         bodyBlackout.style.top = `${window.scrollY}px`;
 
@@ -343,10 +345,12 @@ class UnsavedDialog {
             // Returns null, which means cancelled
             this._resolve(null);
         }
-        const bodyBlackout = document.querySelector(this._blackoutSelector);
-        bodyBlackout.removeEventListener('click', this.closeModal);
+        const bodyBlackout = document.querySelector(SELECTOR_BLACKOUT);
+        if (bodyBlackout) {
+            bodyBlackout.removeEventListener('click', this.closeModal);
+            bodyBlackout.classList.remove('is-blacked-out');
+        }
         this._currentModal.classList.remove('is--visible');
-        bodyBlackout.classList.remove('is-blacked-out');
         const scrollY = document.body.style.top;
         document.body.style.overflow = '';
         window.scrollTo(0, parseInt(scrollY || '0') * -1);
@@ -386,6 +390,77 @@ class UnsavedDialog {
         dontSaveButton.addEventListener("click", this.handleDontSaveButton);
         const messageLabel = this._currentModal.querySelector("#message");
         messageLabel.innerHTML = message;
+
+        let p = new Promise((resolve, reject) => {
+            this._resolve = resolve;
+            this._reject = reject;
+        });
+
+        return p;
+    }
+}
+
+class GenericModal {
+    constructor(modalId) {
+        this._modalId = modalId;
+        this._currentModal = null;
+        this._resolve = null;
+        this._reject = null;
+        this.closeModal = this._closeModal.bind(this);
+    }    
+
+    _openModal() {
+        const modal = document.querySelector(`[data-popup-modal="${this._modalId}"]`);
+        const bodyBlackout = document.querySelector(SELECTOR_BLACKOUT);
+        modal.classList.add('is--visible');
+        if (bodyBlackout) {
+            bodyBlackout.classList.add('is-blacked-out');
+            bodyBlackout.addEventListener('click', this.closeModal);
+        }
+        const closeButton = modal.querySelector(SELECTOR_CLOSE_BUTTON);
+        if (closeButton) {
+            closeButton.addEventListener('click', this.closeModal);
+        }
+        document.body.style.overflow = 'hidden';
+        bodyBlackout.style.top = `${window.scrollY}px`;
+
+        return modal;
+    }
+
+    _closeModal() {
+        if (this._resolve !== null) {
+            // Returns null, which means cancelled
+            this._resolve(null);
+        }
+        const bodyBlackout = document.querySelector(SELECTOR_BLACKOUT);
+        if (bodyBlackout) {
+            bodyBlackout.removeEventListener('click', this.closeModal);
+            bodyBlackout.classList.remove('is-blacked-out');
+        }
+        const closeButton = this._currentModal.querySelector(SELECTOR_CLOSE_BUTTON);
+        if (closeButton) {
+            closeButton.removeEventListener('click', this.closeModal);
+        }
+        this._currentModal.classList.remove('is--visible');
+        const scrollY = document.body.style.top;
+        document.body.style.overflow = '';
+        window.scrollTo(0, parseInt(scrollY || '0') * -1);
+        this._currentModal = null;
+    }
+
+    _returnValue(value) {
+        this._resolve(value);
+        this._resolve = null;
+        this._reject = null;
+        this._closeModal();
+    }
+
+    close() {
+        this._closeModal();
+    }
+
+    async open() {
+        this._currentModal = this._openModal();
 
         let p = new Promise((resolve, reject) => {
             this._resolve = resolve;

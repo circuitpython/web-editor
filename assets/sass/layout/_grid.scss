@@ -21,53 +21,47 @@
     }        
 }
 
-.common-layout {
-  padding: 20px 0 150px 0;
-  background-color: #fff;
-
-  .step {
-    display: flex;
-    .step-number {
-        width: 75px;
-        height: 75px;
-        color: #333;
-        font-size: 64px;
-        font-weight: 600;
-        line-height: 64px;
-        text-align: center;
-        margin: 20px 20px 0 0;
-        border: solid 5px #333;
-        border-radius: 100%;
-        min-width: 75px;
-    }
-  }
-
-  &.content {
+.connection-layout {
     background-color: #fff;
-    border: 1px solid #cecece;
-    border-radius: 5px;
-    padding: 40px;
-  }
+    padding: 0 40px;
+    margin-top: 40px;
+    overflow-y: auto;
+    max-height: calc(100vh - 140px);
+
+    .step {
+        display: flex;
+        .step-number {
+            width: 75px;
+            height: 75px;
+            color: #333;
+            font-size: 64px;
+            font-weight: 600;
+            line-height: 64px;
+            text-align: center;
+            margin: 20px 20px 0 0;
+            border: solid 5px #333;
+            border-radius: 100%;
+            min-width: 75px;
+        }
+    }
 }
 
 @media (max-width: $screen-xs-max) {
-    .common-layout {
+    .connection-layout {
         .step {
-          .step-number {
-              width: 50px;
-              height: 50px;
-              color: #333;
-              font-size: 36px;
-              font-weight: 600;
-              line-height: 36px;
-              margin: 20px 20px 0 0;
-              border: solid 5px #333;
-              min-width: 50px;
-          }
+            .step-number {
+                width: 50px;
+                height: 50px;
+                color: #333;
+                font-size: 36px;
+                font-weight: 600;
+                line-height: 36px;
+                margin: 20px 20px 0 0;
+                border: solid 5px #333;
+                min-width: 50px;
+            }
         }
-
-        &.content {
-          padding: 20px;
-        }
+        max-height: calc(100vh - 100px);
+        padding: 20px;
     }
 }

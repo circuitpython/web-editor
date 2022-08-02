@@ -10,7 +10,6 @@ const bleNusCharRXUUID   = 'adaf0002-4369-7263-7569-74507974686e';
 const bleNusCharTXUUID   = 'adaf0003-4369-7263-7569-74507974686e';
 
 const BYTES_PER_WRITE = 20;
-const loaderId = "ble-loader";
 const btnRequestBluetoothDevice = document.querySelector('#requestBluetoothDevice');
 const btnBond = document.querySelector('#promptBond');
 const btnConnect = document.querySelectorAll('a.btn-connect');
@@ -26,6 +25,7 @@ class BLEWorkflow extends Workflow {
         this.decoder = new TextDecoder();
         this.loadEditor = null;
         this.fileClient = null;
+        this.connectDialog = new GenericModal("ble-connect");
     }
 
     async init(params) {
@@ -46,7 +46,8 @@ class BLEWorkflow extends Workflow {
             btnBond.disabled = true;
         } else {
             console.log("bluetooth not supported on this browser");
-        }        
+        }
+        this.loader = document.getElementById("ble-loader");
     }
 
     async connectButtonHandler(e) {
@@ -122,6 +123,10 @@ class BLEWorkflow extends Workflow {
         }
     }
 
+    async getDeviceFileContents(filename) {
+        return await this.fileClient.readFile(filename);
+    }
+
     async switchToDevice(device) {
         this.bleDevice = device;
         this.bleDevice.addEventListener("gattserverdisconnected", this.onDisconnected.bind(this));
@@ -144,6 +149,7 @@ class BLEWorkflow extends Workflow {
         btnBond.disabled = false;
         btnConnect.forEach((element) => { element.disabled = true; });
         btnRequestBluetoothDevice.disabled = true;
+        this.connectDialog.close();
         await this.loadEditor();
     }
 
@@ -221,4 +227,4 @@ class BLEWorkflow extends Workflow {
     }
 }
 
-export {loaderId, BLEWorkflow};
+export {BLEWorkflow};

@@ -49,69 +49,7 @@
             </div>
             <div class="bottom-bar"></div>
         </header>
-        <div class="mode-landing" id="main-content">
-            <div id="landing-page" class="wrapper">
-                <div class="common-layout content">
-                    <div class="container">
-                        <p>If you are connecting to a new device, follow the steps below. Otherwise click the Connect button in the upper
-                            right.</p>
-                        <section class="step">
-                            <div class="step-number">1</div>
-                            <div class="step-content">
-                                <h1>Set Up Web Bluetooth</h1>
-                                <p>
-                                    Web Bluetooth is currently only supported in Chromium-based browsers.
-                                </p>
-                                <p>
-                                    To get the best experience, enable the experimental <a
-                                        href="about://flags/#enable-web-bluetooth-new-permissions-backend">about://flags/#enable-web-bluetooth-new-permissions-backend</a> flag.
-                                </p>
-                                <p>
-                                    On Linux only, enable the experimental <a
-                                        href="about://flags/#enable-experimental-web-platform-features">about://flags/#enable-experimental-web-platform-features</a>
-                                    flag. However be careful as it would be risky to browse the web whith this flag turned
-                                    on as it enables many other experimental web platform features. Starting with Chromium
-                                    version 100, enable the <a
-                                        href="about://flags/#enable-web-bluetooth">about://flags/#enable-web-bluetooth</a>
-                                    safer flag instead.
-                                </p>
-                            </div>
-                        </section>
-                        <section class="step">
-                            <div class="step-number">2</div>
-                            <div class="step-content">
-                                <h1>Request Bluetooth Device</h1>
-                                <p>
-                                    CircuitPython boards with <a
-                                        href="https://circuitpython.org/downloads?features=Bluetooth%2FBTLE">nrf chips need
-                                        CircuitPython 7.0.0 or newer</a>. The first time a device is connected to your host,
-                                    you'll need to enable public broadcasting by pressing reset when the faster, blue blink
-                                    is happening on start up. The device will reset and the second, blue blink will be solid
-                                    when done successfully.
-                                </p>
-                                <p>
-                                    <button class="purple-button-link" id="requestBluetoothDevice">Request Bluetooth
-                                        Device</button>
-                                </p>
-                            </div>
-                        </section>
-                        <section class="step">
-                            <div class="step-number">3</div>
-                            <div class="step-content">
-                                <h1>Bond Device</h1>
-                                <p>
-                                    Once you are connected, we need to prompt a bond. Without this CircuitPython boards with
-                                    USB won't continue to advertise after a hard reset or powerloss. This button also loads
-                                    code.py from the device so click it even if the device has been connected before.
-                                </p>
-                                <p>
-                                    <button class="purple-button-link" id="promptBond">Bond Bluetooth Device</button>
-                                </p>
-                            </div>
-                        </section>
-                    </div>
-                </div>
-            </div>
+        <div class="mode-editor" id="main-content">
             <div id="editor-page" class="wrapper">
                 <div class="container">
                     <div id="mobile-editor-bar">
@@ -168,7 +106,7 @@
         </div>
         <div class="loader" id="ble-loader"><div><img src="assets/images/loading-bluetooth.gif" alt="Loading Animation" height="100" width="100"></div></div>
         <div 
-            class="popup-modal shadow" 
+            class="popup-modal shadow file-dialog" 
             data-popup-modal="files">
             <span id="current-path"></span>
             <i class="fas fa-2x fa-times text-white bg-primary p-3 popup-modal__close"></i>
@@ -178,15 +116,79 @@
                 <button class="ok-button">Ok</button>
                 <button class="cancel-button">Cancel</button>
             </div>
-    </div>
+        </div>
         <div 
-            class="popup-modal shadow" 
+            class="popup-modal shadow prompt" 
             data-popup-modal="unsaved">
             <div id="message"></div>
             <div class="buttons">
                 <button class="ok-button">Save</button>
                 <button class="not-ok-button">Don't Save</button>
                 <button class="cancel-button">Cancel</button>
+            </div>
+        </div>
+        <div 
+            class="popup-modal shadow no-padding" 
+            data-popup-modal="ble-connect">
+            <i class="fas fa-2x fa-times text-white bg-primary p-3 popup-modal__close"></i>
+            <!--<div id="landing-page" class="wrapper">-->
+            <div id="ble-instructions" class="connection-layout content">
+                <p>If you are connecting to a new device, follow the steps below. Otherwise click the Connect button in the upper
+                    right.</p>
+                <section class="step">
+                    <div class="step-number">1</div>
+                    <div class="step-content">
+                        <h1>Set Up Web Bluetooth</h1>
+                        <p>
+                            Web Bluetooth is currently only supported in Chromium-based browsers.
+                        </p>
+                        <p>
+                            To get the best experience, enable the experimental <a
+                                href="about://flags/#enable-web-bluetooth-new-permissions-backend">about://flags/#enable-web-bluetooth-new-permissions-backend</a> flag.
+                        </p>
+                        <p>
+                            On Linux only, enable the experimental <a
+                                href="about://flags/#enable-experimental-web-platform-features">about://flags/#enable-experimental-web-platform-features</a>
+                            flag. However be careful as it would be risky to browse the web whith this flag turned
+                            on as it enables many other experimental web platform features. Starting with Chromium
+                            version 100, enable the <a
+                                href="about://flags/#enable-web-bluetooth">about://flags/#enable-web-bluetooth</a>
+                            safer flag instead.
+                        </p>
+                    </div>
+                </section>
+                <section class="step">
+                    <div class="step-number">2</div>
+                    <div class="step-content">
+                        <h1>Request Bluetooth Device</h1>
+                        <p>
+                            CircuitPython boards with <a
+                                href="https://circuitpython.org/downloads?features=Bluetooth%2FBTLE">nrf chips need
+                                CircuitPython 7.0.0 or newer</a>. The first time a device is connected to your host,
+                            you'll need to enable public broadcasting by pressing reset when the faster, blue blink
+                            is happening on start up. The device will reset and the second, blue blink will be solid
+                            when done successfully.
+                        </p>
+                        <p>
+                            <button class="purple-button-link" id="requestBluetoothDevice">Request Bluetooth
+                                Device</button>
+                        </p>
+                    </div>
+                </section>
+                <section class="step">
+                    <div class="step-number">3</div>
+                    <div class="step-content">
+                        <h1>Bond Device</h1>
+                        <p>
+                            Once you are connected, we need to prompt a bond. Without this CircuitPython boards with
+                            USB won't continue to advertise after a hard reset or powerloss. This button also loads
+                            code.py from the device so click it even if the device has been connected before.
+                        </p>
+                        <p>
+                            <button class="purple-button-link" id="promptBond">Bond Bluetooth Device</button>
+                        </p>
+                    </div>
+                </section>
             </div>
         </div>
         <script src="assets/js/common/hterm_all.js"></script>

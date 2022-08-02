@@ -1,15 +1,19 @@
 import {EditorState, EditorView, basicSetup, } from "@codemirror/basic-setup"
 import {python} from "@codemirror/lang-python"
 import {classHighlightStyle} from "@codemirror/highlight"
-import {BLEWorkflow, loaderId} from '../workflows/ble.js'
+import {BLEWorkflow} from '../workflows/ble.js'
+import {CONNTYPE} from '../workflows/workflow.js'
 
 var terminal;
 var currentFilename = null;
 var unchanged = 0;
 
-const workflow = new BLEWorkflow();
+var workflow = null;
 
-const loader = document.getElementById(loaderId);
+// Instantiate workflows
+var workflows = {}
+workflows[CONNTYPE.Ble] = new BLEWorkflow();
+
 const btnModeEditor = document.getElementById('btn-mode-editor');
 const btnModeSerial = document.getElementById('btn-mode-serial');
 const btnRestart = document.getElementById('btn-restart');
@@ -22,12 +26,11 @@ const btnSaveRun = document.querySelectorAll('a.btn-save-run');
 
 const MODE_EDITOR = 1;
 const MODE_SERIAL = 2;
-const MODE_LANDING = 3;
 const CHAR_CTRL_C = '\x03';
 const CHAR_CTRL_D = '\x04';
 const CHAR_CRLF = '\x0a\x0d';
-const fileDialog = new FileDialog("files", ".body-blackout", showBusy);
-const unsavedDialog = new UnsavedDialog("unsaved", ".body-blackout");
+var fileDialog = null;
+const unsavedDialog = new UnsavedDialog("unsaved");
 
 const editorTheme = EditorView.theme({}, {dark: true})
 const editorExtensions = [
@@ -59,7 +62,7 @@ btnOpen.forEach((element) => {
         if (await checkSaved()) {
             let path = await fileDialog.open(workflow.fileClient, FILE_DIALOG_OPEN);
             if (path !== null) {
-                let contents = await showBusy(workflow.fileClient.readFile(path));
+                let contents = await workflow.showBusy(workflow.fileClient.readFile(path));
                 loadEditorContents(contents);
                 unchanged = editor.state.doc.length;
                 setFilename(path);
@@ -121,6 +124,45 @@ function setFilename(path) {
     document.querySelector('#mobile-editor-bar .file-path').innerHTML = path.split("/")[path.split("/").length - 1];
 }
 
+// Dynamically Load a Workflow (where the magic happens)
+async function loadWorkflow(workflowType) {
+    if (!(workflowType in workflows)) {
+        return false;
+    }
+
+    // Unload anything from the current workflow
+    if (workflow != null) {
+        // Hide the loader if shown?
+    }
+
+    if (workflowType != CONNTYPE.None) {
+        // Instantiate a workflow (or should we instantiate all workflows and just switch between them?)
+        workflow = workflows[workflowType];
+        // Initialize the workflow
+        await workflow.init({
+            terminal: terminal,
+            loadEditorFunc: loadEditor,
+            debugLogFunc: debugLog,
+            disconnectFunc: disconnectCallback
+        });
+        fileDialog = new FileDialog("files", workflow.showBusy);
+        // Display the appropriate connection dialog
+        await workflow.connectDialog.open();
+    } else {
+        // Unload whatever
+        workflow = null;
+        fileDialog = null;
+    }
+}
+
+/*
+Other Tasks
+-------------
+We need a web workflow file ops lib
+Make sure the loadEditor() function works fine with the different workflows
+URL checking (See flowchart)
+*/
+
 // Use the editors functions to check if anything has changed
 function isDirty() {
     if (unchanged == editor.state.doc.length) return false;
@@ -168,13 +210,6 @@ async function checkSaved() {
     return true;
 }
 
-async function showBusy(functionPromise) {
-    loader.classList.add("busy");
-    let result = await functionPromise;
-    loader.classList.remove("busy");
-    return result;
-}
-
 async function saveFile(path) {
     const previousFile = currentFilename;
     if (path !== undefined) {
@@ -203,7 +238,7 @@ async function fileExists(path) {
     const folder = pathParts.join("/");
 
     // Get a list of files in current path
-    const files = await showBusy(workflow.fileClient.listDir(folder));
+    const files = await workflow.showBusy(workflow.fileClient.listDir(folder));
 
     // See if the file is in the list of files
     for (let fileObj of files) {
@@ -240,8 +275,6 @@ function changeMode(mode) {
         mainContent.classList.add("mode-editor");
     } else if (mode == MODE_SERIAL) {
         mainContent.classList.add("mode-serial");
-    } else if (mode == MODE_LANDING) {
-        mainContent.classList.add("mode-landing");
     }
 }
 
@@ -290,7 +323,7 @@ window.addEventListener("resize", fixViewportHeight);
 async function loadEditor() {
     if (await fileExists("/code.py")) {
         setFilename("/code.py");
-        var contents = await showBusy(workflow.fileClient.readFile(currentFilename));
+        var contents = await workflow.showBusy(workflow.getDeviceFileContents(currentFilename));
     } else {
         setFilename(null);
         contents = "";
@@ -321,7 +354,7 @@ async function writeText() {
     unchanged = doc.length;
     try {
         console.log("write");
-        await showBusy(workflow.fileClient.writeFile(currentFilename, offset, contents));
+        await workflow.showBusy(workflow.fileClient.writeFile(currentFilename, offset, contents));
     } catch (e) {
         console.log("write failed", e, e.stack);
         unchanged = Math.min(oldUnchanged, unchanged);
@@ -360,8 +393,8 @@ async function onTextChange(update) {
 }
 
 function disconnectCallback() {
-    changeMode(MODE_LANDING);
     updateUIConnected(false);
+    workflow.connectDialog.open();
 }
 
 editor = new EditorView({
@@ -428,10 +461,5 @@ window.onload = async function() {
             });
         });
     }
-    workflow.init({
-        terminal: terminal,
-        loadEditorFunc: loadEditor,
-        debugLogFunc: debugLog,
-        disconnectFunc: disconnectCallback
-    });
+    await loadWorkflow(CONNTYPE.Ble);
 };
