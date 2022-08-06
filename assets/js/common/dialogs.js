@@ -5,7 +5,7 @@ const SELECTOR_CLOSE_BUTTON = ".popup-modal__close";
 const SELECTOR_BLACKOUT = ".body-blackout";
 
 // This is for mapping file extensions to font awesome icons
-const extensions = {
+const extensionMap = {
     "wav": {icon: "file-audio", type: "bin"},
     "mp3": {icon: "file-audio", type: "bin"},
     "bmp": {icon: "file-image", type: "bin"},
@@ -23,28 +23,30 @@ const extensions = {
     "wmv": {icon: "file-video", type: "bin"},
 }
 
-class FileDialog {
-    constructor(modalId, showBusy) {
+class GenericModal {
+    constructor(modalId) {
         this._modalId = modalId;
-        this._showBusy = showBusy;
-        this._currentPath = "/";
         this._currentModal = null;
-        this._fileClient = null;
         this._resolve = null;
         this._reject = null;
         this.closeModal = this._closeModal.bind(this);
-        this.handleOkButton = this._handleOkButton.bind(this);
-        this.handleFilenameUpdate = this._handleFilenameUpdate.bind(this);
-    }
+    }    
 
     _openModal() {
-        const bodyBlackout = document.querySelector(SELECTOR_BLACKOUT);
         const modal = document.querySelector(`[data-popup-modal="${this._modalId}"]`);
+        if (!modal) {
+            throw new Error(`Modal with ID "${this._modalId}" not found.`);
+        }
+        const bodyBlackout = document.querySelector(SELECTOR_BLACKOUT);
         modal.classList.add('is--visible');
-        bodyBlackout.classList.add('is-blacked-out');
-        modal.querySelector('.popup-modal__close').addEventListener('click', this.closeModal);
-        
-        bodyBlackout.addEventListener('click', this.closeModal);
+        if (bodyBlackout) {
+            bodyBlackout.classList.add('is-blacked-out');
+            bodyBlackout.addEventListener('click', this.closeModal);
+        }
+        const closeButton = modal.querySelector(SELECTOR_CLOSE_BUTTON);
+        if (closeButton) {
+            closeButton.addEventListener('click', this.closeModal);
+        }
         document.body.style.overflow = 'hidden';
         bodyBlackout.style.top = `${window.scrollY}px`;
 
@@ -52,27 +54,112 @@ class FileDialog {
     }
 
     _closeModal() {
-        this._currentModal.querySelector('.popup-modal__close').removeEventListener('click', this.closeModal);
-        const bodyBlackout = document.querySelector(SELECTOR_BLACKOUT);
-        bodyBlackout.removeEventListener('click', this.closeModal);
-        this._currentModal.classList.remove('is--visible');
-        bodyBlackout.classList.remove('is-blacked-out');
-        const scrollY = document.body.style.top;
-        document.body.style.overflow = '';
-        window.scrollTo(0, parseInt(scrollY || '0') * -1);
+        // If promise has not been resolved yet, resolve it with null
+        if (this._resolve !== null) {
+            this._resolve(null);
+            this._resolve = null;
+            this._reject = null;
+        }
+
+        if (this._currentModal) {
+            const bodyBlackout = document.querySelector(SELECTOR_BLACKOUT);
+            if (bodyBlackout) {
+                bodyBlackout.removeEventListener('click', this.closeModal);
+                bodyBlackout.classList.remove('is-blacked-out');
+            }
+            const closeButton = this._currentModal.querySelector(SELECTOR_CLOSE_BUTTON);
+            if (closeButton) {
+                closeButton.removeEventListener('click', this.closeModal);
+            }
+            this._currentModal.classList.remove('is--visible');
+            const scrollY = document.body.style.top;
+            document.body.style.overflow = '';
+            window.scrollTo(0, parseInt(scrollY || '0') * -1);
+            this._currentModal = null;
+        }
+    }
+
+    _returnValue(value) {
+        this._resolve(value);
+        this._resolve = null;
+        this._reject = null;
+        this._closeModal();
+    }
+
+    close() {
+        this._closeModal();
+    }
+
+    async open() {
+        this._currentModal = this._openModal();
+
+        let p = new Promise((resolve, reject) => {
+            this._resolve = resolve;
+            this._reject = reject;
+        });
+
+        return p;
+    }
+}
+
+class UnsavedDialog extends GenericModal {
+    constructor(modalId) {
+        super(modalId);
+        this.handleSaveButton = this._handleSaveButton.bind(this);
+        this.handleDontSaveButton = this._handleDontSaveButton.bind(this);
+    }    
+
+    _closeModal() {
+        const cancelButton = this._currentModal.querySelector("button.cancel-button");
+        cancelButton.removeEventListener("click", this.closeModal);
+        const saveButton = this._currentModal.querySelector("button.ok-button");
+        saveButton.removeEventListener("click", this.handleSaveButton);
+        const dontSaveButton = this._currentModal.querySelector("button.not-ok-button");
+        dontSaveButton.removeEventListener("click", this.handleDontSaveButton);
+        super._closeModal();
+    }
+
+    _handleSaveButton() {
+        this._returnValue(true);
+    }
+
+    _handleDontSaveButton() {
+        this._returnValue(false);
+    }
+
+    async open(message) {
+        let p = super.open()
+        const cancelButton = this._currentModal.querySelector("button.cancel-button");
+        cancelButton.addEventListener("click", this.closeModal);
+        const saveButton = this._currentModal.querySelector("button.ok-button");
+        saveButton.addEventListener("click", this.handleSaveButton);
+        const dontSaveButton = this._currentModal.querySelector("button.not-ok-button");
+        dontSaveButton.addEventListener("click", this.handleDontSaveButton);
+        const messageLabel = this._currentModal.querySelector("#message");
+        messageLabel.innerHTML = message;
+
+        return p;
+    }
+}
+
+class FileDialog extends GenericModal {
+    constructor(modalId, showBusy) {
+        super(modalId);
+        this._showBusy = showBusy;
+        this._currentPath = "/";
+        this._fileClient = null;
+        this.handleOkButton = this._handleOkButton.bind(this);
+        this.handleFilenameUpdate = this._handleFilenameUpdate.bind(this);
+    }
+
+    _closeModal() {
         const cancelButton = this._currentModal.querySelector("button.cancel-button");
         cancelButton.removeEventListener("click", this.closeModal);
         const okButton = this._currentModal.querySelector("button.ok-button");
         okButton.removeEventListener("click", this.handleOkButton);
         const fileName = this._currentModal.querySelector("#filename");
         fileName.removeEventListener("input", this.handleFilenameUpdate);
-        this._currentModal = null;
-
-        if (this._resolve !== null) {
-            this._resolve(null);
-            this._resolve = null;
-            this._reject = null;
-        }
+        super._closeModal();
     }
 
     _removeAllChildNodes(parent) {
@@ -92,8 +179,8 @@ class FileDialog {
     _getIcon(fileObj) {
         if (fileObj.isDir) return "fa-folder";
         const fileExtension = this._getExtension(fileObj.path);
-        if (fileExtension in extensions) {
-            return "fa-" + extensions[fileExtension].icon;
+        if (fileExtension in extensionMap) {
+            return "fa-" + extensionMap[fileExtension].icon;
         }
 
         return "fa-file";
@@ -102,8 +189,8 @@ class FileDialog {
     _getType(fileObj) {
         if (fileObj.isDir) return "folder";
         const fileExtension = this._getExtension(fileObj.path);
-        if (fileExtension in extensions) {
-            return extensions[fileExtension].type;
+        if (fileExtension in extensionMap) {
+            return extensionMap[fileExtension].type;
         }
 
         return "bin";
@@ -114,15 +201,16 @@ class FileDialog {
             return;
         }
         this._fileClient = fileClient;
-        this._currentModal = this._openModal();
+
+        let p = super.open()
         const cancelButton = this._currentModal.querySelector("button.cancel-button");
         cancelButton.addEventListener("click", this.closeModal);
         const okButton = this._currentModal.querySelector("button.ok-button");
+        okButton.disabled = true;
+        okButton.addEventListener("click", this.handleOkButton);
         const fileName = this._currentModal.querySelector("#filename");
         fileName.disabled = type == FILE_DIALOG_OPEN;
         fileName.value = "";
-        okButton.disabled = true;
-        okButton.addEventListener("click", this.handleOkButton);
 
         if (type == FILE_DIALOG_OPEN) {
             this._currentModal.setAttribute("data-type", "open");
@@ -133,11 +221,7 @@ class FileDialog {
             fileName.addEventListener("input", this.handleFilenameUpdate);
         }
 
-        let p = new Promise((resolve, reject) => {
-            this._openFolder();
-            this._resolve = resolve;
-            this._reject = reject;
-        });
+        this._openFolder();
 
         return p;
     }
@@ -263,10 +347,7 @@ class FileDialog {
                     await this._openFolder(this._currentPath + filename + "/");
                 }
             } else if (filetype == "text") {
-                this._resolve(this._currentPath + filename);
-                this._resolve = null;
-                this._reject = null;
-                this._closeModal();
+                this._returnValue(this._currentPath + filename);
             } else {
                 alert("Unable to use this type of file");
             }
@@ -315,158 +396,4 @@ class FileDialog {
     }
 }
 
-class UnsavedDialog {
-    constructor(modalId) {
-        this._modalId = modalId;
-        this._currentModal = null;
-        this._resolve = null;
-        this._reject = null;
-        this.closeModal = this._closeModal.bind(this);
-        this.handleSaveButton = this._handleSaveButton.bind(this);
-        this.handleDontSaveButton = this._handleDontSaveButton.bind(this);
-    }    
-
-    _openModal() {
-        const modal = document.querySelector(`[data-popup-modal="${this._modalId}"]`);
-        modal.classList.add('is--visible');
-        const bodyBlackout = document.querySelector(SELECTOR_BLACKOUT);
-        if (bodyBlackout) {
-            bodyBlackout.classList.add('is-blacked-out');
-            bodyBlackout.addEventListener('click', this.closeModal);
-        }
-        document.body.style.overflow = 'hidden';
-        bodyBlackout.style.top = `${window.scrollY}px`;
-
-        return modal;
-    }
-
-    _closeModal() { // Same as Cancel
-        if (this._resolve !== null) {
-            // Returns null, which means cancelled
-            this._resolve(null);
-        }
-        const bodyBlackout = document.querySelector(SELECTOR_BLACKOUT);
-        if (bodyBlackout) {
-            bodyBlackout.removeEventListener('click', this.closeModal);
-            bodyBlackout.classList.remove('is-blacked-out');
-        }
-        this._currentModal.classList.remove('is--visible');
-        const scrollY = document.body.style.top;
-        document.body.style.overflow = '';
-        window.scrollTo(0, parseInt(scrollY || '0') * -1);
-        const cancelButton = this._currentModal.querySelector("button.cancel-button");
-        cancelButton.removeEventListener("click", this.closeModal);
-        const saveButton = this._currentModal.querySelector("button.ok-button");
-        saveButton.removeEventListener("click", this.handleSaveButton);
-        const dontSaveButton = this._currentModal.querySelector("button.not-ok-button");
-        dontSaveButton.removeEventListener("click", this.handleDontSaveButton);
-        this._currentModal = null;
-    }
-
-    _handleSaveButton() {
-        console.log("Save pressed");
-        this._returnValue(true);
-    }
-
-    _handleDontSaveButton() {
-        console.log("Don't Save pressed");
-        this._returnValue(false);
-    }
-
-    _returnValue(value) {
-        this._resolve(value);
-        this._resolve = null;
-        this._reject = null;
-        this._closeModal();
-    }
-
-    async open(message) {
-        this._currentModal = this._openModal();
-        const cancelButton = this._currentModal.querySelector("button.cancel-button");
-        cancelButton.addEventListener("click", this.closeModal);
-        const saveButton = this._currentModal.querySelector("button.ok-button");
-        saveButton.addEventListener("click", this.handleSaveButton);
-        const dontSaveButton = this._currentModal.querySelector("button.not-ok-button");
-        dontSaveButton.addEventListener("click", this.handleDontSaveButton);
-        const messageLabel = this._currentModal.querySelector("#message");
-        messageLabel.innerHTML = message;
-
-        let p = new Promise((resolve, reject) => {
-            this._resolve = resolve;
-            this._reject = reject;
-        });
-
-        return p;
-    }
-}
-
-class GenericModal {
-    constructor(modalId) {
-        this._modalId = modalId;
-        this._currentModal = null;
-        this._resolve = null;
-        this._reject = null;
-        this.closeModal = this._closeModal.bind(this);
-    }    
-
-    _openModal() {
-        const modal = document.querySelector(`[data-popup-modal="${this._modalId}"]`);
-        const bodyBlackout = document.querySelector(SELECTOR_BLACKOUT);
-        modal.classList.add('is--visible');
-        if (bodyBlackout) {
-            bodyBlackout.classList.add('is-blacked-out');
-            bodyBlackout.addEventListener('click', this.closeModal);
-        }
-        const closeButton = modal.querySelector(SELECTOR_CLOSE_BUTTON);
-        if (closeButton) {
-            closeButton.addEventListener('click', this.closeModal);
-        }
-        document.body.style.overflow = 'hidden';
-        bodyBlackout.style.top = `${window.scrollY}px`;
-
-        return modal;
-    }
-
-    _closeModal() {
-        if (this._resolve !== null) {
-            // Returns null, which means cancelled
-            this._resolve(null);
-        }
-        const bodyBlackout = document.querySelector(SELECTOR_BLACKOUT);
-        if (bodyBlackout) {
-            bodyBlackout.removeEventListener('click', this.closeModal);
-            bodyBlackout.classList.remove('is-blacked-out');
-        }
-        const closeButton = this._currentModal.querySelector(SELECTOR_CLOSE_BUTTON);
-        if (closeButton) {
-            closeButton.removeEventListener('click', this.closeModal);
-        }
-        this._currentModal.classList.remove('is--visible');
-        const scrollY = document.body.style.top;
-        document.body.style.overflow = '';
-        window.scrollTo(0, parseInt(scrollY || '0') * -1);
-        this._currentModal = null;
-    }
-
-    _returnValue(value) {
-        this._resolve(value);
-        this._resolve = null;
-        this._reject = null;
-        this._closeModal();
-    }
-
-    close() {
-        this._closeModal();
-    }
-
-    async open() {
-        this._currentModal = this._openModal();
-
-        let p = new Promise((resolve, reject) => {
-            this._resolve = resolve;
-            this._reject = reject;
-        });
-
-        return p;
-    }
-}
+export {GenericModal, UnsavedDialog, FileDialog, FILE_DIALOG_OPEN, FILE_DIALOG_SAVE}

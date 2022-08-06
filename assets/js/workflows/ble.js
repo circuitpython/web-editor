@@ -4,6 +4,7 @@
 
 import {FileTransferClient} from '@adafruit/ble-file-transfer';
 import {Workflow, CONNTYPE} from './workflow.js'
+import {GenericModal} from '../common/dialogs.js';
 
 const bleNusServiceUUID  = 'adaf0001-4369-7263-7569-74507974686e';
 const bleNusCharRXUUID   = 'adaf0002-4369-7263-7569-74507974686e';
@@ -12,7 +13,7 @@ const bleNusCharTXUUID   = 'adaf0003-4369-7263-7569-74507974686e';
 const BYTES_PER_WRITE = 20;
 const btnRequestBluetoothDevice = document.querySelector('#requestBluetoothDevice');
 const btnBond = document.querySelector('#promptBond');
-const btnConnect = document.querySelectorAll('a.btn-connect');
+const btnReconnect = document.querySelector('#bleReconnect');
 
 class BLEWorkflow extends Workflow {
     constructor() {
@@ -26,10 +27,11 @@ class BLEWorkflow extends Workflow {
         this.loadEditor = null;
         this.fileClient = null;
         this.connectDialog = new GenericModal("ble-connect");
+        this.partialWrites = true;
     }
 
     async init(params) {
-        await super.init(params);
+        await super.init(params, "ble-loader");
         this.loadEditor = params.loadEditorFunc;
         if (navigator.bluetooth) {
             btnRequestBluetoothDevice.addEventListener('click', async function(e) {
@@ -42,23 +44,19 @@ class BLEWorkflow extends Workflow {
                 e.preventDefault();
                 e.stopPropagation();    
             }.bind(this));
-        
+            btnReconnect.addEventListener('click', async function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                await this.reconnectButtonHandler(e);
+            }.bind(this));
             btnBond.disabled = true;
         } else {
             console.log("bluetooth not supported on this browser");
         }
-        this.loader = document.getElementById("ble-loader");
     }
 
-    async connectButtonHandler(e) {
-        if (this.connectionType == CONNTYPE.Ble) {
-            // Disconnect BlueTooth and Reset things
-            if (this.bleDevice !== undefined && this.bleDevice.gatt.connected) {
-                this.bleDevice.gatt.disconnect();
-            }
-            this.connectionType == CONNTYPE.None;
-            this.disconnect();
-        } else {
+    async reconnectButtonHandler(e) {
+        if (this.connectionType == CONNTYPE.None) {
             try {
                 console.log('Getting existing permitted Bluetooth devices...');
                 const devices = await navigator.bluetooth.getDevices();
@@ -76,19 +74,32 @@ class BLEWorkflow extends Workflow {
         }
     }
 
-    async onBLESerialReceive(e) {
+    // This is called when a user clicks the main disconnect button
+    async disconnectButtonHandler(e) {
+        if (this.connectionType == CONNTYPE.Ble) {
+            // Disconnect BlueTooth and Reset things
+            if (this.bleDevice !== undefined && this.bleDevice.gatt.connected) {
+                this.bleDevice.gatt.disconnect();
+            }
+            this.connectionType == CONNTYPE.None;
+            // Update Common UI
+            this.disconnect();
+        }
+    }
+
+    async onSerialReceive(e) {
         // console.log("rcv", e.target.value.buffer);
         this.terminal.io.print(this.decoder.decode(e.target.value.buffer, {stream: true}));
     }
 
-    async connectToBLESerial() {
+    async connectToSerial() {
         try {
             this.serialService = await this.bleServer.getPrimaryService(bleNusServiceUUID);
             // TODO: create a terminal for each serial service
             this.txCharacteristic = await this.serialService.getCharacteristic(bleNusCharTXUUID);
             this.rxCharacteristic = await this.serialService.getCharacteristic(bleNusCharRXUUID);
         
-            this.txCharacteristic.addEventListener('characteristicvaluechanged', this.onBLESerialReceive.bind(this));
+            this.txCharacteristic.addEventListener('characteristicvaluechanged', this.onSerialReceive.bind(this));
             await this.txCharacteristic.startNotifications();    
         } catch(e) {
             console.log(e, e.stack);
@@ -141,14 +152,16 @@ class BLEWorkflow extends Workflow {
         }
         console.log(services);
     
-        console.log('Getting Transfer Service...');
+        console.log('Initializing File Transfer Client...');
         this.fileClient = new FileTransferClient(this.bleDevice, 65536);
         this.debugLog("connected");
-        await this.connectToBLESerial();
+        await this.connectToSerial();
     
+        // Enable/Disable UI buttons
         btnBond.disabled = false;
-        btnConnect.forEach((element) => { element.disabled = true; });
         btnRequestBluetoothDevice.disabled = true;
+        btnReconnect.disabled = true;
+
         this.connectDialog.close();
         await this.loadEditor();
     }
@@ -214,7 +227,7 @@ class BLEWorkflow extends Workflow {
         await this.bleServer.connect();
         console.log(this.bleServer.connected);
         this.debugLog("connected");
-        await this.connectToBLESerial();
+        await this.connectToSerial();
     }
 
     updateConnected(isConnected) {
@@ -223,7 +236,12 @@ class BLEWorkflow extends Workflow {
         } else {
             btnBond.disabled = true;
             btnRequestBluetoothDevice.disabled = false;
+            btnReconnect.disabled = false;
         }
+    }
+
+    async parseParams(urlParams) {
+        return false;
     }
 }
 

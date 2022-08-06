@@ -15,14 +15,21 @@ class Workflow {
         this.debugLog = null;
         this.loader = null;
         this.connectionType = CONNTYPE.None;
+        this.partialWrites = false;
         this.disconnect = function() {};
     }
 
-    async init(params) {
+    async init(params, loaderId) {
         this.terminal = params.terminal;
         this.debugLog = params.debugLogFunc;
         this.disconnect = params.disconnectFunc;
+        this.loadEditor = params.loadEditorFunc;
+        this.loader = document.getElementById(loaderId);
     } 
+
+    async deinit() {
+
+    }
 
     async showBusy(functionPromise) {
         if (this.loader) {
@@ -33,6 +40,11 @@ class Workflow {
             this.loader.classList.remove("busy");
         }
         return result;
+    }
+
+    async parseParams(urlParams) {
+        // Connection specific params check
+        return false;
     }
 
     sleep(ms) {

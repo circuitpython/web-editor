@@ -104,7 +104,9 @@
                 <a class="mode-button purple-button-link active" id="btn-mode-serial">Serial</a>
             </div>
         </div>
-        <div class="loader" id="ble-loader"><div><img src="assets/images/loading-bluetooth.gif" alt="Loading Animation" height="100" width="100"></div></div>
+        <div class="loader" id="ble-loader"><div><img src="assets/images/loading-bluetooth.gif" alt="BLE Loading Animation" height="100" width="100"></div></div>
+        <div class="loader" id="web-loader"><div><img src="assets/images/loading-web.gif" alt="Web Loading Animation" height="100" width="100"></div></div>
+        <div class="loader" id="usb-loader"><div><img src="assets/images/loading-usb.gif" alt="USB Loading Animation" height="100" width="100"></div></div>
         <div 
             class="popup-modal shadow file-dialog" 
             data-popup-modal="files">
@@ -133,8 +135,8 @@
             <i class="fas fa-2x fa-times text-white bg-primary p-3 popup-modal__close"></i>
             <!--<div id="landing-page" class="wrapper">-->
             <div id="ble-instructions" class="connection-layout content">
-                <p>If you are connecting to a new device, follow the steps below. Otherwise click the Connect button in the upper
-                    right.</p>
+                <p>If you are connecting to a new device, follow the steps below. Otherwise click the Reconnect button.</p>
+                <p><button class="purple-button-link" id="bleReconnect">Reconnect</button></p>
                 <section class="step">
                     <div class="step-number">1</div>
                     <div class="step-content">
@@ -192,7 +194,6 @@
             </div>
         </div>
         <script src="assets/js/common/hterm_all.js"></script>
-        <script src="assets/js/common/dialogs.js"></script>
         <script src="assets/js/common/header_mobile.js"></script>
         <script type="module" src="assets/js/common/script.js"></script>
     </body>

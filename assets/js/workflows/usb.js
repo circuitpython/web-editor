@@ -12,7 +12,7 @@ class USBWorkflow extends Workflow {
     }
 
     async init(params) {
-        await super.init(params);
+        await super.init(params, "usb-loader");
     }
 
     async connectButtonHandler(e) {

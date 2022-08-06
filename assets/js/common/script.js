@@ -2,17 +2,48 @@ import {EditorState, EditorView, basicSetup, } from "@codemirror/basic-setup"
 import {python} from "@codemirror/lang-python"
 import {classHighlightStyle} from "@codemirror/highlight"
 import {BLEWorkflow} from '../workflows/ble.js'
+import {WebWorkflow} from '../workflows/web.js'
 import {CONNTYPE} from '../workflows/workflow.js'
+import {FileDialog, UnsavedDialog, FILE_DIALOG_OPEN, FILE_DIALOG_SAVE} from './dialogs.js';
+
+/*
+Remaining Tasks for Web Workflow
+----------------------------------
+Get web workflow file ops written:
+    delete
+    mkdir
+    move/rename
+    more complete error handling/messaging based on response codes
+Strip out title setter and maybe display in div on terminal page
+Fix Sorting of file dialog so folders show first
+More File Dialog Options like Mkdir
+URL checking (See flowchart)
+Polishing
+Device Info
+Device Discovery
+Connection Dialogs
+
+Other Tasks to be completed after
+----------------------------------
+Add USB workflow
+*/
 
 var terminal;
 var currentFilename = null;
 var unchanged = 0;
-
+var backend = null;
 var workflow = null;
+
+var validBackends = {
+    "web": CONNTYPE.Web,
+    "ble": CONNTYPE.Ble,
+    "usb": CONNTYPE.Usb,
+}
 
 // Instantiate workflows
 var workflows = {}
 workflows[CONNTYPE.Ble] = new BLEWorkflow();
+workflows[CONNTYPE.Web] = new WebWorkflow();
 
 const btnModeEditor = document.getElementById('btn-mode-editor');
 const btnModeSerial = document.getElementById('btn-mode-serial');
@@ -132,38 +163,35 @@ async function loadWorkflow(workflowType) {
 
     // Unload anything from the current workflow
     if (workflow != null) {
-        // Hide the loader if shown?
+        // Update Workflow specific UI elements
+        await workflow.deinit();
     }
 
     if (workflowType != CONNTYPE.None) {
-        // Instantiate a workflow (or should we instantiate all workflows and just switch between them?)
-        workflow = workflows[workflowType];
-        // Initialize the workflow
-        await workflow.init({
-            terminal: terminal,
-            loadEditorFunc: loadEditor,
-            debugLogFunc: debugLog,
-            disconnectFunc: disconnectCallback
-        });
-        fileDialog = new FileDialog("files", workflow.showBusy);
-        // Display the appropriate connection dialog
-        await workflow.connectDialog.open();
+        // Is the requested workflow different than the currently loaded one?
+        if (workflow != workflows[workflowType]) {
+            workflow = workflows[workflowType];
+            // Initialize the workflow
+            await workflow.init({
+                terminal: terminal,
+                loadEditorFunc: loadEditor,
+                debugLogFunc: debugLog,
+                disconnectFunc: disconnectCallback
+            });
+            fileDialog = new FileDialog("files", workflow.showBusy);
+        }
     } else {
+        if (workflow != null) {
+            // Update Workflow specific UI elements
+            await workflow.disconnectButtonHandler();
+        }
         // Unload whatever
         workflow = null;
         fileDialog = null;
     }
 }
 
-/*
-Other Tasks
--------------
-We need a web workflow file ops lib
-Make sure the loadEditor() function works fine with the different workflows
-URL checking (See flowchart)
-*/
-
-// Use the editors functions to check if anything has changed
+// Use the editor's function to check if anything has changed
 function isDirty() {
     if (unchanged == editor.state.doc.length) return false;
     return true;
@@ -338,7 +366,9 @@ async function loadEditor() {
 var editor;
 var currentTimeout = null;
 async function writeText() {
-    console.log("sync starting at", unchanged, "to", editor.state.doc.length);
+    if (workflow.partialWrites) {
+        console.log("sync starting at", unchanged, "to", editor.state.doc.length);
+    }
     if (!workflow.fileClient) {
         console.log("no file client");
         return;
@@ -346,10 +376,14 @@ async function writeText() {
     let encoder = new TextEncoder();
     let doc = editor.state.doc;
     let same = doc.sliceString(0, unchanged);
-    let offset = encoder.encode(same).byteLength
+    let offset = 0;
     let different = doc.sliceString(unchanged);
-    let contents = encoder.encode(different);
-    console.log(offset, different);
+    let contents = doc;
+    if (workflow.partialWrites) {
+        offset = encoder.encode(same).byteLength;
+        contents = encoder.encode(different);
+        console.log(offset, different);
+    }
     let oldUnchanged = unchanged;
     unchanged = doc.length;
     try {
@@ -394,7 +428,6 @@ async function onTextChange(update) {
 
 function disconnectCallback() {
     updateUIConnected(false);
-    workflow.connectDialog.open();
 }
 
 editor = new EditorView({
@@ -436,7 +469,7 @@ function setupHterm() {
             // React to size changes here.
             // Secure Shell pokes at NaCl, which eventually results in
             // some ioctls on the host.
-            console.log("resize", columns, rows);
+            //console.log("resize", columns, rows);
         };
 
         // You can call io.push() to foreground a fresh io context, which can
@@ -444,22 +477,71 @@ function setupHterm() {
         // thing is complete, should call io.pop() to restore control to the
         // previous io object.
     };
-    t.decorate(document.querySelector('#terminal'));
+    t.decorate(document.getElementById('terminal'));
     t.installKeyboard();
+}
+
+function getBackend() {
+    var params = getUrlParams();
+    if (params["backend"] !== undefined) {
+        var backend = params["backend"].toLowerCase();
+
+        if (backend in validBackends) {
+            return validBackends[backend];
+        }
+    }
+    
+    return null;
+}
+
+function getUrlParams() {
+    // This should look for and validate very specific values
+    var hashParams = {};
+    location.hash.substr(1).split("&").forEach(function(item) {hashParams[item.split("=")[0]] = item.split("=")[1]});
+
+    return hashParams;
 }
 
 // This will be whatever normal entry/initialization point your project uses.
 window.onload = async function() {
     await lib.init();
     setupHterm();
-    if (navigator.bluetooth) {
-        btnConnect.forEach((element) => {
-            element.addEventListener('click', async function(e) {
-                e.preventDefault();
-                e.stopPropagation();    
-                await workflow.connectButtonHandler();
-            });
+    btnConnect.forEach((element) => {
+        element.addEventListener('click', async function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            // Check if we have an active connection
+            console.log(workflow);
+            if (workflow != null && workflow.connectionType != CONNTYPE.None) {
+                console.log("Unload workflow");
+                // If so, unload the current workflow
+                await loadWorkflow(CONNTYPE.None);
+            } else {
+                console.log("Load workflow");
+                // If not, it should display the available connections
+                // For now just connect BLE
+                await loadWorkflow(CONNTYPE.Ble);
+                // Eventually, the available connections dialog should call the appropriate loadWorkflow which should trigger a connect method
+                if (workflow.connectionType == CONNTYPE.None) {
+                    // Display the appropriate connection dialog
+                    await workflow.connectDialog.open();
+                }
+            }
         });
+    });
+
+    // Check backend param and load appropriate type if specified
+    backend = getBackend();
+    if (backend) {
+        await loadWorkflow(backend);
+
+        // If we don't have all the info we need to connect
+        if (!(await workflow.parseParams(getUrlParams()))) {
+            await workflow.connectDialog.open();
+        } else {
+            if (!(await workflow.connect())) {
+                alert("Unable to connect");
+            }
+        }
     }
-    await loadWorkflow(CONNTYPE.Ble);
 };
