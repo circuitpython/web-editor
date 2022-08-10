@@ -1,4 +1,4 @@
-import {EditorState, EditorView, basicSetup, } from "@codemirror/basic-setup"
+import {EditorState, EditorView, basicSetup} from "@codemirror/basic-setup"
 import {python} from "@codemirror/lang-python"
 import {classHighlightStyle} from "@codemirror/highlight"
 import {BLEWorkflow} from '../workflows/ble.js'
@@ -419,8 +419,6 @@ function setupHterm() {
         // (The default IO object just prints warning messages about unhandled
         // things to the the JS console.)
         const io = t.io.push();
-
-        debugLog("connect to a device above");
 
         io.onVTKeystroke = async (str) => {
             workflow.serialTransmit(str);

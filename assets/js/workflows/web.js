@@ -6,7 +6,12 @@ import {FileTransferClient} from '../common/web-file-transfer.js';
 import {Workflow, CONNTYPE} from './workflow.js'
 import {GenericModal} from '../common/dialogs.js';
 
-//const IGNORE_OPCODES = ["\x1b]0;", "\x1b\\"];
+const CHAR_TITLE_START = "\x1b]0;";
+const CHAR_TITLE_END = "\x1b\\";
+
+const CONNECT_TIMEOUT_MS = 30000
+const PING_INTERVAL_MS = 10000
+const PING_TIMEOUT_MS = 5000
 
 class WebWorkflow extends Workflow {
     constructor() {
@@ -18,6 +23,7 @@ class WebWorkflow extends Workflow {
         this.loadEditor = null;
         this.fileClient = null;
         this.connectDialog = new GenericModal("web-connect");
+        this.connIntervalId = null;
     }
 
     async init(params) {
@@ -36,10 +42,10 @@ class WebWorkflow extends Workflow {
 
     async onSerialReceive(e) {
         // Use an open web socket to display received serial data
-        if (e.data == "\x1b]0;") {
+        if (e.data == CHAR_TITLE_START) {
             this.titleMode = true;
             this.setTerminalTitle("");
-        } else if (e.data == "\x1b\\") {
+        } else if (e.data == CHAR_TITLE_END) {
             this.titleMode = false;
         } else if (this.titleMode) {
             this.setTerminalTitle(e.data, true);
@@ -66,6 +72,7 @@ class WebWorkflow extends Workflow {
             this.websocket.onopen = function() {
                 // Stuff to do on successful connection
                 this.updateConnected(true);
+                //this.connIntervalId = setInterval(this.checkConnection.bind(this), PING_INTERVAL_MS);
             }.bind(this); 
             this.websocket.onmessage = this.onSerialReceive.bind(this);
             this.websocket.onclose = this.onDisconnected.bind(this);
@@ -93,14 +100,14 @@ class WebWorkflow extends Workflow {
         this.fileClient = new FileTransferClient(host, this.connectionStatus);
         this.debugLog("connected");
         let success = await this.initSerial(host);
-        // Wait for a connection with a 30 second timeout
+        // Wait for a connection with a timeout
         console.log("Waiting for connection...");
         await this.timeout(
             async () => {
                 while(!this.connectionStatus()) {
                     await this.sleep(100);
                 }
-            }, 30000
+            }, CONNECT_TIMEOUT_MS
         );
 
         if (success && this.connectionStatus()) {
@@ -143,10 +150,9 @@ class WebWorkflow extends Workflow {
     }
 
     async onDisconnected() {
+        console.log("Disconnect Detected");
         this.debugLog("disconnected");
         this.updateConnected(false);
-        this.debugLog("connected");
-        //await this.initSerial();
     }
 
     updateConnected(isConnected) {
@@ -155,6 +161,28 @@ class WebWorkflow extends Workflow {
         } else {
             this.connectionType = CONNTYPE.None;
         }
+    }
+
+    async checkConnection() {
+        // For our next trick, lets try using fetch
+
+
+        /*
+        this.pingReturned = false;
+        await this.timeout(
+            async () => {
+                console.log("Sending Ping");
+                await this.serialTransmit("");
+                while(!this.pingReturned) {
+                    await this.sleep(10);
+                }
+                console.log("Ping Received");
+            }, PING_TIMEOUT_MS
+        );
+        if (!this.pingReturned) {
+            console.log("Ping timed out. Closing connection.");
+            //this.websocket.close();
+        }*/
     }
 
     connectionStatus() {
