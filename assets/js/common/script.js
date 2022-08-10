@@ -161,7 +161,7 @@ async function loadWorkflow(workflowType) {
                 debugLogFunc: debugLog,
                 disconnectFunc: disconnectCallback,
             });
-            fileDialog = new FileDialog("files", workflow.showBusy);
+            fileDialog = new FileDialog("files", workflow.showBusy.bind(workflow));
         }
     } else {
         if (workflow != null) {
