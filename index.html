@@ -6,8 +6,8 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <link rel="icon" href="assets/images/favicon.ico" type="image/x-icon" />
         <title>CircuitPython Code Editor</title>
-        <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.5.0/css/all.css"
-            integrity="sha384-B4dIYHKNBt8Bc12p+WXckhzcICo0wtJAoU8YZTY5qE0Id1GSseTk6S+L3BlXeVIU" crossorigin="anonymous">
+        <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.15.4/css/all.css"
+            integrity="sha384-DyZ88mC6Up2uqS4h/KRgHuoeGwBcD4Ng9SiP4dIRy0EXTlnuz47vAwmeGwVChigm" crossorigin="anonymous">
         <link rel="stylesheet" href="assets/css/style.css">
     </head>
 
@@ -92,6 +92,7 @@
             <div id="serial-page" class="wrapper">
                 <div class="container">
                     <a class="purple-button-link" id="btn-restart">Restart<i class="fas fa-redo"></i></a>
+                    <div id="terminal-title"></div>
                 </div>
                 <div class="terminal-container">
                     <div class="container">
@@ -114,6 +115,8 @@
             <i class="fas fa-2x fa-times text-white bg-primary p-3 popup-modal__close"></i>
             <div id="file-list" style="border:1px solid #888"></div>
             <div class="buttons">
+                <button id="del-button"><i class="fas fa-trash-alt"></i></button>
+                <button id="new-folder-button"><i class="fas fa-folder-plus"></i></button>
                 <input type=text" id="filename" />
                 <button class="ok-button">Ok</button>
                 <button class="cancel-button">Cancel</button>

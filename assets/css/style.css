@@ -614,7 +614,7 @@ fieldset legend {
   background-color: #e71c8c;
 }
 
-.file-path {
+.file-path, #terminal-title {
   font-size: 20px;
   line-height: 59px;
   margin-left: 10px;
@@ -898,8 +898,14 @@ fieldset legend {
 .popup-modal .buttons button {
   margin-left: 10px;
 }
+.popup-modal .buttons button i {
+  padding-left: 0;
+}
+.popup-modal .buttons button:first-child {
+  margin-left: 0;
+}
 .popup-modal .buttons input {
-  margin: 10px 0;
+  margin: 10px 0 10px 10px;
   flex-grow: 1;
   font-size: 1.2em;
   padding: 5px;

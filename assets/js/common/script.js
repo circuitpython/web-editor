@@ -5,28 +5,7 @@ import {BLEWorkflow} from '../workflows/ble.js'
 import {WebWorkflow} from '../workflows/web.js'
 import {CONNTYPE} from '../workflows/workflow.js'
 import {FileDialog, UnsavedDialog, FILE_DIALOG_OPEN, FILE_DIALOG_SAVE} from './dialogs.js';
-
-/*
-Remaining Tasks for Web Workflow
-----------------------------------
-Get web workflow file ops written:
-    delete
-    mkdir
-    move/rename
-    more complete error handling/messaging based on response codes
-Strip out title setter and maybe display in div on terminal page
-Fix Sorting of file dialog so folders show first
-More File Dialog Options like Mkdir
-URL checking (See flowchart)
-Polishing
-Device Info
-Device Discovery
-Connection Dialogs
-
-Other Tasks to be completed after
-----------------------------------
-Add USB workflow
-*/
+import {FileHelper} from './file.js'
 
 var terminal;
 var currentFilename = null;
@@ -54,6 +33,7 @@ const btnNew = document.querySelectorAll('a.btn-new');
 const btnOpen = document.querySelectorAll('a.btn-open');
 const btnSaveAs = document.querySelectorAll('a.btn-save-as');
 const btnSaveRun = document.querySelectorAll('a.btn-save-run');
+const terminalTitle = document.getElementById('terminal-title');
 
 const MODE_EDITOR = 1;
 const MODE_SERIAL = 2;
@@ -61,6 +41,8 @@ const CHAR_CTRL_C = '\x03';
 const CHAR_CTRL_D = '\x04';
 const CHAR_CRLF = '\x0a\x0d';
 var fileDialog = null;
+var fileHelper = null;
+
 const unsavedDialog = new UnsavedDialog("unsaved");
 
 const editorTheme = EditorView.theme({}, {dark: true})
@@ -91,9 +73,9 @@ btnOpen.forEach((element) => {
         e.preventDefault();
         e.stopPropagation();
         if (await checkSaved()) {
-            let path = await fileDialog.open(workflow.fileClient, FILE_DIALOG_OPEN);
+            let path = await fileDialog.open(fileHelper, FILE_DIALOG_OPEN);
             if (path !== null) {
-                let contents = await workflow.showBusy(workflow.fileClient.readFile(path));
+                let contents = await workflow.showBusy(fileHelper.readFile(path));
                 loadEditorContents(contents);
                 unchanged = editor.state.doc.length;
                 setFilename(path);
@@ -174,9 +156,10 @@ async function loadWorkflow(workflowType) {
             // Initialize the workflow
             await workflow.init({
                 terminal: terminal,
+                terminalTitle: terminalTitle,
                 loadEditorFunc: loadEditor,
                 debugLogFunc: debugLog,
-                disconnectFunc: disconnectCallback
+                disconnectFunc: disconnectCallback,
             });
             fileDialog = new FileDialog("files", workflow.showBusy);
         }
@@ -188,6 +171,7 @@ async function loadWorkflow(workflowType) {
         // Unload whatever
         workflow = null;
         fileDialog = null;
+        fileHelper = null;
     }
 }
 
@@ -259,30 +243,11 @@ async function saveFile(path) {
     return false;
 }
 
-async function fileExists(path) {
-    // Get the current path
-    let pathParts = path.split("/");
-    const filename = pathParts.pop();
-    const folder = pathParts.join("/");
-
-    // Get a list of files in current path
-    const files = await workflow.showBusy(workflow.fileClient.listDir(folder));
-
-    // See if the file is in the list of files
-    for (let fileObj of files) {
-        if (fileObj.path[0] == ".") continue;
-        if (fileObj.path == filename) {
-            return true;
-        }
-    }
-    return false;
-}
-
 async function saveAs() {
-    let path = await fileDialog.open(workflow.fileClient, FILE_DIALOG_SAVE);
+    let path = await fileDialog.open(fileHelper, FILE_DIALOG_SAVE);
     if (path !== null) {
         // check if filename exists
-        if (path != currentFilename && await fileExists(path)) {
+        if (path != currentFilename && await fileHelper.fileExists(path)) {
             if (window.confirm("Overwrite existing file '" + path + "'?")) {
                 await saveFile(path);
             } else {
@@ -317,14 +282,12 @@ async function debugLog(msg) {
 function updateUIConnected(isConnected) {
     if (isConnected) {
         // Set to Connected State
-        console.log("Connected");
         btnConnect.forEach((element) => { 
             element.innerHTML = "Disconnect"; 
             element.disabled = false;
         });
     } else {
         // Set to Disconnected State
-        console.log("Disconnected");
         btnConnect.forEach((element) => { 
             element.innerHTML = "Connect";
             element.disabled = false; 
@@ -349,7 +312,9 @@ fixViewportHeight();
 window.addEventListener("resize", fixViewportHeight);
 
 async function loadEditor() {
-    if (await fileExists("/code.py")) {
+    fileHelper = new FileHelper(workflow);
+    //console.log(await fileHelper.delete("/testdir/"));
+    if (await fileHelper.fileExists("/code.py")) {
         setFilename("/code.py");
         var contents = await workflow.showBusy(workflow.getDeviceFileContents(currentFilename));
     } else {
@@ -358,7 +323,7 @@ async function loadEditor() {
     }
     loadEditorContents(contents);
     unchanged = editor.state.doc.length;
-    console.log("doc length", unchanged);
+    //console.log("doc length", unchanged);
     updateUIConnected(true);
     changeMode(MODE_EDITOR);
 }
@@ -369,7 +334,7 @@ async function writeText() {
     if (workflow.partialWrites) {
         console.log("sync starting at", unchanged, "to", editor.state.doc.length);
     }
-    if (!workflow.fileClient) {
+    if (!fileHelper) {
         console.log("no file client");
         return;
     }
@@ -388,7 +353,7 @@ async function writeText() {
     unchanged = doc.length;
     try {
         console.log("write");
-        await workflow.showBusy(workflow.fileClient.writeFile(currentFilename, offset, contents));
+        await workflow.showBusy(fileHelper.writeFile(currentFilename, offset, contents));
     } catch (e) {
         console.log("write failed", e, e.stack);
         unchanged = Math.min(oldUnchanged, unchanged);
@@ -539,7 +504,7 @@ window.onload = async function() {
         if (!(await workflow.parseParams(getUrlParams()))) {
             await workflow.connectDialog.open();
         } else {
-            if (!(await workflow.connect())) {
+            if (!(await workflow.showBusy(workflow.connect()))) {
                 alert("Unable to connect");
             }
         }

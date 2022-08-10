@@ -12,6 +12,7 @@ const CONNTYPE = {
 class Workflow {
     constructor() {
         this.terminal = null;
+        this.terminalTitle = null;
         this.debugLog = null;
         this.loader = null;
         this.connectionType = CONNTYPE.None;
@@ -25,7 +26,10 @@ class Workflow {
         this.disconnect = params.disconnectFunc;
         this.loadEditor = params.loadEditorFunc;
         this.loader = document.getElementById(loaderId);
-    } 
+        if ("terminalTitle" in params) {
+            this.terminalTitle = params.terminalTitle;
+        }
+    }
 
     async deinit() {
 
@@ -45,6 +49,27 @@ class Workflow {
     async parseParams(urlParams) {
         // Connection specific params check
         return false;
+    }
+
+    // This function should run callback and if it takes longer than ms, retun
+    timeout(callback, ms) {
+        return new Promise(
+            resolve => {
+                setTimeout(
+                    () => {
+                        console.log("timeout func fail")
+                        resolve();
+                    }
+                , ms)
+                callback();
+                console.log("timeout func success")
+                resolve();
+            }
+        );
+    }
+      
+    timeout(callback, ms) {
+        return Promise.race([callback(), this.sleep(ms)]);
     }
 
     sleep(ms) {

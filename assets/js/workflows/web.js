@@ -12,7 +12,6 @@ class WebWorkflow extends Workflow {
     constructor() {
         super();
         this.host = null;
-        this.title = "";
         this.titleMode = false;
         this.websocket = null;
         this.serialService = null;
@@ -23,6 +22,7 @@ class WebWorkflow extends Workflow {
 
     async init(params) {
         await super.init(params, "web-loader");
+        document.getElementById('terminal-title');
     }
 
     // This is called when a user clicks the main disconnect button
@@ -36,16 +36,37 @@ class WebWorkflow extends Workflow {
 
     async onSerialReceive(e) {
         // Use an open web socket to display received serial data
-        this.terminal.io.print(e.data);
+        if (e.data == "\x1b]0;") {
+            this.titleMode = true;
+            this.setTerminalTitle("");
+        } else if (e.data == "\x1b\\") {
+            this.titleMode = false;
+        } else if (this.titleMode) {
+            this.setTerminalTitle(e.data, true);
+        } else {
+            this.terminal.io.print(e.data);
+        }
     }
 
-    async connectToSerial(host) {
+    setTerminalTitle(title, append = false) {
+        if (this.terminalTitle == null) {
+            return;
+        }
+
+        if (append) {
+            title = this.terminalTitle.textContent + title;
+        }
+
+        this.terminalTitle.textContent = title;
+    }
+
+    async initSerial(host) {
         try {
             this.websocket = new WebSocket("ws://" + host + "/cp/serial/");
             this.websocket.onopen = function() {
                 // Stuff to do on successful connection
                 this.updateConnected(true);
-            }; 
+            }.bind(this); 
             this.websocket.onmessage = this.onSerialReceive.bind(this);
             this.websocket.onclose = this.onDisconnected.bind(this);
             
@@ -55,7 +76,7 @@ class WebWorkflow extends Workflow {
                     this.websocket.close();
                 }
                 this.websocket = null;
-            };
+            }.bind(this);
             return true;
         } catch(e) {
             //console.log(e, e.stack);
@@ -71,14 +92,26 @@ class WebWorkflow extends Workflow {
         console.log('Initializing File Transfer Client...');
         this.fileClient = new FileTransferClient(host, this.connectionStatus);
         this.debugLog("connected");
-        let success = await this.connectToSerial(host);
-        if (success) {
+        let success = await this.initSerial(host);
+        // Wait for a connection with a 30 second timeout
+        console.log("Waiting for connection...");
+        await this.timeout(
+            async () => {
+                while(!this.connectionStatus()) {
+                    await this.sleep(100);
+                }
+            }, 30000
+        );
+
+        if (success && this.connectionStatus()) {
+            console.log("Connected!");
             this.connectDialog.close();
             if (this.connectionStatus()) {
                 await this.loadEditor();
             }
             return true;
         }
+        console.log("Connection timed out");
 
         return false;
     }
@@ -113,7 +146,7 @@ class WebWorkflow extends Workflow {
         this.debugLog("disconnected");
         this.updateConnected(false);
         this.debugLog("connected");
-        //await this.connectToSerial();
+        //await this.initSerial();
     }
 
     updateConnected(isConnected) {

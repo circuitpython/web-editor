@@ -12,11 +12,11 @@ class FileTransferClient {
 
     async readFile(filename) {
         await this.checkConnection();
-        const response = await this.fetch(`/fs${filename}`);
+        const response = await this._fetch(`/fs${filename}`);
         return response.status === 200 ? await response.text() : "";
     }
 
-    async writeFile(path, offset, contents, modificationTime) {
+    async writeFile(path, offset, contents, modificationTime, isBinary = false) {
         let options = {
             method: 'PUT',
             body: contents,
@@ -25,18 +25,35 @@ class FileTransferClient {
             }
         }
 
+        if (isBinary) {
+            options.headers['Content-Type'] = "application/octet-stream";
+        }
+
         await this.checkConnection();
-        const response = await this.fetch(`/fs${path}`, options);
+        const response = await this._fetch(`/fs${path}`, options);
         return await response.text();
     }
 
     // Makes the directory and any missing parents
-    async makeDir(path, modificationTime) {
+    async makeDir(path, modificationTime = Date.now()) {
         await this.checkConnection();
-        return true;
+
+        if (!path.length || path.substr(-1) != "/") {
+            path += "/";
+        }
+
+        let options = {
+            method: 'PUT',
+            headers: {
+                "X-Timestamp": modificationTime
+            }
+        }
+        
+        const response = await this._fetch(`/fs${path}`, options);
+        return response.ok;
     }
 
-    async fetch(location, options = {}) {
+    async _fetch(location, options = {}) {
         let fetchOptions = {
             headers: {},
             credentials: 'include',
@@ -55,7 +72,7 @@ class FileTransferClient {
             path += "/";
         }
 
-        const response = await this.fetch(`/fs${path}`, {headers: {"Accept": "application/json"}});
+        const response = await this._fetch(`/fs${path}`, {headers: {"Accept": "application/json"}});
         const results = await response.json();
         for (let result of results) {
             paths.push({
@@ -72,7 +89,8 @@ class FileTransferClient {
     // Deletes the file or directory at the given path. Directories must be empty.
     async delete(path) {
         await this.checkConnection();
-        return true;
+        const response = await this._fetch(`/fs${path}`, {method: "DELETE"});
+        return response.ok;
     }
 
     // Moves the file or directory from oldPath to newPath.
@@ -86,6 +104,7 @@ class FileTransferClient {
                 3a. If insufficient space, delete file copy, set error, and return false
             4. Delete old file using delete() and return true
         */
+        /* For a folder, this could recursively call itself and move files one by one. */
         return true;
     }
 }

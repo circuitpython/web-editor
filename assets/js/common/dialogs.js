@@ -30,23 +30,64 @@ class GenericModal {
         this._resolve = null;
         this._reject = null;
         this.closeModal = this._closeModal.bind(this);
-    }    
+        this._elements = {};
+    }
+
+    _addDialogElement(elementId, domElement, eventName = null, eventHandler = null) {
+        if (elementId in this._elements) {
+            this._removeDialogElement(elementId);
+        }
+        if (domElement) {
+            let newElement = {
+                element: domElement,
+                event: eventName,
+                handler: eventHandler ? eventHandler.bind(this) : null
+            }
+            if (newElement.handler && newElement.event) {
+                newElement.element.addEventListener(newElement.event, newElement.handler);
+            }
+            this._elements[elementId] = newElement;
+        }
+    }
+
+    _removeDialogElement(elementId) {
+        if (!(elementId in this._elements)) {
+            return false;
+        }
+        if (this._elements[elementId].handler && this._elements[elementId].event) {
+            this._elements[elementId].element.removeEventListener(this._elements[elementId].event, this._elements[elementId].handler);
+        }
+        delete this._elements[elementId];
+        return true;
+    }
+
+    _removeAllDialogElements() {
+        let elementIdsToRemove = Object.keys(this._elements);
+        for (const elementId of elementIdsToRemove) {
+            this._removeDialogElement(elementId);
+        }
+    }
+
+    _getElement(elementId) {
+        if (elementId in this._elements) {
+            return this._elements[elementId].element;
+        }
+        return null;
+    }
 
     _openModal() {
         const modal = document.querySelector(`[data-popup-modal="${this._modalId}"]`);
         if (!modal) {
             throw new Error(`Modal with ID "${this._modalId}" not found.`);
         }
-        const bodyBlackout = document.querySelector(SELECTOR_BLACKOUT);
         modal.classList.add('is--visible');
+        const bodyBlackout = document.querySelector(SELECTOR_BLACKOUT);
         if (bodyBlackout) {
             bodyBlackout.classList.add('is-blacked-out');
-            bodyBlackout.addEventListener('click', this.closeModal);
         }
+        this._addDialogElement('bodyBlackout', bodyBlackout, 'click', this._closeModal);
         const closeButton = modal.querySelector(SELECTOR_CLOSE_BUTTON);
-        if (closeButton) {
-            closeButton.addEventListener('click', this.closeModal);
-        }
+        this._addDialogElement('closeButton', closeButton, 'click', this._closeModal);
         document.body.style.overflow = 'hidden';
         bodyBlackout.style.top = `${window.scrollY}px`;
 
@@ -62,15 +103,11 @@ class GenericModal {
         }
 
         if (this._currentModal) {
-            const bodyBlackout = document.querySelector(SELECTOR_BLACKOUT);
+            const bodyBlackout = this._getElement('bodyBlackout');
             if (bodyBlackout) {
-                bodyBlackout.removeEventListener('click', this.closeModal);
                 bodyBlackout.classList.remove('is-blacked-out');
             }
-            const closeButton = this._currentModal.querySelector(SELECTOR_CLOSE_BUTTON);
-            if (closeButton) {
-                closeButton.removeEventListener('click', this.closeModal);
-            }
+            this._removeAllDialogElements();
             this._currentModal.classList.remove('is--visible');
             const scrollY = document.body.style.top;
             document.body.style.overflow = '';
@@ -103,22 +140,6 @@ class GenericModal {
 }
 
 class UnsavedDialog extends GenericModal {
-    constructor(modalId) {
-        super(modalId);
-        this.handleSaveButton = this._handleSaveButton.bind(this);
-        this.handleDontSaveButton = this._handleDontSaveButton.bind(this);
-    }    
-
-    _closeModal() {
-        const cancelButton = this._currentModal.querySelector("button.cancel-button");
-        cancelButton.removeEventListener("click", this.closeModal);
-        const saveButton = this._currentModal.querySelector("button.ok-button");
-        saveButton.removeEventListener("click", this.handleSaveButton);
-        const dontSaveButton = this._currentModal.querySelector("button.not-ok-button");
-        dontSaveButton.removeEventListener("click", this.handleDontSaveButton);
-        super._closeModal();
-    }
-
     _handleSaveButton() {
         this._returnValue(true);
     }
@@ -130,13 +151,12 @@ class UnsavedDialog extends GenericModal {
     async open(message) {
         let p = super.open()
         const cancelButton = this._currentModal.querySelector("button.cancel-button");
-        cancelButton.addEventListener("click", this.closeModal);
+        this._addDialogElement('cancelButton', cancelButton, 'click', this._closeModal);
         const saveButton = this._currentModal.querySelector("button.ok-button");
-        saveButton.addEventListener("click", this.handleSaveButton);
+        this._addDialogElement('saveButton', saveButton, 'click', this._handleSaveButton);
         const dontSaveButton = this._currentModal.querySelector("button.not-ok-button");
-        dontSaveButton.addEventListener("click", this.handleDontSaveButton);
-        const messageLabel = this._currentModal.querySelector("#message");
-        messageLabel.innerHTML = message;
+        this._addDialogElement('dontSaveButton', dontSaveButton, 'click', this._handleDontSaveButton);
+        this._currentModal.querySelector("#message").innerHTML = message;
 
         return p;
     }
@@ -148,18 +168,6 @@ class FileDialog extends GenericModal {
         this._showBusy = showBusy;
         this._currentPath = "/";
         this._fileClient = null;
-        this.handleOkButton = this._handleOkButton.bind(this);
-        this.handleFilenameUpdate = this._handleFilenameUpdate.bind(this);
-    }
-
-    _closeModal() {
-        const cancelButton = this._currentModal.querySelector("button.cancel-button");
-        cancelButton.removeEventListener("click", this.closeModal);
-        const okButton = this._currentModal.querySelector("button.ok-button");
-        okButton.removeEventListener("click", this.handleOkButton);
-        const fileName = this._currentModal.querySelector("#filename");
-        fileName.removeEventListener("input", this.handleFilenameUpdate);
-        super._closeModal();
     }
 
     _removeAllChildNodes(parent) {
@@ -204,37 +212,45 @@ class FileDialog extends GenericModal {
 
         let p = super.open()
         const cancelButton = this._currentModal.querySelector("button.cancel-button");
-        cancelButton.addEventListener("click", this.closeModal);
+        this._addDialogElement('cancelButton', cancelButton, 'click', this._closeModal);
         const okButton = this._currentModal.querySelector("button.ok-button");
         okButton.disabled = true;
-        okButton.addEventListener("click", this.handleOkButton);
-        const fileName = this._currentModal.querySelector("#filename");
-        fileName.disabled = type == FILE_DIALOG_OPEN;
-        fileName.value = "";
+        this._addDialogElement('okButton', okButton, 'click', this._handleOkButton);
+        const delButton = this._currentModal.querySelector("#del-button");
+        delButton.disabled = true;
+        this._addDialogElement('delButton', delButton, 'click', this._handleDelButton);
+        const newFolderButton = this._currentModal.querySelector("#new-folder-button");
+        this._addDialogElement('newFolderButton', newFolderButton, 'click', this._handleNewFolderButton);
+        const fileNameField= this._currentModal.querySelector("#filename");
+        fileNameField.disabled = type == FILE_DIALOG_OPEN;
+        fileNameField.value = "";
 
         if (type == FILE_DIALOG_OPEN) {
             this._currentModal.setAttribute("data-type", "open");
             okButton.innerHTML = "Open";
+            this._addDialogElement('fileNameField', fileNameField);
         } else if (type == FILE_DIALOG_SAVE) {
             this._currentModal.setAttribute("data-type", "save");
             okButton.innerHTML = "Save";
-            fileName.addEventListener("input", this.handleFilenameUpdate);
+            this._addDialogElement('fileNameField', fileNameField, 'input', this._handleFilenameUpdate);
         }
+        this._addDialogElement('fileList', this._currentModal.querySelector("#file-list"));
+        this._addDialogElement('currentPathLabel', this._currentModal.querySelector("#current-path"));
 
-        this._openFolder();
+        await this._openFolder();
 
         return p;
     }
 
     async _openFolder(path) {
-        const fileList = this._currentModal.querySelector("#file-list");
-        const okButton = this._currentModal.querySelector("button.ok-button");
-        const fileName = this._currentModal.querySelector("#filename");
+        const fileList = this._getElement('fileList');
+        const okButton = this._getElement('okButton');
+        const fileNameField = this._getElement('fileNameField');
         this._removeAllChildNodes(fileList);
         if (path !== undefined) {
             this._currentPath = path;
         }
-        const currentPathLabel = this._currentModal.querySelector("#current-path");
+        const currentPathLabel = this._getElement('currentPathLabel');
         currentPathLabel.innerHTML = this._currentPath;
 
         if (this._currentPath != "/") {
@@ -255,16 +271,12 @@ class FileDialog extends GenericModal {
         } catch(e) {
             console.log(e);
         }
-        fileName.value = "";
+        fileNameField.value = "";
         okButton.disabled = true;
     }
 
     _handleFileClick(clickedItem) {
-        const fileList = this._currentModal.querySelector("#file-list");
-        const fileName = this._currentModal.querySelector("#filename");
-        const okButton = this._currentModal.querySelector("button.ok-button");
-
-        for (let listItem of fileList.childNodes) {
+        for (let listItem of this._getElement('fileList').childNodes) {
             listItem.setAttribute("data-selected", listItem.isEqualNode(clickedItem));
             if (listItem.isEqualNode(clickedItem)) {
                 listItem.classList.add("selected");
@@ -273,30 +285,67 @@ class FileDialog extends GenericModal {
             }
         }
         if (clickedItem.getAttribute("data-type") != "folder") {
-            fileName.value = clickedItem.querySelector("span").innerHTML;
+            this._getElement('fileNameField').value = clickedItem.querySelector("span").innerHTML;
         }
 
-        okButton.disabled = clickedItem.getAttribute("data-type") == "bin";
+        this._getElement('okButton').disabled = clickedItem.getAttribute("data-type") == "bin";
+        this._getElement('delButton').disabled = !this._canDelete();        
     }
 
     _handleFilenameUpdate() {
-        const fileNameField = this._currentModal.querySelector("#filename");
-        const okButton = this._currentModal.querySelector("button.ok-button");
-        okButton.disabled = !this._validFilename(fileNameField.value);
+        const fileNameField = this._getElement('fileNameField');
+        this._getElement('okButton').disabled = !this._validFilename(fileNameField.value);
     }
 
     _validFilename(filename) {
-        const fileList = this._currentModal.querySelector("#file-list");
-        if (filename == '' || filename[0] == "." || filename.includes("/")) {
+        const fileList = this._getElement('fileList');
+        
+        // Check for invalid characters
+        if (!this._validName(filename)) {
             return false;
-        } else {
-            for (let listItem of fileList.childNodes) {
-                if (listItem.getAttribute("data-type") == "folder") {
-                    if (listItem.querySelector("span").innerHTML == filename) {
-                        return false;
-                    }
+        }
+
+        // Check if filename is a folder that exists
+        for (let listItem of fileList.childNodes) {
+            if (listItem.getAttribute("data-type") == "folder") {
+                if (listItem.querySelector("span").innerHTML == filename) {
+                    return false;
                 }
             }
+        }
+
+        return true;
+    }
+
+    _validName(name) {
+        if (name == '' || name[0] == "." || name.includes("/")) {
+            return false;
+        }
+
+        return true;
+    }
+
+    _folderNameExists(folderName) {
+        const fileList = this._getElement('fileList');
+
+        // Check if a file or folder already exists
+        for (let listItem of fileList.childNodes) {
+            if (listItem.querySelector("span").innerHTML == folderName) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    _canDelete() {
+        let selectedItem = this._getSelectedFile();
+        if (!selectedItem) {
+            return false;
+        }
+        let filename = selectedItem.querySelector("span").innerHTML;
+        if (!this._validName(filename)) {
+            return false;
         }
         return true;
     }
@@ -305,18 +354,64 @@ class FileDialog extends GenericModal {
         await this._openItem();
     }
 
-    async _openItem(item) {
-        const fileNameField = this._currentModal.querySelector("#filename");
-        const fileList = this._currentModal.querySelector("#file-list");
-        let filetype, filename;
-        let selectedItem = null;
+    async _handleDelButton() {
+        if (!this._canDelete()) {
+            // Not sure how we got here, but this is for safety
+            return;
+        }
+        let filename = this._getSelectedFile().querySelector("span").innerHTML;
+        filename = this._currentPath + filename;
 
+        // prompt if user is sure
+        if (!confirm(`Are you sure you want to delete ${filename}?`)) {
+            // If cancelled, do nothing
+            return;
+        }
+
+        // otherwise delete the item
+        await this._showBusy(this._fileClient.delete(filename));
+        // Refresh the file list
+        await this._openFolder();
+    };
+
+    async _handleNewFolderButton() {
+        // prompt for new folder name
+        let folderName = prompt("Enter a new folder name");
+        // If cancelled, do nothing
+        if (!folderName) {
+            return;
+        }
+        // If invalid, display alert
+        if (!this._validName(filename)) {
+            alert(`'${folderName}' is an invalid name.`);
+            return;
+        } else if (this._folderNameExists(folderName)) {
+            alert(`'${folderName}' already exists.`);
+            return;
+        }
+
+        // otherwise create a folder
+        await this._showBusy(this._fileClient.makeDir(this._currentPath + folderName));
+
+        // Refresh the file list
+        await this._openFolder();
+    };
+
+    _getSelectedFile() {
         // Loop through items and see if any have data-selected
-        for (let listItem of fileList.childNodes) {
+        for (let listItem of this._getElement('fileList').childNodes) {
             if ((/true/i).test(listItem.getAttribute("data-selected"))) {
-                selectedItem = listItem;
+                return listItem;
             }
         }
+
+        return null;
+    }
+
+    async _openItem(item) {
+        const fileNameField = this._getElement('fileNameField');
+        let filetype, filename;
+        let selectedItem = this._getSelectedFile();
 
         if (item !== undefined) {
             filetype = item.getAttribute("data-type");
@@ -363,7 +458,7 @@ class FileDialog extends GenericModal {
     }
     
     _addFile(fileObj, iconClass) {
-        const fileList = this._currentModal.querySelector("#file-list");
+        const fileList = this._getElement('fileList');
         let fileItem = document.createElement("A");
         fileItem.setAttribute("data-type", this._getType(fileObj));
         fileItem.addEventListener("click", (event) => {
