@@ -9,9 +9,9 @@ class FileHelper {
         this.delete = workflow.fileClient.delete.bind(workflow.fileClient);
         this._showBusy = workflow.showBusy.bind(workflow);
         if (workflow.fileClient.readOnly !== undefined) {
-            this.readOnly = async () => { return await this._showBusy(workflow.fileClient.readOnly.bind(workflow.fileClient))};
+            this.readOnly = workflow.fileClient.readOnly.bind(workflow.fileClient);
         } else {
-            this.readOnly = async () => { return false; }
+            this.readOnly = async () => { console.log("Fake func"); return false; }
         }
     }
 
