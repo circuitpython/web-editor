@@ -1,33 +1,50 @@
-import {EditorState, EditorView, basicSetup, } from "../../../_snowpack/pkg/@codemirror/basic-setup.js"
-import {python} from "../../../_snowpack/pkg/@codemirror/lang-python.js"
-import {classHighlightStyle} from "../../../_snowpack/pkg/@codemirror/highlight.js"
-import {BLEWorkflow, loaderId} from '../workflows/ble.js'
+import {EditorState, EditorView, basicSetup} from "../../_snowpack/pkg/@codemirror/basic-setup.js"
+import {python} from "../../_snowpack/pkg/@codemirror/lang-python.js"
+import {classHighlightStyle} from "../../_snowpack/pkg/@codemirror/highlight.js"
+import {BLEWorkflow} from './workflows/ble.js'
+import {WebWorkflow} from './workflows/web.js'
+import {CONNTYPE} from './workflows/workflow.js'
+import {FileDialog, UnsavedDialog, MessageModal, FILE_DIALOG_OPEN, FILE_DIALOG_SAVE} from './common/dialogs.js';
+import {FileHelper} from './common/file.js'
 
 var terminal;
 var currentFilename = null;
 var unchanged = 0;
+var backend = null;
+var workflow = null;
 
-const workflow = new BLEWorkflow();
+var validBackends = {
+    "web": CONNTYPE.Web,
+    "ble": CONNTYPE.Ble,
+    "usb": CONNTYPE.Usb,
+}
 
-const loader = document.getElementById(loaderId);
+// Instantiate workflows
+var workflows = {}
+workflows[CONNTYPE.Ble] = new BLEWorkflow();
+workflows[CONNTYPE.Web] = new WebWorkflow();
+
 const btnModeEditor = document.getElementById('btn-mode-editor');
 const btnModeSerial = document.getElementById('btn-mode-serial');
 const btnRestart = document.getElementById('btn-restart');
 const mainContent = document.getElementById('main-content');
-const btnConnect = document.querySelectorAll('a.btn-connect');
-const btnNew = document.querySelectorAll('a.btn-new');
-const btnOpen = document.querySelectorAll('a.btn-open');
-const btnSaveAs = document.querySelectorAll('a.btn-save-as');
-const btnSaveRun = document.querySelectorAll('a.btn-save-run');
+const btnConnect = document.querySelectorAll('.btn-connect');
+const btnNew = document.querySelectorAll('.btn-new');
+const btnOpen = document.querySelectorAll('.btn-open');
+const btnSaveAs = document.querySelectorAll('.btn-save-as');
+const btnSaveRun = document.querySelectorAll('.btn-save-run');
+const terminalTitle = document.getElementById('terminal-title');
 
 const MODE_EDITOR = 1;
 const MODE_SERIAL = 2;
-const MODE_LANDING = 3;
 const CHAR_CTRL_C = '\x03';
 const CHAR_CTRL_D = '\x04';
 const CHAR_CRLF = '\x0a\x0d';
-const fileDialog = new FileDialog("files", ".body-blackout", showBusy);
-const unsavedDialog = new UnsavedDialog("unsaved", ".body-blackout");
+var fileDialog = null;
+var fileHelper = null;
+
+const unsavedDialog = new UnsavedDialog("unsaved");
+const messageDialog = new MessageModal("message");
 
 const editorTheme = EditorView.theme({}, {dark: true})
 const editorExtensions = [
@@ -57,9 +74,9 @@ btnOpen.forEach((element) => {
         e.preventDefault();
         e.stopPropagation();
         if (await checkSaved()) {
-            let path = await fileDialog.open(workflow.fileClient, FILE_DIALOG_OPEN);
+            let path = await fileDialog.open(fileHelper, FILE_DIALOG_OPEN);
             if (path !== null) {
-                let contents = await showBusy(workflow.fileClient.readFile(path));
+                let contents = await workflow.showBusy(fileHelper.readFile(path));
                 loadEditorContents(contents);
                 unchanged = editor.state.doc.length;
                 setFilename(path);
@@ -121,7 +138,45 @@ function setFilename(path) {
     document.querySelector('#mobile-editor-bar .file-path').innerHTML = path.split("/")[path.split("/").length - 1];
 }
 
-// Use the editors functions to check if anything has changed
+// Dynamically Load a Workflow (where the magic happens)
+async function loadWorkflow(workflowType) {
+    if (!(workflowType in workflows)) {
+        return false;
+    }
+
+    // Unload anything from the current workflow
+    if (workflow != null) {
+        // Update Workflow specific UI elements
+        await workflow.deinit();
+    }
+
+    if (workflowType != CONNTYPE.None) {
+        // Is the requested workflow different than the currently loaded one?
+        if (workflow != workflows[workflowType]) {
+            workflow = workflows[workflowType];
+            // Initialize the workflow
+            await workflow.init({
+                terminal: terminal,
+                terminalTitle: terminalTitle,
+                loadEditorFunc: loadEditor,
+                debugLogFunc: debugLog,
+                disconnectFunc: disconnectCallback,
+            });
+            fileDialog = new FileDialog("files", workflow.showBusy.bind(workflow));
+        }
+    } else {
+        if (workflow != null) {
+            // Update Workflow specific UI elements
+            await workflow.disconnectButtonHandler();
+        }
+        // Unload whatever
+        workflow = null;
+        fileDialog = null;
+        fileHelper = null;
+    }
+}
+
+// Use the editor's function to check if anything has changed
 function isDirty() {
     if (unchanged == editor.state.doc.length) return false;
     return true;
@@ -155,6 +210,10 @@ async function runCode(path) {
     await workflow.serialTransmit(CHAR_CTRL_C + "import " + path + CHAR_CRLF);
 }
 
+async function showMessage(message) {
+    return await messageDialog.open(message);
+}
+
 async function checkSaved() {
     if (isDirty()) {
         let result = await unsavedDialog.open("Current changes will be lost. Do you want to save?");
@@ -166,13 +225,6 @@ async function checkSaved() {
         return false;
     }
     return true;
-}
-
-async function showBusy(functionPromise) {
-    loader.classList.add("busy");
-    let result = await functionPromise;
-    loader.classList.remove("busy");
-    return result;
 }
 
 async function saveFile(path) {
@@ -196,30 +248,11 @@ async function saveFile(path) {
     return false;
 }
 
-async function fileExists(path) {
-    // Get the current path
-    let pathParts = path.split("/");
-    const filename = pathParts.pop();
-    const folder = pathParts.join("/");
-
-    // Get a list of files in current path
-    const files = await showBusy(workflow.fileClient.listDir(folder));
-
-    // See if the file is in the list of files
-    for (let fileObj of files) {
-        if (fileObj.path[0] == ".") continue;
-        if (fileObj.path == filename) {
-            return true;
-        }
-    }
-    return false;
-}
-
 async function saveAs() {
-    let path = await fileDialog.open(workflow.fileClient, FILE_DIALOG_SAVE);
+    let path = await fileDialog.open(fileHelper, FILE_DIALOG_SAVE);
     if (path !== null) {
         // check if filename exists
-        if (path != currentFilename && await fileExists(path)) {
+        if (path != currentFilename && await fileHelper.fileExists(path)) {
             if (window.confirm("Overwrite existing file '" + path + "'?")) {
                 await saveFile(path);
             } else {
@@ -240,8 +273,6 @@ function changeMode(mode) {
         mainContent.classList.add("mode-editor");
     } else if (mode == MODE_SERIAL) {
         mainContent.classList.add("mode-serial");
-    } else if (mode == MODE_LANDING) {
-        mainContent.classList.add("mode-landing");
     }
 }
 
@@ -256,21 +287,17 @@ async function debugLog(msg) {
 function updateUIConnected(isConnected) {
     if (isConnected) {
         // Set to Connected State
-        console.log("Connected");
         btnConnect.forEach((element) => { 
             element.innerHTML = "Disconnect"; 
             element.disabled = false;
         });
     } else {
         // Set to Disconnected State
-        console.log("Disconnected");
         btnConnect.forEach((element) => { 
             element.innerHTML = "Connect";
             element.disabled = false; 
         });
     }
-    // Update any workflow specific UI changes
-    workflow.updateConnected(isConnected);
     connected = isConnected;
 }
 
@@ -288,16 +315,30 @@ fixViewportHeight();
 window.addEventListener("resize", fixViewportHeight);
 
 async function loadEditor() {
-    if (await fileExists("/code.py")) {
+    fileHelper = new FileHelper(workflow);
+    const readOnly = await fileHelper.readOnly();
+    // TODO: This isn't working because it's a link instead of a button. Might be worth changing over...
+    btnSaveAs.forEach((element) => {
+        console.log(element);
+        element.disabled = readOnly;
+    });
+    btnSaveRun.forEach((element) => {
+        console.log(element);
+        element.disabled = readOnly;
+    });
+    if (readOnly) {
+        await showMessage("Warning: File System is in read only mode. Disable the USB drive to allow write access.");
+    }
+    if (await fileHelper.fileExists("/code.py")) {
         setFilename("/code.py");
-        var contents = await showBusy(workflow.fileClient.readFile(currentFilename));
+        var contents = await workflow.showBusy(workflow.getDeviceFileContents(currentFilename));
     } else {
         setFilename(null);
         contents = "";
     }
     loadEditorContents(contents);
     unchanged = editor.state.doc.length;
-    console.log("doc length", unchanged);
+    //console.log("doc length", unchanged);
     updateUIConnected(true);
     changeMode(MODE_EDITOR);
 }
@@ -305,23 +346,29 @@ async function loadEditor() {
 var editor;
 var currentTimeout = null;
 async function writeText() {
-    console.log("sync starting at", unchanged, "to", editor.state.doc.length);
-    if (!workflow.fileClient) {
+    if (workflow.partialWrites) {
+        console.log("sync starting at", unchanged, "to", editor.state.doc.length);
+    }
+    if (!fileHelper) {
         console.log("no file client");
         return;
     }
     let encoder = new TextEncoder();
     let doc = editor.state.doc;
     let same = doc.sliceString(0, unchanged);
-    let offset = encoder.encode(same).byteLength
+    let offset = 0;
     let different = doc.sliceString(unchanged);
-    let contents = encoder.encode(different);
-    console.log(offset, different);
+    let contents = doc;
+    if (workflow.partialWrites) {
+        offset = encoder.encode(same).byteLength;
+        contents = encoder.encode(different);
+        console.log(offset, different);
+    }
     let oldUnchanged = unchanged;
     unchanged = doc.length;
     try {
         console.log("write");
-        await showBusy(workflow.fileClient.writeFile(currentFilename, offset, contents));
+        await workflow.showBusy(fileHelper.writeFile(currentFilename, offset, contents));
     } catch (e) {
         console.log("write failed", e, e.stack);
         unchanged = Math.min(oldUnchanged, unchanged);
@@ -360,7 +407,6 @@ async function onTextChange(update) {
 }
 
 function disconnectCallback() {
-    changeMode(MODE_LANDING);
     updateUIConnected(false);
 }
 
@@ -389,8 +435,6 @@ function setupHterm() {
         // things to the the JS console.)
         const io = t.io.push();
 
-        debugLog("connect to a device above");
-
         io.onVTKeystroke = async (str) => {
             workflow.serialTransmit(str);
         };
@@ -403,7 +447,7 @@ function setupHterm() {
             // React to size changes here.
             // Secure Shell pokes at NaCl, which eventually results in
             // some ioctls on the host.
-            console.log("resize", columns, rows);
+            //console.log("resize", columns, rows);
         };
 
         // You can call io.push() to foreground a fresh io context, which can
@@ -411,27 +455,70 @@ function setupHterm() {
         // thing is complete, should call io.pop() to restore control to the
         // previous io object.
     };
-    t.decorate(document.querySelector('#terminal'));
+    t.decorate(document.getElementById('terminal'));
     t.installKeyboard();
+}
+
+function getBackend() {
+    var params = getUrlParams();
+    if (params["backend"] !== undefined) {
+        var backend = params["backend"].toLowerCase();
+
+        if (backend in validBackends) {
+            return validBackends[backend];
+        }
+    }
+    
+    return null;
+}
+
+function getUrlParams() {
+    // This should look for and validate very specific values
+    var hashParams = {};
+    location.hash.substr(1).split("&").forEach(function(item) {hashParams[item.split("=")[0]] = item.split("=")[1]});
+
+    return hashParams;
 }
 
 // This will be whatever normal entry/initialization point your project uses.
 window.onload = async function() {
     await lib.init();
     setupHterm();
-    if (navigator.bluetooth) {
-        btnConnect.forEach((element) => {
-            element.addEventListener('click', async function(e) {
-                e.preventDefault();
-                e.stopPropagation();    
-                await workflow.connectButtonHandler();
-            });
+    btnConnect.forEach((element) => {
+        element.addEventListener('click', async function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            // Check if we have an active connection
+            if (workflow != null && workflow.connectionType != CONNTYPE.None) {
+                console.log("Unload workflow");
+                // If so, unload the current workflow
+                await loadWorkflow(CONNTYPE.None);
+            } else {
+                console.log("Load workflow");
+                // If not, it should display the available connections
+                // For now just connect BLE
+                await loadWorkflow(CONNTYPE.Ble);
+                // Eventually, the available connections dialog should call the appropriate loadWorkflow which should trigger a connect method
+                if (workflow.connectionType == CONNTYPE.None) {
+                    // Display the appropriate connection dialog
+                    await workflow.connectDialog.open();
+                }
+            }
         });
-    }
-    workflow.init({
-        terminal: terminal,
-        loadEditorFunc: loadEditor,
-        debugLogFunc: debugLog,
-        disconnectFunc: disconnectCallback
     });
+
+    // Check backend param and load appropriate type if specified
+    backend = getBackend();
+    if (backend) {
+        await loadWorkflow(backend);
+
+        // If we don't have all the info we need to connect
+        if (!(await workflow.parseParams(getUrlParams()))) {
+            await workflow.connectDialog.open();
+        } else {
+            if (!(await workflow.showBusy(workflow.connect()))) {
+                showMessage("Unable to connect");
+            }
+        }
+    }
 };
