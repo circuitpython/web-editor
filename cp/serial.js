@@ -21,7 +21,7 @@ function onSubmit() {
     input.focus();
 }
 
-ws = new WebSocket("ws://cpy-599c54.local/cp/serial/");
+ws = new WebSocket("ws://" + window.location.host + "/cp/serial/");
 
 ws.onopen = function() {
   set_enabled(true);

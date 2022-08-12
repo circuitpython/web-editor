@@ -2,7 +2,7 @@
  * This class will encapsulate all of the workflow functions specific to BLE 
  */
 
-import {FileTransferClient} from '@adafruit/ble-file-transfer';
+import {FileTransferClient} from 'https://cdn.jsdelivr.net/gh/adafruit/ble-file-transfer-js@1.0.1/adafruit-ble-file-transfer.js';
 import {Workflow, CONNTYPE} from './workflow.js'
 import {GenericModal} from '../common/dialogs.js';
 
@@ -82,8 +82,7 @@ class BLEWorkflow extends Workflow {
                 this.bleDevice.gatt.disconnect();
             }
             this.connectionType == CONNTYPE.None;
-            // Update Common UI
-            this.disconnect();
+            await this.onDisconnected(null, false);
         }
     }
 
@@ -222,12 +221,14 @@ class BLEWorkflow extends Workflow {
         }
     }
 
-    async onDisconnected() {
+    async onDisconnected(e, reconnect = true) {
         this.debugLog("disconnected");
         await this.bleServer.connect();
         console.log(this.bleServer.connected);
-        this.debugLog("connected");
-        await this.connectToSerial();
+        if (reconnect) {
+            this.debugLog("connected");
+            await this.connectToSerial();
+        }
     }
 
     updateConnected(isConnected) {

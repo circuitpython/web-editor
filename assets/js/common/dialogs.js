@@ -167,7 +167,8 @@ class FileDialog extends GenericModal {
         super(modalId);
         this._showBusy = showBusy;
         this._currentPath = "/";
-        this._fileClient = null;
+        this._fileHelper = null;
+        this._readOnlyMode = false;
     }
 
     _removeAllChildNodes(parent) {
@@ -204,11 +205,12 @@ class FileDialog extends GenericModal {
         return "bin";
     }
 
-    async open(fileClient, type) {
+    async open(fileHelper, type) {
         if (type != FILE_DIALOG_OPEN && type != FILE_DIALOG_SAVE) {
             return;
         }
-        this._fileClient = fileClient;
+        this._fileHelper = fileHelper;
+        this._readOnlyMode = await this._showBusy(this._fileHelper.readOnly());
 
         let p = super.open()
         const cancelButton = this._currentModal.querySelector("button.cancel-button");
@@ -220,6 +222,9 @@ class FileDialog extends GenericModal {
         delButton.disabled = true;
         this._addDialogElement('delButton', delButton, 'click', this._handleDelButton);
         const newFolderButton = this._currentModal.querySelector("#new-folder-button");
+        if (this._readOnlyMode) {
+            newFolderButton.disabled = true;
+        }
         this._addDialogElement('newFolderButton', newFolderButton, 'click', this._handleNewFolderButton);
         const fileNameField= this._currentModal.querySelector("#filename");
         fileNameField.disabled = type == FILE_DIALOG_OPEN;
@@ -236,6 +241,7 @@ class FileDialog extends GenericModal {
         }
         this._addDialogElement('fileList', this._currentModal.querySelector("#file-list"));
         this._addDialogElement('currentPathLabel', this._currentModal.querySelector("#current-path"));
+
 
         await this._openFolder();
 
@@ -256,13 +262,13 @@ class FileDialog extends GenericModal {
         if (this._currentPath != "/") {
             this._addFile({path: "..", isDir: true}, "fa-folder-open");
         }
-        if (!this._fileClient) {
+        if (!this._fileHelper) {
             console.log("no client");
             return;
         }
 
         try {
-            const files = this._sortAlpha(await this._showBusy(this._fileClient.listDir(this._currentPath)));
+            const files = this._sortAlpha(await this._showBusy(this._fileHelper.listDir(this._currentPath)));
 
             for (let fileObj of files) {
                 if (fileObj.path[0] == ".") continue;
@@ -318,7 +324,7 @@ class FileDialog extends GenericModal {
     }
 
     _validName(name) {
-        if (name == '' || name[0] == "." || name.includes("/")) {
+        if (!name || name == '' || name[0] == "." || name.includes("/")) {
             return false;
         }
 
@@ -339,6 +345,9 @@ class FileDialog extends GenericModal {
     }
 
     _canDelete() {
+        if (this._readOnlyMode) {
+            return false;
+        }
         let selectedItem = this._getSelectedFile();
         if (!selectedItem) {
             return false;
@@ -369,7 +378,7 @@ class FileDialog extends GenericModal {
         }
 
         // otherwise delete the item
-        await this._showBusy(this._fileClient.delete(filename));
+        await this._showBusy(this._fileHelper.delete(filename));
         // Refresh the file list
         await this._openFolder();
     };
@@ -382,7 +391,7 @@ class FileDialog extends GenericModal {
             return;
         }
         // If invalid, display alert
-        if (!this._validName(filename)) {
+        if (!this._validName(folderName)) {
             alert(`'${folderName}' is an invalid name.`);
             return;
         } else if (this._folderNameExists(folderName)) {
@@ -391,7 +400,7 @@ class FileDialog extends GenericModal {
         }
 
         // otherwise create a folder
-        await this._showBusy(this._fileClient.makeDir(this._currentPath + folderName));
+        await this._showBusy(this._fileHelper.makeDir(this._currentPath + folderName));
 
         // Refresh the file list
         await this._openFolder();

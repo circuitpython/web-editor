@@ -2,21 +2,41 @@ class FileTransferClient {
     constructor(hostname, connectionStatusCB) {
         this.hostname = hostname;
         this.connectionStatus = connectionStatusCB;
+        this._allowedMethods = null;
+    }
+
+    async readOnly() {
+        await this.checkConnection();
+        return !this._allowedMethods.includes('DELETE');
     }
 
     async checkConnection() {
         if (!this.connectionStatus()) {
             throw new Error("Unable to perform file operation. Not Connected");
         }
+        
+        if (this._allowedMethods === null) {
+            const status = await this._fetch("/fs/", {method: "OPTIONS"});
+            this._allowedMethods = status.headers.get("Access-Control-Allow-Methods").split(/,/).map(method => {return method.trim().toUpperCase();}); 
+        }
     }
 
-    async readFile(filename) {
+    async readFile(path, rootDir='/fs') {
         await this.checkConnection();
-        const response = await this._fetch(`/fs${filename}`);
+        const response = await this._fetch(`${rootDir}${path}`);
         return response.status === 200 ? await response.text() : "";
     }
 
+    async checkWritable() {
+        if (await this.readOnly()) {
+            throw new Error("File System is Read Only. Try disabling the USB Drive.");
+        }
+    }
+
     async writeFile(path, offset, contents, modificationTime, isBinary = false) {
+        await this.checkConnection();
+        await this.checkWritable();
+
         let options = {
             method: 'PUT',
             body: contents,
@@ -29,7 +49,6 @@ class FileTransferClient {
             options.headers['Content-Type'] = "application/octet-stream";
         }
 
-        await this.checkConnection();
         const response = await this._fetch(`/fs${path}`, options);
         return await response.text();
     }
@@ -37,6 +56,7 @@ class FileTransferClient {
     // Makes the directory and any missing parents
     async makeDir(path, modificationTime = Date.now()) {
         await this.checkConnection();
+        await this.checkWritable();
 
         if (!path.length || path.substr(-1) != "/") {
             path += "/";
@@ -55,12 +75,31 @@ class FileTransferClient {
 
     async _fetch(location, options = {}) {
         let fetchOptions = {
-            headers: {},
             credentials: 'include',
             ...options
         }
 
-        return await fetch(new URL(location, `http://${this.hostname}`), fetchOptions);
+        if (fetchOptions.method && fetchOptions.method.toUpperCase() != 'OPTIONS') {
+            if (!this.isMethodAllowed(fetchOptions.method)) {
+                throw new ProtocolError(`${fetchOptions.method} is not allowed.`);
+            }
+        }
+
+        const response = await fetch(new URL(location, `http://${this.hostname}`), fetchOptions);
+
+        if (!response.ok) {
+            throw new ProtocolError(response.statusText);
+        }
+
+        return response;
+    }
+
+    async isMethodAllowed(method) {
+        if (this._allowedMethods) {
+            return this._allowedMethods.includes(method.toUpperCase);
+        }
+
+        return false;
     }
 
     // Returns a list of tuples, one tuple for each file or directory in the given path
@@ -89,6 +128,8 @@ class FileTransferClient {
     // Deletes the file or directory at the given path. Directories must be empty.
     async delete(path) {
         await this.checkConnection();
+        await this.checkWritable();
+
         const response = await this._fetch(`/fs${path}`, {method: "DELETE"});
         return response.ok;
     }
@@ -96,6 +137,7 @@ class FileTransferClient {
     // Moves the file or directory from oldPath to newPath.
     async move(oldPath, newPath) {
         await this.checkConnection();
+        await this.checkWritable();
         /* Since no move feature exists in CircuitPython, this may be able to be 
         accomplished for files only with the following strategy:
             1. Get file info and verify this is a file with listDir()
@@ -107,6 +149,17 @@ class FileTransferClient {
         /* For a folder, this could recursively call itself and move files one by one. */
         return true;
     }
+
+    async versionInfo() {
+        return await this.readFile('/version.json', '/cp');
+    }  
 }
 
-export {FileTransferClient}
+class ProtocolError extends Error {
+    constructor(message) {
+        super(message);
+        this.name = "ProtocolError";
+    }
+}
+
+export {FileTransferClient, ProtocolError}

@@ -8,6 +8,11 @@ class FileHelper {
         this.makeDir = workflow.fileClient.makeDir.bind(workflow.fileClient);
         this.delete = workflow.fileClient.delete.bind(workflow.fileClient);
         this._showBusy = workflow.showBusy.bind(workflow);
+        if (workflow.fileClient.readOnly !== undefined) {
+            this.readOnly = workflow.fileClient.readOnly.bind(workflow.fileClient);
+        } else {
+            this.readOnly = () => { return false; }
+        }
     }
 
     async fileExists(path) {

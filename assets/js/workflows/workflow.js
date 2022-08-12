@@ -69,7 +69,7 @@ class Workflow {
     }
       
     timeout(callback, ms) {
-        return Promise.race([callback(), this.sleep(ms)]);
+        return Promise.race([callback(), this.sleep(ms).then(() => {throw Error("Timed Out");})]);
     }
 
     sleep(ms) {

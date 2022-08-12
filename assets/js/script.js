@@ -1,11 +1,11 @@
 import {EditorState, EditorView, basicSetup} from "@codemirror/basic-setup"
 import {python} from "@codemirror/lang-python"
 import {classHighlightStyle} from "@codemirror/highlight"
-import {BLEWorkflow} from '../workflows/ble.js'
-import {WebWorkflow} from '../workflows/web.js'
-import {CONNTYPE} from '../workflows/workflow.js'
-import {FileDialog, UnsavedDialog, FILE_DIALOG_OPEN, FILE_DIALOG_SAVE} from './dialogs.js';
-import {FileHelper} from './file.js'
+import {BLEWorkflow} from './workflows/ble.js'
+import {WebWorkflow} from './workflows/web.js'
+import {CONNTYPE} from './workflows/workflow.js'
+import {FileDialog, UnsavedDialog, FILE_DIALOG_OPEN, FILE_DIALOG_SAVE} from './common/dialogs.js';
+import {FileHelper} from './common/file.js'
 
 var terminal;
 var currentFilename = null;
@@ -293,8 +293,6 @@ function updateUIConnected(isConnected) {
             element.disabled = false; 
         });
     }
-    // Update any workflow specific UI changes
-    workflow.updateConnected(isConnected);
     connected = isConnected;
 }
 

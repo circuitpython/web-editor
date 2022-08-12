@@ -10,8 +10,8 @@ const CHAR_TITLE_START = "\x1b]0;";
 const CHAR_TITLE_END = "\x1b\\";
 
 const CONNECT_TIMEOUT_MS = 30000
-const PING_INTERVAL_MS = 10000
-const PING_TIMEOUT_MS = 5000
+const PING_INTERVAL_MS = 5000
+const PING_TIMEOUT_MS = 2000
 
 class WebWorkflow extends Workflow {
     constructor() {
@@ -35,8 +35,7 @@ class WebWorkflow extends Workflow {
     async disconnectButtonHandler(e) {
         if (this.connectionType == CONNTYPE.Web) {
             this.connectionType == CONNTYPE.None;
-            // Update Common UI
-            this.disconnect();
+            await this.onDisconnected(null, false);
         }
     }
 
@@ -72,7 +71,7 @@ class WebWorkflow extends Workflow {
             this.websocket.onopen = function() {
                 // Stuff to do on successful connection
                 this.updateConnected(true);
-                //this.connIntervalId = setInterval(this.checkConnection.bind(this), PING_INTERVAL_MS);
+                this.connIntervalId = setInterval(this.checkConnection.bind(this), PING_INTERVAL_MS);
             }.bind(this); 
             this.websocket.onmessage = this.onSerialReceive.bind(this);
             this.websocket.onclose = this.onDisconnected.bind(this);
@@ -102,13 +101,18 @@ class WebWorkflow extends Workflow {
         let success = await this.initSerial(host);
         // Wait for a connection with a timeout
         console.log("Waiting for connection...");
-        await this.timeout(
-            async () => {
-                while(!this.connectionStatus()) {
-                    await this.sleep(100);
-                }
-            }, CONNECT_TIMEOUT_MS
-        );
+        try {
+            await this.timeout(
+                async () => {
+                    while(!this.connectionStatus()) {
+                        await this.sleep(100);
+                    }
+                }, CONNECT_TIMEOUT_MS
+            );
+        } catch(error) {
+            console.log("Connection timed out");
+            return false;
+        }
 
         if (success && this.connectionStatus()) {
             console.log("Connected!");
@@ -118,7 +122,6 @@ class WebWorkflow extends Workflow {
             }
             return true;
         }
-        console.log("Connection timed out");
 
         return false;
     }
@@ -149,10 +152,18 @@ class WebWorkflow extends Workflow {
         return await this.connectToHost(this.host);
     }
 
-    async onDisconnected() {
-        console.log("Disconnect Detected");
+    async onDisconnected(e, reconnect = true) {
+        if (this.connIntervalId) {
+            clearInterval(this.connIntervalId);
+            this.connIntervalId = null;
+        }
         this.debugLog("disconnected");
         this.updateConnected(false);
+        // Update Common UI Elements
+        this.disconnect();
+        if (reconnect) {
+            await this.connect();
+        }
     }
 
     updateConnected(isConnected) {
@@ -163,26 +174,31 @@ class WebWorkflow extends Workflow {
         }
     }
 
+    async activeConnection() {
+        try {
+            let version = await this.fileClient.versionInfo();
+            if (!version) {
+                return false;
+            }
+        } catch (error) {
+            return false;
+        }
+        
+        return true;
+    }
+
     async checkConnection() {
-        // For our next trick, lets try using fetch
-
-
-        /*
-        this.pingReturned = false;
-        await this.timeout(
-            async () => {
-                console.log("Sending Ping");
-                await this.serialTransmit("");
-                while(!this.pingReturned) {
-                    await this.sleep(10);
-                }
-                console.log("Ping Received");
-            }, PING_TIMEOUT_MS
-        );
-        if (!this.pingReturned) {
+        try {
+            await this.timeout(
+                async () => {
+                    await this.activeConnection()
+                }, PING_TIMEOUT_MS
+            );                
+        } catch (error) {
             console.log("Ping timed out. Closing connection.");
             //this.websocket.close();
-        }*/
+            await this.onDisconnected(null, false);
+        }
     }
 
     connectionStatus() {
