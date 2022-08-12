@@ -93,8 +93,10 @@
   margin-left: auto;
   padding-bottom: 10px;
 
-  a {
+  a, button {
     @include rounded-button;
+    background-color: transparent;
+    margin: 0;
   }
 }
 
@@ -116,7 +118,7 @@
   background-color: #e71c8c;
 }
 
-.file-path {
+.file-path, #terminal-title {
     font-size: 20px;
     line-height: 59px;
     margin-left: 10px;
