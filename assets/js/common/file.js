@@ -11,7 +11,7 @@ class FileHelper {
         if (workflow.fileClient.readOnly !== undefined) {
             this.readOnly = workflow.fileClient.readOnly.bind(workflow.fileClient);
         } else {
-            this.readOnly = async () => { console.log("Fake func"); return false; }
+            this.readOnly = async () => { return false; }
         }
     }
 
