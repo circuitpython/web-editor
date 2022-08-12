@@ -317,13 +317,10 @@ window.addEventListener("resize", fixViewportHeight);
 async function loadEditor() {
     fileHelper = new FileHelper(workflow);
     const readOnly = await fileHelper.readOnly();
-    // TODO: This isn't working because it's a link instead of a button. Might be worth changing over...
     btnSaveAs.forEach((element) => {
-        console.log(element);
         element.disabled = readOnly;
     });
     btnSaveRun.forEach((element) => {
-        console.log(element);
         element.disabled = readOnly;
     });
     if (readOnly) {
