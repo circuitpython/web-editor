@@ -4,7 +4,7 @@ import {classHighlightStyle} from "@codemirror/highlight"
 import {BLEWorkflow} from './workflows/ble.js'
 import {WebWorkflow} from './workflows/web.js'
 import {CONNTYPE} from './workflows/workflow.js'
-import {FileDialog, UnsavedDialog, FILE_DIALOG_OPEN, FILE_DIALOG_SAVE} from './common/dialogs.js';
+import {FileDialog, UnsavedDialog, MessageModal, FILE_DIALOG_OPEN, FILE_DIALOG_SAVE} from './common/dialogs.js';
 import {FileHelper} from './common/file.js'
 
 var terminal;
@@ -28,11 +28,11 @@ const btnModeEditor = document.getElementById('btn-mode-editor');
 const btnModeSerial = document.getElementById('btn-mode-serial');
 const btnRestart = document.getElementById('btn-restart');
 const mainContent = document.getElementById('main-content');
-const btnConnect = document.querySelectorAll('a.btn-connect');
-const btnNew = document.querySelectorAll('a.btn-new');
-const btnOpen = document.querySelectorAll('a.btn-open');
-const btnSaveAs = document.querySelectorAll('a.btn-save-as');
-const btnSaveRun = document.querySelectorAll('a.btn-save-run');
+const btnConnect = document.querySelectorAll('.btn-connect');
+const btnNew = document.querySelectorAll('.btn-new');
+const btnOpen = document.querySelectorAll('.btn-open');
+const btnSaveAs = document.querySelectorAll('.btn-save-as');
+const btnSaveRun = document.querySelectorAll('.btn-save-run');
 const terminalTitle = document.getElementById('terminal-title');
 
 const MODE_EDITOR = 1;
@@ -44,6 +44,7 @@ var fileDialog = null;
 var fileHelper = null;
 
 const unsavedDialog = new UnsavedDialog("unsaved");
+const messageDialog = new MessageModal("message");
 
 const editorTheme = EditorView.theme({}, {dark: true})
 const editorExtensions = [
@@ -209,6 +210,10 @@ async function runCode(path) {
     await workflow.serialTransmit(CHAR_CTRL_C + "import " + path + CHAR_CRLF);
 }
 
+async function showMessage(message) {
+    return await messageDialog.open(message);
+}
+
 async function checkSaved() {
     if (isDirty()) {
         let result = await unsavedDialog.open("Current changes will be lost. Do you want to save?");
@@ -311,7 +316,19 @@ window.addEventListener("resize", fixViewportHeight);
 
 async function loadEditor() {
     fileHelper = new FileHelper(workflow);
-    //console.log(await fileHelper.delete("/testdir/"));
+    const readOnly = await fileHelper.readOnly();
+    // TODO: This isn't working because it's a link instead of a button. Might be worth changing over...
+    btnSaveAs.forEach((element) => {
+        console.log(element);
+        element.disabled = readOnly;
+    });
+    btnSaveRun.forEach((element) => {
+        console.log(element);
+        element.disabled = readOnly;
+    });
+    if (readOnly) {
+        await showMessage("Warning: File System is in read only mode. Disable the USB drive to allow write access.");
+    }
     if (await fileHelper.fileExists("/code.py")) {
         setFilename("/code.py");
         var contents = await workflow.showBusy(workflow.getDeviceFileContents(currentFilename));
@@ -472,7 +489,6 @@ window.onload = async function() {
             e.preventDefault();
             e.stopPropagation();
             // Check if we have an active connection
-            console.log(workflow);
             if (workflow != null && workflow.connectionType != CONNTYPE.None) {
                 console.log("Unload workflow");
                 // If so, unload the current workflow
@@ -501,7 +517,7 @@ window.onload = async function() {
             await workflow.connectDialog.open();
         } else {
             if (!(await workflow.showBusy(workflow.connect()))) {
-                alert("Unable to connect");
+                showMessage("Unable to connect");
             }
         }
     }

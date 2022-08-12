@@ -1,78 +1,71 @@
 html {
-  box-sizing: border-box;
+    box-sizing: border-box;
 }
 
 *, *:before, *:after {
-  box-sizing: border-box;
+    box-sizing: border-box;
 }
 
 html, body  {
-  font-family: "Proxima Nova","Montserrat","Lucida Grande","Lucida Sans Unicode","Lucida Sans",Geneva,Verdana,sans-serif;
-  background-color: #ebebeb;
-  padding: 0;
-  margin: 0;
+    font-family: "Proxima Nova","Montserrat","Lucida Grande","Lucida Sans Unicode","Lucida Sans",Geneva,Verdana,sans-serif;
+    background-color: #ebebeb;
+    padding: 0;
+    margin: 0;
 }
 
 body {
-  @include viewport-height(0, min-height);
-  @include viewport-height(0);
-  position: relative;
+    @include viewport-height(0, min-height);
+    @include viewport-height(0);
+    position: relative;
 }
 
 a {
-  text-decoration: none;
-  color: inherit
+    text-decoration: none;
+    color: inherit;
 }
 
 .clear {
-  clear: both;
+    clear: both;
 }
 
 h1, h2, h3, h4, h5 {
-  font-weight: 500;
+    font-weight: 500;
 }
 
 .responsive {
-  max-width: 100%;
-  height: auto;
+    max-width: 100%;
+    height: auto;
 }
 
-button,
-.purple-button-link,
+.purple-button,
 .mode-editor #btn-mode-editor,
 .mode-serial #btn-mode-serial {
-  display: inline-block;
-  font-size: 1.1em;
-  width: auto;
-  padding: 8px 10px 8px 10px;
-  color: #fff;
-  border-radius: 5px;
-  border: none;
-  background-color: $purple;
-  margin: 10px 0 10px 10px;
-  i {
-    padding-left: 10px;
-  }
-  cursor: pointer;
-  white-space: nowrap;
+    display: inline-block;
+    font-size: 1.1em;
+    width: auto;
+    padding: 8px 10px 8px 10px;
+    color: #fff;
+    border-radius: 5px;
+    border: none;
+    background-color: $purple;
+    margin: 10px 0 10px 10px;
+    i {
+        padding-left: 10px;
+    }
+    cursor: pointer;
+    white-space: nowrap;
 }
 
-.purple-button-link.inverted,
+.purple-button.inverted,
 .mode-editor #btn-mode-serial,
 .mode-serial #btn-mode-editor {
     color: $purple;
     background-color: #c8c8c8;
 }
 
-button:disabled,
-.purple-button-link:disabled,
-.purple-button-link.inverted:disabled {
+.purple-button:disabled {
     background-color: #d8d8d8;
     color: #888;
-}
-
-button.purple-button-link {
-    min-width: 250px;
 }
 
 fieldset {

@@ -394,8 +394,7 @@ h1, h2, h3, h4, h5 {
   height: auto;
 }
 
-button,
-.purple-button-link,
+.purple-button,
 .mode-editor #btn-mode-editor,
 .mode-serial #btn-mode-serial {
   display: inline-block;
@@ -410,29 +409,22 @@ button,
   cursor: pointer;
   white-space: nowrap;
 }
-button i,
-.purple-button-link i,
+.purple-button i,
 .mode-editor #btn-mode-editor i,
 .mode-serial #btn-mode-serial i {
   padding-left: 10px;
 }
 
-.purple-button-link.inverted,
+.purple-button.inverted,
 .mode-editor #btn-mode-serial,
 .mode-serial #btn-mode-editor {
   color: #64338f;
   background-color: #c8c8c8;
 }
 
-button:disabled,
-.purple-button-link:disabled,
-.purple-button-link.inverted:disabled {
+.purple-button:disabled {
   background-color: #d8d8d8;
   color: #888;
-}
-
-button.purple-button-link {
-  min-width: 250px;
 }
 
 fieldset {
@@ -584,7 +576,7 @@ fieldset legend {
   margin-left: auto;
   padding-bottom: 10px;
 }
-.get-started a {
+.get-started a, .get-started button {
   display: inline-block;
   font-size: 18px;
   padding: 7px 50px 7px 50px;
@@ -592,8 +584,10 @@ fieldset legend {
   font-weight: 500;
   border-radius: 50px;
   border: 3px solid #fff;
+  background-color: transparent;
+  margin: 0;
 }
-.get-started a:hover {
+.get-started a:hover, .get-started button:hover {
   color: #000;
   background-color: #fff;
 }
@@ -668,9 +662,17 @@ fieldset legend {
   font-size: 34px;
   padding: 10px 0 10px 10px;
 }
-#mobile-editor-bar #mobile-menu .menu-toggle a {
+#mobile-editor-bar #mobile-menu .menu-toggle button {
+  border: none;
   color: #333333;
   outline: none;
+}
+#mobile-editor-bar #mobile-menu-contents {
+  position: absolute;
+  z-index: 2;
+  width: 100vh;
+  left: 0;
+  top: 118px;
 }
 #mobile-editor-bar #mobile-menu-contents.hidden {
   display: none;
@@ -680,14 +682,19 @@ fieldset legend {
   padding-left: 0;
   margin-bottom: 0;
   font-size: 20px;
+  margin-top: 0;
 }
 #mobile-editor-bar #mobile-menu-contents ul li {
   padding: 20px 0 20px 20px;
   border-bottom: 1px solid #dddddd;
   background-color: #f0f0f0;
 }
+#mobile-editor-bar #mobile-menu-contents ul li:first-child {
+  border-top: 1px solid #dddddd;
+}
 #mobile-editor-bar #mobile-menu-contents ul li a {
   color: #64338f;
+  cursor: pointer;
 }
 #mobile-editor-bar #mobile-menu-contents ul li a i {
   padding-left: 10px;
@@ -731,6 +738,10 @@ fieldset legend {
   text-decoration: underline;
 }
 
+#editor-bar, #serial-bar {
+  height: 59px;
+}
+
 #editor-page .btn-save-run {
   margin-right: 10px;
 }
@@ -761,6 +772,17 @@ fieldset legend {
   #editor-page .editor-container .cm-editor {
     height: calc(100vh - 220px);
     height: calc(var(--vh, 1vh) * 100 - 220px);
+  }
+}
+@media (min-width: 650px) {
+  .popup-modal.file-dialog {
+    max-height: 365px;
+    max-width: 650px;
+  }
+}
+@media (min-width: 768px) {
+  .popup-modal.connect-dialog {
+    width: 768px;
   }
 }
 .mode-editor #serial-page {
@@ -820,7 +842,7 @@ fieldset legend {
 .popup-modal {
   max-height: 100vh;
   max-width: 100vw;
-  width: 768px;
+  /*width: 768px;*/
   background-color: #fff;
   border: 2px solid #64338f;
   border-radius: 5px;
@@ -828,20 +850,15 @@ fieldset legend {
   left: 50%;
   top: 50%;
   transform: translate(-50%, -50%);
-  padding: 45px;
+  padding: 45px 20px 10px;
   opacity: 0;
   pointer-events: none;
   transition: all 300ms ease-in-out;
   z-index: 1011;
   display: none;
 }
-.popup-modal.file-dialog {
-  max-height: 365px;
-  max-width: 650px;
-}
 .popup-modal.prompt {
   max-height: 365px;
-  max-width: 650px;
 }
 .popup-modal.is--visible {
   opacity: 1;
@@ -857,7 +874,7 @@ fieldset legend {
   background: #fff;
   line-height: 25px;
 }
-.popup-modal.no-padding {
+.popup-modal.no-padding, .popup-modal.connect-dialog {
   padding: 0;
 }
 .popup-modal #current-path {
@@ -904,11 +921,18 @@ fieldset legend {
 .popup-modal .buttons button:first-child {
   margin-left: 0;
 }
+.popup-modal .buttons button.purple-button-link {
+  min-width: 250px;
+}
 .popup-modal .buttons input {
   margin: 10px 0 10px 10px;
   flex-grow: 1;
   font-size: 1.2em;
   padding: 5px;
+  overflow-x: auto;
+}
+.popup-modal .buttons.centered {
+  justify-content: center;
 }
 
 .cm-editor {

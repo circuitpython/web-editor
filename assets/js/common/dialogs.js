@@ -139,6 +139,17 @@ class GenericModal {
     }
 }
 
+class MessageModal extends GenericModal{
+    async open(message) {
+        let p = super.open()
+        const okButton = this._currentModal.querySelector("button.ok-button");
+        this._addDialogElement('okButton', okButton, 'click', this._closeModal);
+        this._currentModal.querySelector("#message").innerHTML = message;
+
+        return p;
+    }
+}
+
 class UnsavedDialog extends GenericModal {
     _handleSaveButton() {
         this._returnValue(true);
@@ -500,4 +511,4 @@ class FileDialog extends GenericModal {
     }
 }
 
-export {GenericModal, UnsavedDialog, FileDialog, FILE_DIALOG_OPEN, FILE_DIALOG_SAVE}
+export {GenericModal, MessageModal, UnsavedDialog, FileDialog, FILE_DIALOG_OPEN, FILE_DIALOG_SAVE}

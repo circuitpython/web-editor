@@ -71,7 +71,7 @@ class WebWorkflow extends Workflow {
             this.websocket.onopen = function() {
                 // Stuff to do on successful connection
                 this.updateConnected(true);
-                this.connIntervalId = setInterval(this.checkConnection.bind(this), PING_INTERVAL_MS);
+                //this.connIntervalId = setInterval(this.checkConnection.bind(this), PING_INTERVAL_MS);
             }.bind(this); 
             this.websocket.onmessage = this.onSerialReceive.bind(this);
             this.websocket.onclose = this.onDisconnected.bind(this);

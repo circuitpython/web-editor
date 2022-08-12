@@ -26,6 +26,10 @@
     }
 }
 
+#editor-bar, #serial-bar {
+    height: 59px;
+}
+
 #editor-page {
     .btn-save-run {
         margin-right: 10px;
@@ -65,7 +69,19 @@
             }
         }
     }
+}
 
+@media (min-width: 650px) {
+    .popup-modal.file-dialog {
+        max-height: 365px;
+        max-width: 650px;    
+    }
+}
+
+@media (min-width: 768px) {
+    .popup-modal.connect-dialog {
+        width: 768px;    
+    }
 }
 
 .mode-editor {
@@ -132,7 +148,7 @@
 .popup-modal {
     max-height: 100vh;
     max-width: 100vw;
-    width: 768px;
+    /*width: 768px;*/
     background-color: #fff;
     border: 2px solid $purple;
     border-radius: 5px;
@@ -140,21 +156,15 @@
     left: 50%;
     top: 50%;
     transform: translate(-50%, -50%);
-    padding: 45px;
+    padding: 45px 20px 10px;
     opacity: 0;
     pointer-events: none;
     transition: all 300ms ease-in-out;
     z-index: 1011;
     display: none;
 
-    &.file-dialog {
-        max-height: 365px;
-        max-width: 650px;    
-    }
-
     &.prompt {
         max-height: 365px;
-        max-width: 650px;    
     }
     
     &.is--visible {
@@ -173,7 +183,7 @@
         line-height: 25px;
     }
 
-    &.no-padding {
+    &.no-padding, &.connect-dialog {
         padding: 0;
     }
 
@@ -221,12 +231,20 @@
             &:first-child {
                 margin-left: 0;
             }
+            &.purple-button-link {
+                min-width: 250px;
+            }
         }
         input {
             margin: 10px 0 10px 10px;
             flex-grow: 1;
             font-size: 1.2em;
             padding: 5px;
+            overflow-x: auto;
+        }
+
+        &.centered {
+            justify-content: center;
         }
     }
 }

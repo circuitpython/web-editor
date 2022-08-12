@@ -34,14 +34,21 @@
             font-size: 34px;
             padding: 10px 0 10px 10px;
 
-            a {
-            color: #333333;
-            outline: none;
+            button {
+                border: none;
+                color: #333333;
+                outline: none;
             }
         }
     }
 
     #mobile-menu-contents {
+        position: absolute;
+        z-index: 2;
+        width: 100vh;
+        left: 0;
+        top: 118px;
+
         &.hidden {
             display: none;
         }
@@ -51,14 +58,20 @@
             padding-left: 0;
             margin-bottom: 0;
             font-size: 20px;
+            margin-top: 0;
 
             li {
                 padding: 20px 0 20px 20px;
                 border-bottom: 1px solid #dddddd;
                 background-color: #f0f0f0;
 
+                &:first-child {
+                    border-top: 1px solid #dddddd;
+                }
+
                 a {
                     color: $purple;
+                    cursor: pointer;
 
                     i {
                         padding-left: 10px;

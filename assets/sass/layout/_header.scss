@@ -93,8 +93,10 @@
   margin-left: auto;
   padding-bottom: 10px;
 
-  a {
+  a, button {
     @include rounded-button;
+    background-color: transparent;
+    margin: 0;
   }
 }
 
