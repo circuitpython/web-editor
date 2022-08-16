@@ -97,6 +97,7 @@ class WebWorkflow extends Workflow {
     async connectToHost(host) {
         console.log('Initializing File Transfer Client...');
         this.fileClient = new FileTransferClient(host, this.connectionStatus);
+        await this.fileClient.listDir('/');
         this.debugLog("connected");
         let success = await this.initSerial(host);
         // Wait for a connection with a timeout

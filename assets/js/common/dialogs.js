@@ -279,7 +279,7 @@ class FileDialog extends GenericModal {
         }
 
         try {
-            const files = this._sortAlpha(await this._showBusy(this._fileHelper.listDir(this._currentPath)));
+            const files = this._sortFolderFirst(await this._showBusy(this._fileHelper.listDir(this._currentPath)));
 
             for (let fileObj of files) {
                 if (fileObj.path[0] == ".") continue;
@@ -467,6 +467,21 @@ class FileDialog extends GenericModal {
                 alert("Unable to use this type of file");
             }
         }
+    }
+
+    _sortFolderFirst(fileObjects) {
+        let files = [];
+        let folders = [];
+
+        for (let fileObj of fileObjects) {
+            if (fileObj.isDir) {
+                folders.push(fileObj);
+            } else {
+                files.push(fileObj);
+            }
+        }
+
+        return this._sortAlpha(folders).concat(this._sortAlpha(files))
     }
 
     _sortAlpha(files) {
