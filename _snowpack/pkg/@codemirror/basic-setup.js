@@ -1,5 +1,5 @@
-import { E as EditorView, A as Annotation, F as Facet, c as combineConfig, S as StateField, T as Transaction, C as ChangeSet, a as ChangeDesc, b as EditorSelection, d as StateEffect, M as MapMode, R as RangeSet, V as ViewPlugin, B as BlockType, P as PluginField, D as Direction, e as RangeValue, l as language, f as foldable, g as Decoration, W as WidgetType, h as RangeSetBuilder, s as syntaxTree, N as NodeProp, I as IndentContext, i as indentUnit, j as countColumn, k as indentString, m as getIndentUnit, n as getIndentation, o as Text, p as codePointSize, q as codePointAt, r as findClusterBreak, t as CharCategory, u as fromCodePoint, v as Prec, w as runScopeHandlers, x as logException, y as keymap, z as findColumn, G as highlightSpecialChars, H as drawSelection, J as EditorState, K as indentOnInput, L as defaultHighlightStyle, O as highlightActiveLine } from '../common/index-1631759d.js';
-export { J as EditorState, E as EditorView } from '../common/index-1631759d.js';
+import { E as EditorView, A as Annotation, F as Facet, c as combineConfig, S as StateField, T as Transaction, C as ChangeSet, a as ChangeDesc, b as EditorSelection, d as StateEffect, M as MapMode, R as RangeSet, V as ViewPlugin, B as BlockType, P as PluginField, D as Direction, e as RangeValue, l as language, f as foldable, g as Decoration, W as WidgetType, h as RangeSetBuilder, s as syntaxTree, N as NodeProp, I as IndentContext, i as indentUnit, j as countColumn, k as indentString, m as getIndentUnit, n as getIndentation, o as Text, p as codePointSize, q as codePointAt, r as findClusterBreak, t as CharCategory, u as fromCodePoint, v as Prec, w as runScopeHandlers, x as logException, y as keymap, z as findColumn, G as highlightSpecialChars, H as drawSelection, J as EditorState, K as indentOnInput, L as defaultHighlightStyle, O as highlightActiveLine } from '../common/index-b78eee8b.js';
+export { J as EditorState, E as EditorView } from '../common/index-b78eee8b.js';
 
 const fromHistory = Annotation.define();
 /**
@@ -793,7 +793,7 @@ const foldState = /*@__PURE__*/StateField.define({
         }
         return folded;
     },
-    provide: f => EditorView.decorations.compute([f], s => s.field(f))
+    provide: f => EditorView.decorations.from(f)
 });
 function foldInside(state, from, to) {
     var _a;
@@ -926,7 +926,8 @@ const foldWidget = /*@__PURE__*/Decoration.replace({ widget: /*@__PURE__*/new cl
     } });
 const foldGutterDefaults = {
     openText: "⌄",
-    closedText: "›"
+    closedText: "›",
+    markerDOM: null,
 };
 class FoldMarker extends GutterMarker {
     constructor(config, open) {
@@ -936,6 +937,8 @@ class FoldMarker extends GutterMarker {
     }
     eq(other) { return this.config == other.config && this.open == other.open; }
     toDOM(view) {
+        if (this.config.markerDOM)
+            return this.config.markerDOM(this.open);
         let span = document.createElement("span");
         span.textContent = this.open ? this.config.openText : this.config.closedText;
         span.title = view.state.phrase(this.open ? "Fold line" : "Unfold line");
@@ -4830,10 +4833,10 @@ function rectangleFor(state, a, b) {
     else {
         let startCol = Math.min(a.col, b.col), endCol = Math.max(a.col, b.col);
         for (let i = startLine; i <= endLine; i++) {
-            let line = state.doc.line(i), str = line.length > MaxOff ? line.text.slice(0, 2 * endCol) : line.text;
-            let start = findColumn(str, 0, startCol, state.tabSize), end = findColumn(str, 0, endCol, state.tabSize);
-            if (!start.leftOver)
-                ranges.push(EditorSelection.range(line.from + start.offset, line.from + end.offset));
+            let line = state.doc.line(i);
+            let start = findColumn(line.text, startCol, state.tabSize), end = findColumn(line.text, endCol, state.tabSize);
+            if (start < end)
+                ranges.push(EditorSelection.range(line.from + start, line.from + end));
         }
     }
     return ranges;
@@ -4843,9 +4846,7 @@ function absoluteColumn(view, x) {
     return ref ? Math.round(Math.abs((ref.left - x) / view.defaultCharacterWidth)) : -1;
 }
 function getPos(view, event) {
-    let offset = view.posAtCoords({ x: event.clientX, y: event.clientY });
-    if (offset == null)
-        return null;
+    let offset = view.posAtCoords({ x: event.clientX, y: event.clientY }, false);
     let line = view.state.doc.lineAt(offset), off = offset - line.from;
     let col = off > MaxOff ? -1
         : off == line.length ? absoluteColumn(view, event.clientX)
@@ -4879,11 +4880,13 @@ function rectangleSelectionStyle(view, event) {
         }
     };
 }
-/// Create an extension that enables rectangular selections. By
-/// default, it will react to left mouse drag with the Alt key held
-/// down. When such a selection occurs, the text within the rectangle
-/// that was dragged over will be selected, as one selection
-/// [range](#state.SelectionRange) per line.
+/**
+Create an extension that enables rectangular selections. By
+default, it will react to left mouse drag with the Alt key held
+down. When such a selection occurs, the text within the rectangle
+that was dragged over will be selected, as one selection
+[range](https://codemirror.net/6/docs/ref/#state.SelectionRange) per line.
+*/
 function rectangularSelection(options) {
     let filter = (options === null || options === void 0 ? void 0 : options.eventFilter) || (e => e.altKey && e.button == 0);
     return EditorView.mouseSelectionStyle.of((view, event) => filter(event) ? rectangleSelectionStyle(view, event) : null);
@@ -4927,9 +4930,9 @@ function findDiagnostic(diagnostics, diagnostic = null, after = 0) {
     });
     return found;
 }
-function maybeEnableLint(state, effects, diagnostics) {
+function maybeEnableLint(state, effects, getState) {
     return state.field(lintState, false) ? effects : effects.concat(StateEffect.appendConfig.of([
-        diagnostics ? lintState.init(() => LintState.init(diagnostics, null)) : lintState,
+        lintState.init(getState),
         EditorView.decorations.compute([lintState], state => {
             let { selected, panel } = state.field(lintState);
             return !selected || !panel || selected.from == selected.to ? Decoration.none : Decoration.set([
@@ -5001,7 +5004,7 @@ Command to open and focus the lint panel.
 const openLintPanel = (view) => {
     let field = view.state.field(lintState, false);
     if (!field || !field.panel)
-        view.dispatch({ effects: maybeEnableLint(view.state, [togglePanel$1.of(true)]) });
+        view.dispatch({ effects: maybeEnableLint(view.state, [togglePanel$1.of(true)], () => LintState.init([], LintPanel.open)) });
     let panel = getPanel(view, LintPanel.open);
     if (panel)
         panel.dom.querySelector(".cm-panel-lint ul").focus();
@@ -5123,7 +5126,7 @@ class LintPanel {
             else if (event.keyCode == 13) { // Enter
                 this.view.focus();
             }
-            else if (event.keyCode >= 65 && event.keyCode <= 90 && this.items.length) { // A-Z
+            else if (event.keyCode >= 65 && event.keyCode <= 90 && this.selectedIndex >= 0) { // A-Z
                 let { diagnostic } = this.items[this.selectedIndex], keys = assignKeys(diagnostic.actions);
                 for (let i = 0; i < keys.length; i++)
                     if (keys[i].toUpperCase().charCodeAt(0) == event.keyCode) {
@@ -5224,7 +5227,7 @@ class LintPanel {
                 }
             });
         }
-        else if (!this.items.length) {
+        else if (this.selectedIndex < 0) {
             this.list.removeAttribute("aria-activedescendant");
         }
         if (needsSync)
@@ -5251,7 +5254,7 @@ class LintPanel {
             rm();
     }
     moveSelection(selectedIndex) {
-        if (this.items.length == 0)
+        if (this.selectedIndex < 0)
             return;
         let field = this.view.state.field(lintState);
         let selection = findDiagnostic(field.diagnostics, this.items[selectedIndex].diagnostic);

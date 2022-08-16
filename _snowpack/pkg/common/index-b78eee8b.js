@@ -4,7 +4,7 @@
 // Each pair of elements represents a range, as an offet from the
 // previous range and a length. Numbers are in base-36, with the empty
 // string being a shorthand for 1.
-let extend = "lc,34,7n,7,7b,19,,,,2,,2,,,20,b,1c,l,g,,2t,7,2,6,2,2,,4,z,,u,r,2j,b,1m,9,9,,o,4,,9,,3,,5,17,3,3b,f,,w,1j,,,,4,8,4,,3,7,a,2,t,,1m,,,,2,4,8,,9,,a,2,q,,2,2,1l,,4,2,4,2,2,3,3,,u,2,3,,b,2,1l,,4,5,,2,4,,k,2,m,6,,,1m,,,2,,4,8,,7,3,a,2,u,,1n,,,,c,,9,,14,,3,,1l,3,5,3,,4,7,2,b,2,t,,1m,,2,,2,,3,,5,2,7,2,b,2,s,2,1l,2,,,2,4,8,,9,,a,2,t,,20,,4,,2,3,,,8,,29,,2,7,c,8,2q,,2,9,b,6,22,2,r,,,,,,1j,e,,5,,2,5,b,,10,9,,2u,4,,6,,2,2,2,p,2,4,3,g,4,d,,2,2,6,,f,,jj,3,qa,3,t,3,t,2,u,2,1s,2,,7,8,,2,b,9,,19,3,3b,2,y,,3a,3,4,2,9,,6,3,63,2,2,,1m,,,7,,,,,2,8,6,a,2,,1c,h,1r,4,1c,7,,,5,,14,9,c,2,w,4,2,2,,3,1k,,,2,3,,,3,1m,8,2,2,48,3,,d,,7,4,,6,,3,2,5i,1m,,5,ek,,5f,x,2da,3,3x,,2o,w,fe,6,2x,2,n9w,4,,a,w,2,28,2,7k,,3,,4,,p,2,5,,47,2,q,i,d,,12,8,p,b,1a,3,1c,,2,4,2,2,13,,1v,6,2,2,2,2,c,,8,,1b,,1f,,,3,2,2,5,2,,,16,2,8,,6m,,2,,4,,fn4,,kh,g,g,g,a6,2,gt,,6a,,45,5,1ae,3,,2,5,4,14,3,4,,4l,2,fx,4,ar,2,49,b,4w,,1i,f,1k,3,1d,4,2,2,1x,3,10,5,,8,1q,,c,2,1g,9,a,4,2,,2n,3,2,,,2,6,,4g,,3,8,l,2,1l,2,,,,,m,,e,7,3,5,5f,8,2,3,,,n,,29,,2,6,,,2,,,2,,2,6j,,2,4,6,2,,2,r,2,2d,8,2,,,2,2y,,,,2,6,,,2t,3,2,4,,5,77,9,,2,6t,,a,2,,,4,,40,4,2,2,4,,w,a,14,6,2,4,8,,9,6,2,3,1a,d,,2,ba,7,,6,,,2a,m,2,7,,2,,2,3e,6,3,,,2,,7,,,20,2,3,,,,9n,2,f0b,5,1n,7,t4,,1r,4,29,,f5k,2,43q,,,3,4,5,8,8,2,7,u,4,44,3,1iz,1j,4,1e,8,,e,,m,5,,f,11s,7,,h,2,7,,2,,5,79,7,c5,4,15s,7,31,7,240,5,gx7k,2o,3k,6o".split(",").map(s => s ? parseInt(s, 36) : 1);
+let extend = /*@__PURE__*/"lc,34,7n,7,7b,19,,,,2,,2,,,20,b,1c,l,g,,2t,7,2,6,2,2,,4,z,,u,r,2j,b,1m,9,9,,o,4,,9,,3,,5,17,3,3b,f,,w,1j,,,,4,8,4,,3,7,a,2,t,,1m,,,,2,4,8,,9,,a,2,q,,2,2,1l,,4,2,4,2,2,3,3,,u,2,3,,b,2,1l,,4,5,,2,4,,k,2,m,6,,,1m,,,2,,4,8,,7,3,a,2,u,,1n,,,,c,,9,,14,,3,,1l,3,5,3,,4,7,2,b,2,t,,1m,,2,,2,,3,,5,2,7,2,b,2,s,2,1l,2,,,2,4,8,,9,,a,2,t,,20,,4,,2,3,,,8,,29,,2,7,c,8,2q,,2,9,b,6,22,2,r,,,,,,1j,e,,5,,2,5,b,,10,9,,2u,4,,6,,2,2,2,p,2,4,3,g,4,d,,2,2,6,,f,,jj,3,qa,3,t,3,t,2,u,2,1s,2,,7,8,,2,b,9,,19,3,3b,2,y,,3a,3,4,2,9,,6,3,63,2,2,,1m,,,7,,,,,2,8,6,a,2,,1c,h,1r,4,1c,7,,,5,,14,9,c,2,w,4,2,2,,3,1k,,,2,3,,,3,1m,8,2,2,48,3,,d,,7,4,,6,,3,2,5i,1m,,5,ek,,5f,x,2da,3,3x,,2o,w,fe,6,2x,2,n9w,4,,a,w,2,28,2,7k,,3,,4,,p,2,5,,47,2,q,i,d,,12,8,p,b,1a,3,1c,,2,4,2,2,13,,1v,6,2,2,2,2,c,,8,,1b,,1f,,,3,2,2,5,2,,,16,2,8,,6m,,2,,4,,fn4,,kh,g,g,g,a6,2,gt,,6a,,45,5,1ae,3,,2,5,4,14,3,4,,4l,2,fx,4,ar,2,49,b,4w,,1i,f,1k,3,1d,4,2,2,1x,3,10,5,,8,1q,,c,2,1g,9,a,4,2,,2n,3,2,,,2,6,,4g,,3,8,l,2,1l,2,,,,,m,,e,7,3,5,5f,8,2,3,,,n,,29,,2,6,,,2,,,2,,2,6j,,2,4,6,2,,2,r,2,2d,8,2,,,2,2y,,,,2,6,,,2t,3,2,4,,5,77,9,,2,6t,,a,2,,,4,,40,4,2,2,4,,w,a,14,6,2,4,8,,9,6,2,3,1a,d,,2,ba,7,,6,,,2a,m,2,7,,2,,2,3e,6,3,,,2,,7,,,20,2,3,,,,9n,2,f0b,5,1n,7,t4,,1r,4,29,,f5k,2,43q,,,3,4,5,8,8,2,7,u,4,44,3,1iz,1j,4,1e,8,,e,,m,5,,f,11s,7,,h,2,7,,2,,5,79,7,c5,4,15s,7,31,7,240,5,gx7k,2o,3k,6o".split(",").map(s => s ? parseInt(s, 36) : 1);
 // Convert offsets into absolute values
 for (let i = 1; i < extend.length; i++)
     extend[i] += extend[i - 1];
@@ -18,11 +18,13 @@ function isRegionalIndicator(code) {
     return code >= 0x1F1E6 && code <= 0x1F1FF;
 }
 const ZWJ = 0x200d;
-/// Returns a next grapheme cluster break _after_ (not equal to)
-/// `pos`, if `forward` is true, or before otherwise. Returns `pos`
-/// itself if no further cluster break is available in the string.
-/// Moves across surrogate pairs, extending characters, characters
-/// joined with zero-width joiners, and flag emoji.
+/**
+Returns a next grapheme cluster break _after_ (not equal to)
+`pos`, if `forward` is true, or before otherwise. Returns `pos`
+itself if no further cluster break is available in the string.
+Moves across surrogate pairs, extending characters, characters
+joined with zero-width joiners, and flag emoji.
+*/
 function findClusterBreak(str, pos, forward = true) {
     return (forward ? nextClusterBreak : prevClusterBreak)(str, pos);
 }
@@ -68,9 +70,11 @@ function prevClusterBreak(str, pos) {
 }
 function surrogateLow(ch) { return ch >= 0xDC00 && ch < 0xE000; }
 function surrogateHigh(ch) { return ch >= 0xD800 && ch < 0xDC00; }
-/// Find the code point at the given position in a string (like the
-/// [`codePointAt`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/codePointAt)
-/// string method).
+/**
+Find the code point at the given position in a string (like the
+[`codePointAt`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/codePointAt)
+string method).
+*/
 function codePointAt(str, pos) {
     let code0 = str.charCodeAt(pos);
     if (!surrogateHigh(code0) || pos + 1 == str.length)
@@ -80,23 +84,29 @@ function codePointAt(str, pos) {
         return code0;
     return ((code0 - 0xd800) << 10) + (code1 - 0xdc00) + 0x10000;
 }
-/// Given a Unicode codepoint, return the JavaScript string that
-/// respresents it (like
-/// [`String.fromCodePoint`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/fromCodePoint)).
+/**
+Given a Unicode codepoint, return the JavaScript string that
+respresents it (like
+[`String.fromCodePoint`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/fromCodePoint)).
+*/
 function fromCodePoint(code) {
     if (code <= 0xffff)
         return String.fromCharCode(code);
     code -= 0x10000;
     return String.fromCharCode((code >> 10) + 0xd800, (code & 1023) + 0xdc00);
 }
-/// The first character that takes up two positions in a JavaScript
-/// string. It is often useful to compare with this after calling
-/// `codePointAt`, to figure out whether your character takes up 1 or
-/// 2 index positions.
+/**
+The first character that takes up two positions in a JavaScript
+string. It is often useful to compare with this after calling
+`codePointAt`, to figure out whether your character takes up 1 or
+2 index positions.
+*/
 function codePointSize(code) { return code < 0x10000 ? 1 : 2; }
 
-/// Count the column position at the given offset into the string,
-/// taking extending characters and tab size into account.
+/**
+Count the column position at the given offset into the string,
+taking extending characters and tab size into account.
+*/
 function countColumn(string, n, tabSize) {
     for (let i = 0; i < string.length;) {
         if (string.charCodeAt(i) == 9) {
@@ -110,35 +120,52 @@ function countColumn(string, n, tabSize) {
     }
     return n;
 }
-/// Find the offset that corresponds to the given column position in a
-/// string, taking extending characters and tab size into account.
-function findColumn(string, n, col, tabSize) {
-    for (let i = 0; i < string.length;) {
+/**
+Find the offset that corresponds to the given column position in a
+string, taking extending characters and tab size into account.
+*/
+function findColumn(string, col, tabSize) {
+    let _compat = arguments[3];
+    if (_compat != null) {
+        col = tabSize;
+        tabSize = _compat;
+    } // FIXME remove at next major version
+    for (let i = 0, n = 0; i < string.length;) {
         if (n >= col)
-            return { offset: i, leftOver: 0 };
+            return i;
         n += string.charCodeAt(i) == 9 ? tabSize - (n % tabSize) : 1;
         i = findClusterBreak(string, i);
     }
-    return { offset: string.length, leftOver: col - n };
+    return string.length;
 }
 
-/// The data structure for documents.
+/**
+The data structure for documents.
+*/
 class Text {
-    /// @internal
+    /**
+    @internal
+    */
     constructor() { }
-    /// Get the line description around the given position.
+    /**
+    Get the line description around the given position.
+    */
     lineAt(pos) {
         if (pos < 0 || pos > this.length)
             throw new RangeError(`Invalid position ${pos} in document of length ${this.length}`);
         return this.lineInner(pos, false, 1, 0);
     }
-    /// Get the description for the given (1-based) line number.
+    /**
+    Get the description for the given (1-based) line number.
+    */
     line(n) {
         if (n < 1 || n > this.lines)
             throw new RangeError(`Invalid line number ${n} in ${this.lines}-line document`);
         return this.lineInner(n, true, 1, 0);
     }
-    /// Replace a range of the text with the given content.
+    /**
+    Replace a range of the text with the given content.
+    */
     replace(from, to, text) {
         let parts = [];
         this.decompose(0, from, parts, 2 /* To */);
@@ -147,17 +174,23 @@ class Text {
         this.decompose(to, this.length, parts, 1 /* From */);
         return TextNode.from(parts, this.length - (to - from) + text.length);
     }
-    /// Append another document to this one.
+    /**
+    Append another document to this one.
+    */
     append(other) {
         return this.replace(this.length, this.length, other);
     }
-    /// Retrieve the text between the given points.
+    /**
+    Retrieve the text between the given points.
+    */
     slice(from, to = this.length) {
         let parts = [];
         this.decompose(from, to, parts, 0);
         return TextNode.from(parts, to - from);
     }
-    /// Test whether this text is equal to another instance.
+    /**
+    Test whether this text is equal to another instance.
+    */
     eq(other) {
         if (other == this)
             return true;
@@ -173,24 +206,34 @@ class Text {
                 return true;
         }
     }
-    /// Iterate over the text. When `dir` is `-1`, iteration happens
-    /// from end to start. This will return lines and the breaks between
-    /// them as separate strings, and for long lines, might split lines
-    /// themselves into multiple chunks as well.
+    /**
+    Iterate over the text. When `dir` is `-1`, iteration happens
+    from end to start. This will return lines and the breaks between
+    them as separate strings, and for long lines, might split lines
+    themselves into multiple chunks as well.
+    */
     iter(dir = 1) { return new RawTextCursor(this, dir); }
-    /// Iterate over a range of the text. When `from` > `to`, the
-    /// iterator will run in reverse.
+    /**
+    Iterate over a range of the text. When `from` > `to`, the
+    iterator will run in reverse.
+    */
     iterRange(from, to = this.length) { return new PartialTextCursor(this, from, to); }
-    /// @internal
+    /**
+    @internal
+    */
     toString() { return this.sliceString(0); }
-    /// Convert the document to an array of lines (which can be
-    /// deserialized again via [`Text.of`](#text.Text^of)).
+    /**
+    Convert the document to an array of lines (which can be
+    deserialized again via [`Text.of`](https://codemirror.net/6/docs/ref/#text.Text^of)).
+    */
     toJSON() {
         let lines = [];
         this.flatten(lines);
         return lines;
     }
-    /// Create a `Text` instance for the given array of lines.
+    /**
+    Create a `Text` instance for the given array of lines.
+    */
     static of(text) {
         if (text.length == 0)
             throw new RangeError("A document must have at least one line");
@@ -403,7 +446,7 @@ class TextNode extends Text {
         return chunked.length == 1 ? chunked[0] : new TextNode(chunked, length);
     }
 }
-Text.empty = new TextLeaf([""], 0);
+Text.empty = /*@__PURE__*/new TextLeaf([""], 0);
 function textLength(text) {
     let length = -1;
     for (let line of text)
@@ -439,28 +482,29 @@ class RawTextCursor {
         this.lineBreak = false;
         this.value = "";
         this.nodes = [text];
-        this.offsets = [dir > 0 ? 0 : text instanceof TextLeaf ? text.text.length : text.children.length];
+        this.offsets = [dir > 0 ? 1 : (text instanceof TextLeaf ? text.text.length : text.children.length) << 1];
     }
-    next(skip = 0) {
+    nextInner(skip, dir) {
+        this.done = this.lineBreak = false;
         for (;;) {
             let last = this.nodes.length - 1;
-            if (last < 0) {
-                this.done = true;
-                this.value = "";
-                this.lineBreak = false;
-                return this;
-            }
-            let top = this.nodes[last], offset = this.offsets[last];
+            let top = this.nodes[last], offsetValue = this.offsets[last], offset = offsetValue >> 1;
             let size = top instanceof TextLeaf ? top.text.length : top.children.length;
-            if (offset == (this.dir > 0 ? size : 0)) {
+            if (offset == (dir > 0 ? size : 0)) {
+                if (last == 0) {
+                    this.done = true;
+                    this.value = "";
+                    return this;
+                }
+                if (dir > 0)
+                    this.offsets[last - 1]++;
                 this.nodes.pop();
                 this.offsets.pop();
             }
-            else if (!this.lineBreak && offset != (this.dir > 0 ? 0 : size)) {
-                // Internal offset with lineBreak == false means we have to
-                // count the line break at this position
-                this.lineBreak = true;
+            else if ((offsetValue & 1) == (dir > 0 ? 0 : 1)) {
+                this.offsets[last] += dir;
                 if (skip == 0) {
+                    this.lineBreak = true;
                     this.value = "\n";
                     return this;
                 }
@@ -468,84 +512,106 @@ class RawTextCursor {
             }
             else if (top instanceof TextLeaf) {
                 // Move to the next string
-                let next = top.text[offset - (this.dir < 0 ? 1 : 0)];
-                this.offsets[last] = (offset += this.dir);
-                this.lineBreak = false;
+                let next = top.text[offset + (dir < 0 ? -1 : 0)];
+                this.offsets[last] += dir;
                 if (next.length > Math.max(0, skip)) {
-                    this.value = skip == 0 ? next : this.dir > 0 ? next.slice(skip) : next.slice(0, next.length - skip);
+                    this.value = skip == 0 ? next : dir > 0 ? next.slice(skip) : next.slice(0, next.length - skip);
                     return this;
                 }
                 skip -= next.length;
             }
             else {
-                let next = top.children[this.dir > 0 ? offset : offset - 1];
-                this.offsets[last] = offset + this.dir;
-                this.lineBreak = false;
+                let next = top.children[offset + (dir < 0 ? -1 : 0)];
                 if (skip > next.length) {
                     skip -= next.length;
+                    this.offsets[last] += dir;
                 }
                 else {
+                    if (dir < 0)
+                        this.offsets[last]--;
                     this.nodes.push(next);
-                    this.offsets.push(this.dir > 0 ? 0 : next instanceof TextLeaf ? next.text.length : next.children.length);
+                    this.offsets.push(dir > 0 ? 1 : (next instanceof TextLeaf ? next.text.length : next.children.length) << 1);
                 }
             }
         }
+    }
+    next(skip = 0) {
+        if (skip < 0) {
+            this.nextInner(-skip, (-this.dir));
+            skip = this.value.length;
+        }
+        return this.nextInner(skip, this.dir);
     }
 }
 class PartialTextCursor {
     constructor(text, start, end) {
         this.value = "";
+        this.done = false;
         this.cursor = new RawTextCursor(text, start > end ? -1 : 1);
-        if (start > end) {
-            this.skip = text.length - start;
-            this.limit = start - end;
-        }
-        else {
-            this.skip = start;
-            this.limit = end - start;
-        }
+        this.pos = start > end ? text.length : 0;
+        this.from = Math.min(start, end);
+        this.to = Math.max(start, end);
     }
-    next(skip = 0) {
-        if (this.limit <= 0) {
-            this.limit = -1;
+    nextInner(skip, dir) {
+        if (dir < 0 ? this.pos <= this.from : this.pos >= this.to) {
+            this.value = "";
+            this.done = true;
+            return this;
         }
-        else {
-            let { value, lineBreak, done } = this.cursor.next(this.skip + skip);
-            this.skip = 0;
-            this.value = value;
-            let len = lineBreak ? 1 : value.length;
-            if (len > this.limit)
-                this.value = this.cursor.dir > 0 ? value.slice(0, this.limit) : value.slice(len - this.limit);
-            if (done || this.value.length == 0)
-                this.limit = -1;
-            else
-                this.limit -= this.value.length;
-        }
+        this.done = false;
+        skip += Math.max(0, dir < 0 ? this.pos - this.to : this.from - this.pos);
+        let limit = dir < 0 ? this.pos - this.from : this.to - this.pos;
+        if (skip > limit)
+            skip = limit;
+        limit -= skip;
+        let { value } = this.cursor.next(skip);
+        this.pos += (value.length + skip) * dir;
+        this.value = value.length <= limit ? value : dir < 0 ? value.slice(value.length - limit) : value.slice(0, limit);
         return this;
     }
-    get lineBreak() { return this.cursor.lineBreak; }
-    get done() { return this.limit < 0; }
+    next(skip = 0) {
+        if (skip < 0)
+            skip = Math.max(skip, this.from - this.pos);
+        else if (skip > 0)
+            skip = Math.min(skip, this.to - this.pos);
+        return this.nextInner(skip, this.cursor.dir);
+    }
+    get lineBreak() { return this.cursor.lineBreak && this.value != ""; }
 }
-/// This type describes a line in the document. It is created
-/// on-demand when lines are [queried](#text.Text.lineAt).
+/**
+This type describes a line in the document. It is created
+on-demand when lines are [queried](https://codemirror.net/6/docs/ref/#text.Text.lineAt).
+*/
 class Line {
-    /// @internal
+    /**
+    @internal
+    */
     constructor(
-    /// The position of the start of the line.
+    /**
+    The position of the start of the line.
+    */
     from, 
-    /// The position at the end of the line (_before_ the line break,
-    /// or at the end of document for the last line).
+    /**
+    The position at the end of the line (_before_ the line break,
+    or at the end of document for the last line).
+    */
     to, 
-    /// This line's line number (1-based).
+    /**
+    This line's line number (1-based).
+    */
     number, 
-    /// The line's content.
+    /**
+    The line's content.
+    */
     text) {
         this.from = from;
         this.to = to;
         this.number = number;
         this.text = text;
     }
-    /// The length of the line (not including any line break after it).
+    /**
+    The length of the line (not including any line break after it).
+    */
     get length() { return this.to - this.from; }
 }
 
@@ -3643,7 +3709,7 @@ class SpanCursor {
         for (let i = this.active.length - 1; i >= 0; i--) {
             if (this.activeRank[i] < this.pointRank)
                 break;
-            if (this.activeTo[i] > to || this.activeTo[i] == to && this.active[i].endSide > this.point.endSide)
+            if (this.activeTo[i] > to || this.activeTo[i] == to && this.active[i].endSide >= this.point.endSide)
                 active.push(this.active[i]);
         }
         return active.reverse();
@@ -3664,7 +3730,8 @@ function compare(a, startA, b, startB, length, comparator) {
         let diff = (a.to + dPos) - b.to || a.endSide - b.endSide;
         let end = diff < 0 ? a.to + dPos : b.to, clipEnd = Math.min(end, endB);
         if (a.point || b.point) {
-            if (!(a.point && b.point && (a.point == b.point || a.point.eq(b.point))))
+            if (!(a.point && b.point && (a.point == b.point || a.point.eq(b.point)) &&
+                sameValues(a.activeForPoint(a.to + dPos), b.activeForPoint(b.to))))
                 comparator.comparePoint(pos, clipEnd, a.point, b.point);
         }
         else {
@@ -3760,8 +3827,7 @@ var base = {
   219: "[",
   220: "\\",
   221: "]",
-  222: "'",
-  229: "q"
+  222: "'"
 };
 
 var shift = {
@@ -3788,16 +3854,14 @@ var shift = {
   219: "{",
   220: "|",
   221: "}",
-  222: "\"",
-  229: "Q"
+  222: "\""
 };
 
 var chrome = typeof navigator != "undefined" && /Chrome\/(\d+)/.exec(navigator.userAgent);
-var safari = typeof navigator != "undefined" && /Apple Computer/.test(navigator.vendor);
 var gecko = typeof navigator != "undefined" && /Gecko\/\d+/.test(navigator.userAgent);
 var mac = typeof navigator != "undefined" && /Mac/.test(navigator.platform);
 var ie = typeof navigator != "undefined" && /MSIE \d|Trident\/(?:[7-9]|\d{2,})\..*rv:(\d+)/.exec(navigator.userAgent);
-var brokenModifierNames = chrome && (mac || +chrome[1] < 57) || gecko && mac;
+var brokenModifierNames = mac || chrome && +chrome[1] < 57;
 
 // Fill in the digit keys
 for (var i = 0; i < 10; i++) base[48 + i] = base[96 + i] = String(i);
@@ -3815,10 +3879,9 @@ for (var i = 65; i <= 90; i++) {
 for (var code in base) if (!shift.hasOwnProperty(code)) shift[code] = base[code];
 
 function keyName(event) {
-  // Don't trust event.key in Chrome when there are modifiers until
-  // they fix https://bugs.chromium.org/p/chromium/issues/detail?id=633838
   var ignoreKey = brokenModifierNames && (event.ctrlKey || event.altKey || event.metaKey) ||
-    (safari || ie) && event.shiftKey && event.key && event.key.length == 1;
+    ie && event.shiftKey && event.key && event.key.length == 1 ||
+    event.key == "Unidentified";
   var name = (!ignoreKey && event.key) ||
     (event.shiftKey ? shift : base)[event.keyCode] ||
     event.key || "Unidentified";
@@ -4040,6 +4103,19 @@ function dispatchKey(elt, name, code) {
     up.synthetic = true;
     elt.dispatchEvent(up);
     return down.defaultPrevented || up.defaultPrevented;
+}
+let _plainTextSupported = null;
+function contentEditablePlainTextSupported() {
+    if (_plainTextSupported == null) {
+        _plainTextSupported = false;
+        let dummy = document.createElement("div");
+        try {
+            dummy.contentEditable = "plaintext-only";
+            _plainTextSupported = dummy.contentEditable == "plaintext-only";
+        }
+        catch (_) { }
+    }
+    return _plainTextSupported;
 }
 
 class DOMPos {
@@ -4284,7 +4360,7 @@ const ie$1 = !!(ie_upto10 || ie_11up || ie_edge);
 const gecko$1 = !ie$1 && /*@__PURE__*//gecko\/(\d+)/i.test(nav.userAgent);
 const chrome$1 = !ie$1 && /*@__PURE__*//Chrome\/(\d+)/.exec(nav.userAgent);
 const webkit = "webkitFontSmoothing" in doc.documentElement.style;
-const safari$1 = !ie$1 && /*@__PURE__*//Apple Computer/.test(nav.vendor);
+const safari = !ie$1 && /*@__PURE__*//Apple Computer/.test(nav.vendor);
 var browser = {
     mac: /*@__PURE__*//Mac/.test(nav.platform),
     ie: ie$1,
@@ -4293,10 +4369,10 @@ var browser = {
     gecko_version: gecko$1 ? +(/*@__PURE__*//Firefox\/(\d+)/.exec(nav.userAgent) || [0, 0])[1] : 0,
     chrome: !!chrome$1,
     chrome_version: chrome$1 ? +chrome$1[1] : 0,
-    ios: safari$1 && (/*@__PURE__*//Mobile\/\w+/.test(nav.userAgent) || nav.maxTouchPoints > 2),
+    ios: safari && (/*@__PURE__*//Mobile\/\w+/.test(nav.userAgent) || nav.maxTouchPoints > 2),
     android: /*@__PURE__*//Android\b/.test(nav.userAgent),
     webkit,
-    safari: safari$1,
+    safari,
     webkit_version: webkit ? +(/*@__PURE__*//\bAppleWebKit\/(\d+)/.exec(navigator.userAgent) || [0, 0])[1] : 0,
     tabSize: doc.documentElement.style.tabSize != null ? "tab-size" : "-moz-tab-size"
 };
@@ -6546,7 +6622,7 @@ function domPosInText(node, x, y) {
     }
     return { node, offset: closestOffset > -1 ? closestOffset : generalSide > 0 ? node.nodeValue.length : 0 };
 }
-function posAtCoords(view, { x, y }, bias = -1) {
+function posAtCoords(view, { x, y }, precise, bias = -1) {
     let content = view.contentDOM.getBoundingClientRect(), block;
     let halfLine = view.defaultLineHeight / 2;
     for (let bounced = false;;) {
@@ -6555,7 +6631,7 @@ function posAtCoords(view, { x, y }, bias = -1) {
             bias = block.top > y ? -1 : 1;
             y = Math.min(block.bottom - halfLine, Math.max(block.top + halfLine, y));
             if (bounced)
-                return null;
+                return precise ? null : 0;
             else
                 bounced = true;
         }
@@ -6564,13 +6640,13 @@ function posAtCoords(view, { x, y }, bias = -1) {
         y = bias > 0 ? block.bottom + halfLine : block.top - halfLine;
     }
     let lineStart = block.from;
+    x = Math.max(content.left + 1, Math.min(content.right - 1, x));
     // If this is outside of the rendered viewport, we can't determine a position
     if (lineStart < view.viewport.from)
-        return view.viewport.from == 0 ? 0 : null;
+        return view.viewport.from == 0 ? 0 : posAtCoordsImprecise(view, content, block, x, y);
     if (lineStart > view.viewport.to)
-        return view.viewport.to == view.state.doc.length ? view.state.doc.length : null;
+        return view.viewport.to == view.state.doc.length ? view.state.doc.length : posAtCoordsImprecise(view, content, block, x, y);
     // Clip x to the viewport sides
-    x = Math.max(content.left + 1, Math.min(content.right - 1, x));
     let root = view.root, element = root.elementFromPoint(x, y);
     // There's visible editor content under the point, so we can try
     // using caret(Position|Range)FromPoint as a shortcut
@@ -6596,6 +6672,15 @@ function posAtCoords(view, { x, y }, bias = -1) {
         ({ node, offset } = domPosAtCoords(line.dom, x, y));
     }
     return view.docView.posFromDOM(node, offset);
+}
+function posAtCoordsImprecise(view, contentRect, block, x, y) {
+    let into = Math.round((x - contentRect.left) * view.defaultCharacterWidth);
+    if (view.lineWrapping && block.height > view.defaultLineHeight * 1.5) {
+        let line = Math.floor((y - block.top) / view.defaultLineHeight);
+        into += line * view.viewState.heightOracle.lineLength;
+    }
+    let content = view.state.sliceDoc(block.from, block.to);
+    return block.from + findColumn(content, into, view.state.tabSize);
 }
 // In case of a high line height, Safari's caretRangeFromPoint treats
 // the space between lines as belonging to the last character of the
@@ -6659,48 +6744,31 @@ function byGroup(view, pos, start) {
     };
 }
 function moveVertically(view, start, forward, distance) {
-    var _a;
     let startPos = start.head, dir = forward ? 1 : -1;
     if (startPos == (forward ? view.state.doc.length : 0))
         return EditorSelection.cursor(startPos);
+    let goal = start.goalColumn, startY;
+    let rect = view.contentDOM.getBoundingClientRect();
     let startCoords = view.coordsAtPos(startPos);
     if (startCoords) {
-        let rect = view.dom.getBoundingClientRect();
-        let goal = (_a = start.goalColumn) !== null && _a !== void 0 ? _a : startCoords.left - rect.left;
-        let resolvedGoal = rect.left + goal;
-        let dist = distance !== null && distance !== void 0 ? distance : (view.defaultLineHeight >> 1);
-        for (let startY = dir < 0 ? startCoords.top : startCoords.bottom, extra = 0; extra < 50; extra += 10) {
-            let pos = posAtCoords(view, { x: resolvedGoal, y: startY + (dist + extra) * dir }, dir);
-            if (pos == null)
-                break;
-            if (pos != startPos)
-                return EditorSelection.cursor(pos, undefined, undefined, goal);
-        }
-    }
-    // Outside of the drawn viewport, use a crude column-based approach
-    let { doc } = view.state, line = doc.lineAt(startPos), tabSize = view.state.tabSize;
-    let goal = start.goalColumn, goalCol = 0;
-    if (goal == null) {
-        for (const iter = doc.iterRange(line.from, startPos); !iter.next().done;)
-            goalCol = countColumn(iter.value, goalCol, tabSize);
-        goal = goalCol * view.defaultCharacterWidth;
+        if (goal == null)
+            goal = startCoords.left - rect.left;
+        startY = dir < 0 ? startCoords.top : startCoords.bottom;
     }
     else {
-        goalCol = Math.round(goal / view.defaultCharacterWidth);
+        let line = view.viewState.lineAt(startPos, view.dom.getBoundingClientRect().top);
+        if (goal == null)
+            goal = Math.min(rect.right - rect.left, view.defaultCharacterWidth * (startPos - line.from));
+        startY = dir < 0 ? line.top : line.bottom;
     }
-    if (dir < 0 && line.from == 0)
-        return EditorSelection.cursor(0);
-    else if (dir > 0 && line.to == doc.length)
-        return EditorSelection.cursor(line.to);
-    let otherLine = doc.line(line.number + dir);
-    let result = otherLine.from;
-    let seen = 0;
-    for (const iter = doc.iterRange(otherLine.from, otherLine.to); seen >= goalCol && !iter.next().done;) {
-        const { offset, leftOver } = findColumn(iter.value, seen, goalCol, tabSize);
-        seen = goalCol - leftOver;
-        result += offset;
+    let resolvedGoal = rect.left + goal;
+    let dist = distance !== null && distance !== void 0 ? distance : (view.defaultLineHeight >> 1);
+    for (let extra = 0;; extra += 10) {
+        let curY = startY + (dist + extra) * dir;
+        let pos = posAtCoords(view, { x: resolvedGoal, y: curY }, false, dir);
+        if (curY < rect.top || curY > rect.bottom || (dir < 0 ? pos < startPos : pos > startPos))
+            return EditorSelection.cursor(pos, undefined, undefined, goal);
     }
-    return EditorSelection.cursor(result, undefined, undefined, goal);
 }
 function skipAtoms(view, oldPos, pos) {
     let atoms = view.pluginField(PluginField.atomicRanges);
@@ -7103,9 +7171,7 @@ function findPositionSide(view, pos, x, y) {
     return before && insideY(y, before) ? -1 : 1;
 }
 function queryPos(view, event) {
-    let pos = view.posAtCoords({ x: event.clientX, y: event.clientY });
-    if (pos == null)
-        return null;
+    let pos = view.posAtCoords({ x: event.clientX, y: event.clientY }, false);
     return { pos, bias: findPositionSide(view, pos, event.clientX, event.clientY) };
 }
 const BadMouseDetail = browser.ie && browser.ie_version <= 11;
@@ -8505,6 +8571,7 @@ const baseTheme = /*@__PURE__*/buildTheme("." + baseThemeID, {
     },
     ".cm-lineWrapping": {
         whiteSpace: "pre-wrap",
+        wordBreak: "break-word",
         overflowWrap: "anywhere"
     },
     "&light .cm-content": { caretColor: "black" },
@@ -8837,7 +8904,8 @@ class DOMObserver {
                 this.ignore(() => this.view.docView.sync());
                 this.view.docView.dirty = 0 /* Not */;
             }
-            this.view.docView.updateSelection();
+            if (newSel)
+                this.view.docView.updateSelection();
         }
         this.clearSelection();
     }
@@ -9342,10 +9410,12 @@ class EditorView {
     /**
     @internal
     */
-    measure() {
+    measure(flush = true) {
         if (this.measureScheduled > -1)
             cancelAnimationFrame(this.measureScheduled);
         this.measureScheduled = -1; // Prevent requestMeasure calls from scheduling another animation frame
+        if (flush)
+            this.observer.flush();
         let updated = null;
         try {
             for (let i = 0;; i++) {
@@ -9426,7 +9496,7 @@ class EditorView {
             spellcheck: "false",
             autocorrect: "off",
             autocapitalize: "off",
-            contenteditable: String(this.state.facet(editable)),
+            contenteditable: !this.state.facet(editable) ? "false" : contentEditablePlainTextSupported() ? "plaintext-only" : "true",
             class: "cm-content",
             style: `${browser.tabSize}: ${this.state.tabSize}`,
             role: "textbox",
@@ -9455,7 +9525,7 @@ class EditorView {
         if (this.updateState == 2 /* Updating */)
             throw new Error("Reading the editor layout isn't allowed during an update");
         if (this.updateState == 0 /* Idle */ && this.measureScheduled > -1)
-            this.measure();
+            this.measure(false);
     }
     /**
     Schedule a layout measurement, optionally providing callbacks to
@@ -9636,13 +9706,9 @@ class EditorView {
     posAtDOM(node, offset = 0) {
         return this.docView.posFromDOM(node, offset);
     }
-    /**
-    Get the document position at the given screen coordinates.
-    Returns null if no valid position could be found.
-    */
-    posAtCoords(coords) {
+    posAtCoords(coords, precise = true) {
         this.readMeasured();
-        return posAtCoords(this, coords);
+        return posAtCoords(this, coords, precise);
     }
     /**
     Get the screen coordinates at the given document position.
@@ -13485,4 +13551,4 @@ const classHighlightStyle = /*@__PURE__*/HighlightStyle.define([
     { tag: tags.punctuation, class: "cmt-punctuation" }
 ]);
 
-export { TreeBuffer as $, Annotation as A, BlockType as B, ChangeSet as C, Direction as D, EditorView as E, Facet as F, highlightSpecialChars as G, drawSelection as H, IndentContext as I, EditorState as J, indentOnInput as K, defaultHighlightStyle as L, MapMode as M, NodeProp as N, highlightActiveLine as O, PluginField as P, classHighlightStyle as Q, RangeSet as R, StateField as S, Transaction as T, DefaultBufferLength as U, ViewPlugin as V, WidgetType as W, NodeSet as X, NodeType as Y, stringInput as Z, Tree as _, ChangeDesc as a, LezerLanguage as a0, indentNodeProp as a1, continuedIndent as a2, foldNodeProp as a3, foldInside as a4, styleTags as a5, tags as a6, LanguageSupport as a7, EditorSelection as b, combineConfig as c, StateEffect as d, RangeValue as e, foldable as f, Decoration as g, RangeSetBuilder as h, indentUnit as i, countColumn as j, indentString as k, language as l, getIndentUnit as m, getIndentation as n, Text as o, codePointSize as p, codePointAt as q, findClusterBreak as r, syntaxTree as s, CharCategory as t, fromCodePoint as u, Prec as v, runScopeHandlers as w, logException as x, keymap as y, findColumn as z };
+export { TreeBuffer as $, Annotation as A, BlockType as B, ChangeSet as C, Direction as D, EditorView as E, Facet as F, highlightSpecialChars as G, drawSelection as H, IndentContext as I, EditorState as J, indentOnInput as K, defaultHighlightStyle as L, MapMode as M, NodeProp as N, highlightActiveLine as O, PluginField as P, classHighlightStyle as Q, RangeSet as R, StateField as S, Transaction as T, DefaultBufferLength as U, ViewPlugin as V, WidgetType as W, NodeSet as X, NodeType as Y, stringInput as Z, Tree as _, ChangeDesc as a, LanguageSupport as a0, LezerLanguage as a1, indentNodeProp as a2, continuedIndent as a3, foldNodeProp as a4, foldInside as a5, styleTags as a6, tags as a7, EditorSelection as b, combineConfig as c, StateEffect as d, RangeValue as e, foldable as f, Decoration as g, RangeSetBuilder as h, indentUnit as i, countColumn as j, indentString as k, language as l, getIndentUnit as m, getIndentation as n, Text as o, codePointSize as p, codePointAt as q, findClusterBreak as r, syntaxTree as s, CharCategory as t, fromCodePoint as u, Prec as v, runScopeHandlers as w, logException as x, keymap as y, findColumn as z };
