@@ -1,5 +1,5 @@
 // Boot strap load everything from code.circuitpython.org
-let SITE = "https://code.circuitpython.org"
+let SITE = "https://localhost:8080"
 
 async function fetchLocation(location, options = {}) {
     let fetchOptions = {
@@ -35,16 +35,33 @@ html = replaceAssetLinks(await fetchLocation("/"));
 // Put the HTML into the document
 document.body.innerHTML = html;
 
-// Get the scripts
-let scriptElements = document.getElementsByTagName("script");
-for (let script of scriptElements) {
+let scriptElements = Array.from(document.getElementsByTagName("script"));
+function loadNextScript() {
+    function getNextScript() {
+        if (scriptElements.length == 0) {
+            return null;
+        }
+        return scriptElements.shift();
+    }
+
+    let script = getNextScript();
+
+    if (!script) {
+        // Wait until above scripts have run, then trigger the window load
+        window.dispatchEvent(new Event("load"));
+        return;
+    }
+
     // We're only running external scripts
     if (!script.src || !script.src.startsWith(SITE)) {
-        continue;
+        loadNextScript();
     }
     // Create a replacement for it
     let newScript = document.createElement('script');
     newScript.src = script.src;
+    newScript.onload = () => {
+        loadNextScript();
+    }
     if (script.type) {
         newScript.type = script.type;
     }
@@ -53,3 +70,6 @@ for (let script of scriptElements) {
     script.parentNode.removeChild(script);
     document.documentElement.appendChild(newScript);
 }
+
+// Start loading the scripts
+loadNextScript();
