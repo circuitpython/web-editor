@@ -19,7 +19,7 @@ function replaceAssetLinks(code) {
     code = code.replace(/(href|src)="(assets\/.*?)"/gmi, (all, a, b) => {
         return `${a}="${SITE}/${b}"`
     });
-    code = code.replace(/srcset="(.*? 1x)(,\n?\s+)(.*? 2x)(,\n?\s+)(.*? 3x)"/gmi, (all, a, b, c, d, e) => {
+    code = code.replace(/srcset="(.*? 1x)(,\n?\s*)(.*? 2x)(,\n?\s*)(.*? 3x)"/gmi, (all, a, b, c, d, e) => {
         return `srcset="${SITE}/${a}${b}${SITE}/${c}${d}${SITE}/${e}"`
     });
 
@@ -33,9 +33,23 @@ let html = await fetchLocation("/");
 html = replaceAssetLinks(await fetchLocation("/"));
 
 // Put the HTML into the document
-document.querySelector('html').innerHTML = html;
+document.body.innerHTML = html;
 
-// Run the JavaScript somehow...
+// Get the scripts
+let scriptElements = document.getElementsByTagName("script");
+for (let script of scriptElements) {
+    // We're only running external scripts
+    if (!script.src || !script.src.startsWith(SITE)) {
+        continue;
+    }
+    // Create a replacement for it
+    let newScript = document.createElement('script');
+    newScript.src = script.src;
+    if (script.type) {
+        newScript.type = script.type;
+    }
 
-
-// This may require using stuff like jsdelivr or similar for codemirror so we aren't using npm
+    // Remove the existing script from the DOM and Start the script
+    script.parentNode.removeChild(script);
+    document.documentElement.appendChild(newScript);
+}
