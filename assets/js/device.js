@@ -12,7 +12,7 @@ async function fetchLocation(location, options = {}) {
         throw new Error(response.statusText);
     }
 
-    return response.text;
+    return response.text();
 }
 
 let html = await fetchLocation("/");
