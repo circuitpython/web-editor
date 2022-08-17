@@ -1,4 +1,4 @@
 window.addEventListener("message", (event) => {
-    console.log("Received message event ");
+    alert("Received message event");
     console.log(event);
   }, false);
