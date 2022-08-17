@@ -1,5 +1,5 @@
 // Boot strap load everything from code.circuitpython.org
-let SITE = "https://localhost:8080"
+let SITE = "https://code.circuitpython.org"
 
 async function fetchLocation(location, options = {}) {
     let fetchOptions = {
