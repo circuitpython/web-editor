@@ -1,34 +1,21 @@
-// Snowpack Configuration File
-// See all supported options: https://www.snowpack.dev/reference/configuration
-
-/** @type {import("snowpack").SnowpackUserConfig } */
-module.exports = {
-  exclude: ['**/Makefile', '**/lib/google-libapps/**'],
-  mount: {
-    /* ... */
-  },
+import fs from "fs";
+export default {
+  exclude: ["**/Makefile", "**/lib/google-libapps/**"],
+  mount: {},
   plugins: [
     [
-      '@snowpack/plugin-run-script',
+      "@snowpack/plugin-run-script",
       {
-        cmd: 'sass assets/sass/main.scss assets/css/style.css', 
-        watch: '$1 --watch',
-        output: 'stream',
-      },
-    ],
+        cmd: "sass assets/sass/main.scss assets/css/style.css",
+        watch: "$1 --watch",
+        output: "stream"
+      }
+    ]
   ],
   packageOptions: {
-    /* ... */
+    external: ["fs"]
   },
-  devOptions: {
-    /* ... */
-  },
-  buildOptions: {
-    /* ... */
-  },
-  optimize: {
-    // bundle: true,
-    // minify: true,
-    // target: 'es2018',
-  },
+  devOptions: {},
+  buildOptions: {},
+  optimize: {}
 };
