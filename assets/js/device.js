@@ -1,5 +1,9 @@
 // Boot strap load everything from code.circuitpython.org
 let SITE = "https://code.circuitpython.org"
+if (location.hostname == "localhost") {
+    // For development purposes
+    SITE = `${location.protocol}//localhost:${location.port}`;
+}
 
 async function fetchLocation(location, options = {}) {
     let fetchOptions = {
@@ -26,14 +30,19 @@ function replaceAssetLinks(code) {
     return code;
 }
 
-// Fetch the HTML
-let html = await fetchLocation("/");
+function getTitle(code) {
+    let titleTag = code.match(/<title>(.*?)<\/title>/);
+    if (titleTag) return titleTag[1];
+    return null;
+}
 
-// Replace any relative asset links with absolute links
-html = replaceAssetLinks(await fetchLocation("/"));
+// Fetch the HTML and Replace any relative asset links with absolute links
+let html = replaceAssetLinks(await fetchLocation("/"));
+let title = getTitle(html);
 
 // Put the HTML into the document
 document.body.innerHTML = html;
+if (title) document.title = title;
 
 let scriptElements = Array.from(document.getElementsByTagName("script"));
 function loadNextScript() {
