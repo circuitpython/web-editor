@@ -457,7 +457,6 @@ function setupHterm() {
 }
 
 function getBackend() {
-    console.log(location)
     if (location.hostname.search(/cpy-[0-9a-f]{6}.local/gi) >= 0 || (location.hostname == "localhost")) {
         if (location.pathname == "/code/") {
             return validBackends["web"];
