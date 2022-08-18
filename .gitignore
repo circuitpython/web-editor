@@ -121,3 +121,9 @@ dist
 build
 
 .DS_Store
+
+# Local SSL
+localhost.cert
+localhost.key
+snowpack.crt
+snowpack.key
