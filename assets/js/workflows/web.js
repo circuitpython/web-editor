@@ -207,8 +207,10 @@ class WebWorkflow extends Workflow {
     }
 
     async parseParams(urlParams) {
-        if ("host" in urlParams) {
+        if ((location.hostname == "localhost") && ("host" in urlParams)) {
             this.host = urlParams.host.toLowerCase();
+        } else if (location.hostname.search(/cpy-[0-9A-F].local/gi) >= 0) {
+            this.host = location.hostname;
         }
 
         if (this.host != null) {
