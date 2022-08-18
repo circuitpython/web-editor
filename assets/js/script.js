@@ -457,23 +457,21 @@ function setupHterm() {
 }
 
 function getBackend() {
-    var params = getUrlParams();
-    if (params["backend"] !== undefined) {
-        var backend = params["backend"].toLowerCase();
-
-        if (backend in validBackends) {
-            return validBackends[backend];
+    if (location.hostname.search(/cpy-[0-9A-F].local/gi) >= 0 || (location.hostname == "localhost")) {
+        if (location.pathname == "/code/") {
+            return validBackends["web"];
         }
     }
-    
+
     return null;
 }
 
 function getUrlParams() {
     // This should look for and validate very specific values
     var hashParams = {};
-    location.hash.substr(1).split("&").forEach(function(item) {hashParams[item.split("=")[0]] = item.split("=")[1]});
-
+    if (location.hash) {
+        location.hash.substr(1).split("&").forEach(function(item) {hashParams[item.split("=")[0]] = item.split("=")[1]});
+    }
     return hashParams;
 }
 
@@ -511,7 +509,11 @@ window.onload = async function() {
 
         // If we don't have all the info we need to connect
         if (!(await workflow.parseParams(getUrlParams()))) {
-            await workflow.connectDialog.open();
+            if (backend == validBackends["web"]) {
+                showMessage("You are connected with localhost, but didn't supply the device hostname.");
+            } else {
+                await workflow.connectDialog.open();
+            }
         } else {
             if (!(await workflow.showBusy(workflow.connect()))) {
                 showMessage("Unable to connect");

@@ -2,7 +2,7 @@
 let SITE = "https://code.circuitpython.org"
 if (location.hostname == "localhost") {
     // For development purposes
-    SITE = `${location.protocol}//localhost:${location.port}`;
+    SITE = `${location.protocol}//${location.host}`;
 }
 
 async function fetchLocation(location, options = {}) {
