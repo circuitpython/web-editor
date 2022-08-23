@@ -88,7 +88,7 @@ class BLEWorkflow extends Workflow {
 
     async onSerialReceive(e) {
         // console.log("rcv", e.target.value.buffer);
-        this.terminal.io.print(this.decoder.decode(e.target.value.buffer, {stream: true}));
+        this.writeToTerminal(this.decoder.decode(e.target.value.buffer, {stream: true}));
     }
 
     async connectToSerial() {
