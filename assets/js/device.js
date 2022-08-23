@@ -57,7 +57,7 @@ function loadNextScript() {
 
     if (!script) {
         // Wait until above scripts have run, then trigger the window load
-        window.dispatchEvent(new Event("load"));
+        document.dispatchEvent(new Event("DOMContentLoaded"));
         return;
     }
 

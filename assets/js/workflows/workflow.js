@@ -18,6 +18,8 @@ class Workflow {
         this.connectionType = CONNTYPE.None;
         this.partialWrites = false;
         this.disconnect = function() {};
+        this.timeout = timeout;
+        this.sleep = sleep;
     }
 
     async init(params, loaderId) {
@@ -51,6 +53,10 @@ class Workflow {
         return false;
     }
 
+    writeToTerminal(data) {
+        this.terminal.write(data);
+    }
+
     // This function should run callback and if it takes longer than ms, retun
     timeout(callback, ms) {
         return new Promise(
@@ -67,14 +73,14 @@ class Workflow {
             }
         );
     }
-      
-    timeout(callback, ms) {
-        return Promise.race([callback(), this.sleep(ms).then(() => {throw Error("Timed Out");})]);
-    }
-
-    sleep(ms) {
-        return new Promise(resolve => setTimeout(resolve, ms));
-    }
 }
 
-export {Workflow, CONNTYPE};
+function timeout(callback, ms) {
+    return Promise.race([callback(), sleep(ms).then(() => {throw Error("Timed Out");})]);
+}
+
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+export {Workflow, CONNTYPE, timeout, sleep};

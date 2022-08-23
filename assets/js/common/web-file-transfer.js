@@ -138,16 +138,16 @@ class FileTransferClient {
     async move(oldPath, newPath) {
         await this.checkConnection();
         await this.checkWritable();
-        /* Since no move feature exists in CircuitPython, this may be able to be 
-        accomplished for files only with the following strategy:
-            1. Get file info and verify this is a file with listDir()
-            2. Read file into memory with readFile()
-            3. Write file to new location using file info in step 1 using writeFile()
-                3a. If insufficient space, delete file copy, set error, and return false
-            4. Delete old file using delete() and return true
-        */
-        /* For a folder, this could recursively call itself and move files one by one. */
-        return true;
+
+        let options = {
+            method: 'MOVE',
+            headers: {
+                "X-Destination": newPath
+            }
+        }
+        
+        const response = await this._fetch(`/fs${oldPath}`, options);
+        return response.ok;
     }
 
     async versionInfo() {

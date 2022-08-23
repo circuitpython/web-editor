@@ -49,8 +49,8 @@
         background: #333;
     }
     #terminal {
-        position:relative;
-        width:100%;
+        position: relative;
+        width: 100%;
         @include viewport-height($terminal-height-offset-mobile);
     }
 }

@@ -49,7 +49,7 @@ class WebWorkflow extends Workflow {
         } else if (this.titleMode) {
             this.setTerminalTitle(e.data, true);
         } else {
-            this.terminal.io.print(e.data);
+            this.writeToTerminal(e.data);
         }
     }
 

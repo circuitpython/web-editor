@@ -6,8 +6,10 @@ import {WebWorkflow} from './workflows/web.js'
 import {CONNTYPE} from './workflows/workflow.js'
 import {FileDialog, UnsavedDialog, MessageModal, FILE_DIALOG_OPEN, FILE_DIALOG_SAVE} from './common/dialogs.js';
 import {FileHelper} from './common/file.js'
+import {sleep} from './workflows/workflow.js'
 
 var terminal;
+var fitter;
 var currentFilename = null;
 var unchanged = 0;
 var backend = null;
@@ -117,16 +119,16 @@ btnRestart.addEventListener('click', async function(e) {
 });
 
 // Mode Buttons
-btnModeEditor.addEventListener('click', function(e) {
+btnModeEditor.addEventListener('click', async function(e) {
     e.preventDefault();
     e.stopPropagation();
-    changeMode(MODE_EDITOR);
+    await changeMode(MODE_EDITOR);
 });
 
-btnModeSerial.addEventListener('click', function(e) {
+btnModeSerial.addEventListener('click', async function(e) {
     e.preventDefault();
     e.stopPropagation();
-    changeMode(MODE_SERIAL);
+    await changeMode(MODE_SERIAL);
 });
 
 function setFilename(path) {
@@ -206,7 +208,7 @@ async function runCode(path) {
     path = path.substr(1, path.length - 4);
     path = path.replace(/\//g, ".");
 
-    changeMode(MODE_SERIAL);
+    await changeMode(MODE_SERIAL);
     await workflow.serialTransmit(CHAR_CTRL_C + "import " + path + CHAR_CRLF);
 }
 
@@ -265,7 +267,7 @@ async function saveAs() {
     return path;
 }
 
-function changeMode(mode) {
+async function changeMode(mode) {
     if (mode > 0) {
         mainContent.classList.remove("mode-landing", "mode-editor", "mode-serial");
     }
@@ -273,15 +275,18 @@ function changeMode(mode) {
         mainContent.classList.add("mode-editor");
     } else if (mode == MODE_SERIAL) {
         mainContent.classList.add("mode-serial");
+        // Wait for the terminal to load and then resize it
+        while (!document.querySelector('#terminal .xterm-screen').style.width) {
+            await sleep(10);
+        }
+        fitter.fit();
     }
 }
 
 var connected = false;
 
 async function debugLog(msg) {
-    terminal.io.print('\x1b[93m');
-    terminal.io.print(msg);
-    terminal.io.println('\x1b[m');
+    terminal.write(`\x1b[93m${msg}\x1b[m\n`);
 }
 
 function updateUIConnected(isConnected) {
@@ -303,14 +308,18 @@ function updateUIConnected(isConnected) {
 
 function fixViewportHeight() {
     let vh = window.innerHeight * 0.01;
-    document.documentElement.style.setProperty('--vh', `${vh}px`);  
+    document.documentElement.style.setProperty('--vh', `${vh}px`);
+    if (fitter) {
+        fitter.fit();
+    }
 }
 
-window.onbeforeunload = () => {
+window.addEventListener("beforeunload", (event) => {
     if (connected) {
         return "You are still connected, exit anyways?"
     }
-}
+});
+
 fixViewportHeight();
 window.addEventListener("resize", fixViewportHeight);
 
@@ -337,7 +346,7 @@ async function loadEditor() {
     unchanged = editor.state.doc.length;
     //console.log("doc length", unchanged);
     updateUIConnected(true);
-    changeMode(MODE_EDITOR);
+    await changeMode(MODE_EDITOR);
 }
 
 var editor;
@@ -400,7 +409,6 @@ async function onTextChange(update) {
     if (currentTimeout != null) {
         clearTimeout(currentTimeout);
     }
-    //currentTimeout = setTimeout(writeText, 750);
 }
 
 function disconnectCallback() {
@@ -415,45 +423,20 @@ editor = new EditorView({
     parent: document.querySelector('#editor')
 })
 
-function setupHterm() {
-    // hterm.defaultStorage = new lib.Storage.Local();
-    // profileId is the name of the terminal profile to load, or "default" if
-    // not specified.  If you're using one of the persistent storage
-    // implementations then this will scope all preferences read/writes to this
-    // name.
-    const t = new hterm.Terminal();
-    terminal = t;
-    t.prefs_.set('background-color', '#333');
-    t.prefs_.set('foreground-color', '#ddd')
-    t.prefs_.set('cursor-color', '#ddd')
-    t.onTerminalReady = function() {
-        // Create a new terminal IO object and give it the foreground.
-        // (The default IO object just prints warning messages about unhandled
-        // things to the the JS console.)
-        const io = t.io.push();
-
-        io.onVTKeystroke = async (str) => {
-            workflow.serialTransmit(str);
-        };
-
-        io.sendString = async (str) => {
-            workflow.serialTransmit(str);
-        };
-
-        io.onTerminalResize = (columns, rows) => {
-            // React to size changes here.
-            // Secure Shell pokes at NaCl, which eventually results in
-            // some ioctls on the host.
-            //console.log("resize", columns, rows);
-        };
-
-        // You can call io.push() to foreground a fresh io context, which can
-        // be uses to give control of the terminal to something else.  When that
-        // thing is complete, should call io.pop() to restore control to the
-        // previous io object.
-    };
-    t.decorate(document.getElementById('terminal'));
-    t.installKeyboard();
+function setupXterm() {
+    terminal = new Terminal({
+        theme: {
+          background: '#333',
+          foreground: '#ddd',
+          cursor: '#ddd',
+        }
+    });
+    fitter = new FitAddon.FitAddon();
+    terminal.loadAddon(fitter);
+    terminal.open(document.getElementById('terminal'));
+    terminal.onData((data) => {
+        workflow.serialTransmit(data);
+    });
 }
 
 function getBackend() {
@@ -475,10 +458,8 @@ function getUrlParams() {
     return hashParams;
 }
 
-// This will be whatever normal entry/initialization point your project uses.
-window.onload = async function() {
-    await lib.init();
-    setupHterm();
+document.addEventListener('DOMContentLoaded', async (event) => {
+    setupXterm();
     btnConnect.forEach((element) => {
         element.addEventListener('click', async function(e) {
             e.preventDefault();
@@ -506,7 +487,6 @@ window.onload = async function() {
     backend = getBackend();
     if (backend) {
         await loadWorkflow(backend);
-
         // If we don't have all the info we need to connect
         if (!(await workflow.parseParams(getUrlParams()))) {
             if (backend == validBackends["web"]) {
@@ -520,4 +500,4 @@ window.onload = async function() {
             }
         }
     }
-};
+});
