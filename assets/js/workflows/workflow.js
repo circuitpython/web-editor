@@ -1,3 +1,5 @@
+import {sleep, timeout} from '../common/utilities.js';
+
 /*
  * This class will encapsulate all of the common workflow-related functions 
  */
@@ -75,12 +77,4 @@ class Workflow {
     }
 }
 
-function timeout(callback, ms) {
-    return Promise.race([callback(), sleep(ms).then(() => {throw Error("Timed Out");})]);
-}
-
-function sleep(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-export {Workflow, CONNTYPE, timeout, sleep};
+export {Workflow, CONNTYPE};

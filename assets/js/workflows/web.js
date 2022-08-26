@@ -95,11 +95,16 @@ class WebWorkflow extends Workflow {
     }
 
     async connectToHost(host) {
-        console.log('Initializing File Transfer Client...');
-        this.fileClient = new FileTransferClient(host, this.connectionStatus);
-        await this.fileClient.listDir('/');
-        this.debugLog("connected");
-        let success = await this.initSerial(host);
+        let success;
+        try {
+            console.log('Initializing File Transfer Client...');
+            this.fileClient = new FileTransferClient(host, this.connectionStatus);
+            await this.fileClient.listDir('/');
+            success = await this.initSerial(host);
+        } catch(error) {
+            console.log("Device not found");
+            return false;
+        }
         // Wait for a connection with a timeout
         console.log("Waiting for connection...");
         try {
@@ -116,6 +121,7 @@ class WebWorkflow extends Workflow {
         }
 
         if (success && this.connectionStatus()) {
+            this.debugLog("connected");
             console.log("Connected!");
             this.connectDialog.close();
             if (this.connectionStatus()) {
