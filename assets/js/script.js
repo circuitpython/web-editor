@@ -6,7 +6,7 @@ import {WebWorkflow} from './workflows/web.js'
 import {CONNTYPE} from './workflows/workflow.js'
 import {FileDialog, UnsavedDialog, MessageModal, FILE_DIALOG_OPEN, FILE_DIALOG_SAVE} from './common/dialogs.js';
 import {FileHelper} from './common/file.js'
-import {sleep} from './workflows/workflow.js'
+import {sleep} from './common/utilities.js'
 
 var terminal;
 var fitter;
@@ -250,6 +250,10 @@ async function saveFile(path) {
     return false;
 }
 
+async function showFiles() {
+    let path = await fileDialog.open(fileHelper, FILE_DIALOG_UPLOAD);
+}
+
 async function saveAs() {
     let path = await fileDialog.open(fileHelper, FILE_DIALOG_SAVE);
     if (path !== null) {
@@ -314,11 +318,11 @@ function fixViewportHeight() {
     }
 }
 
-window.addEventListener("beforeunload", (event) => {
+window.onbeforeunload = () => {
     if (connected) {
         return "You are still connected, exit anyways?"
     }
-});
+};
 
 fixViewportHeight();
 window.addEventListener("resize", fixViewportHeight);

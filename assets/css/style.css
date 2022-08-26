@@ -762,6 +762,22 @@ fieldset legend {
   height: calc(100vh - 185px);
   height: calc(var(--vh, 1vh) * 100 - 185px);
 }
+#serial-page #terminal .xterm .xterm-viewport {
+  background-color: transparent;
+  overflow-y: scroll;
+  cursor: default;
+  position: absolute;
+  inset: 0;
+  scrollbar-color: var(--highlight) var(--dark);
+  scrollbar-width: thin;
+}
+#serial-page #terminal .xterm .xterm-viewport::-webkit-scrollbar {
+  background-color: var(--dark);
+  width: 5px;
+}
+#serial-page #terminal .xterm .xterm-viewport::-webkit-scrollbar-thumb {
+  background: var(--highlight);
+}
 
 @media (min-width: 768px) {
   #serial-page #terminal {
@@ -823,7 +839,6 @@ fieldset legend {
 
 .body-blackout {
   position: absolute;
-  z-index: 1010;
   left: 0;
   top: 0;
   width: 100%;
@@ -833,6 +848,9 @@ fieldset legend {
 }
 .body-blackout.is-blacked-out {
   display: block;
+}
+.body-blackout.no-overlay {
+  background-color: transparent;
 }
 
 .popup-trigger {
@@ -850,11 +868,10 @@ fieldset legend {
   left: 50%;
   top: 50%;
   transform: translate(-50%, -50%);
-  padding: 45px 20px 10px;
+  padding: 25px 20px 10px;
   opacity: 0;
   pointer-events: none;
   transition: all 300ms ease-in-out;
-  z-index: 1011;
   display: none;
 }
 .popup-modal.prompt {
@@ -881,15 +898,15 @@ fieldset legend {
   position: absolute;
   font-size: 1.2rem;
   top: 12px;
-  left: 50px;
-  max-width: 550px;
+  left: 30px;
+  max-width: 570px;
   text-overflow: ellipsis;
   overflow: hidden;
 }
 .popup-modal #file-list {
   font-size: 1.4em;
   overflow: auto;
-  height: 240px;
+  height: 200px;
   padding: 5px 0;
 }
 .popup-modal #file-list a {
@@ -906,6 +923,12 @@ fieldset legend {
 }
 .popup-modal #file-list a.selected {
   background-color: rgba(101, 47, 143, 0.3647058824);
+}
+.popup-modal .label {
+  margin-bottom: 5px;
+}
+.popup-modal .label.centered {
+  text-align: center;
 }
 .popup-modal .buttons {
   display: flex;
@@ -925,7 +948,7 @@ fieldset legend {
   min-width: 250px;
 }
 .popup-modal .buttons input {
-  margin: 10px 0 10px 10px;
+  margin: 10px 0;
   flex-grow: 1;
   font-size: 1.2em;
   padding: 5px;

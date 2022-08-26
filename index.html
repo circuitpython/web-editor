@@ -12,7 +12,8 @@
     </head>
 
     <body>
-        <div class="body-blackout"></div>
+        <div id="blackout" class="body-blackout"></div>
+        <div id="clickblock" class="body-blackout no-overlay"></div>
         <header id="site-header">
             <div class="wrapper">
                 <div class="content">
@@ -108,23 +109,24 @@
         <div class="loader" id="ble-loader"><div><img src="assets/images/loading-bluetooth.gif" alt="BLE Loading Animation" height="100" width="100"></div></div>
         <div class="loader" id="web-loader"><div><img src="assets/images/loading-web.gif" alt="Web Loading Animation" height="100" width="100"></div></div>
         <div class="loader" id="usb-loader"><div><img src="assets/images/loading-usb.gif" alt="USB Loading Animation" height="100" width="100"></div></div>
-        <div 
-            class="popup-modal shadow file-dialog" 
-            data-popup-modal="files">
+        <div class="popup-modal shadow file-dialog" data-popup-modal="files">
+            <div class="buttons">
+                <button id="del-button" title="Delete" class="purple-button"><i class="fas fa-trash-alt"></i></button>
+                <button id="rename-button" title="Rename" class="purple-button"><i class="fas fa-pencil-alt"></i></button>
+                <button id="new-folder-button" title="New Folder" class="purple-button"><i class="fas fa-folder-plus"></i></button>
+                <button id="upload-button" title="Upload" class="purple-button"><i class="fas fa-upload"></i></button>
+                <button id="download-button" title="Download" class="purple-button"><i class="fas fa-download"></i></button>
+            </div>
             <span id="current-path"></span>
             <i class="fas fa-2x fa-times text-white bg-primary p-3 popup-modal__close"></i>
             <div id="file-list" style="border:1px solid #888"></div>
             <div class="buttons">
-                <button id="del-button" class="purple-button"><i class="fas fa-trash-alt"></i></button>
-                <button id="new-folder-button" class="purple-button"><i class="fas fa-folder-plus"></i></button>
                 <input type="text" id="filename" />
                 <button class="purple-button ok-button">Ok</button>
                 <button class="purple-button cancel-button">Cancel</button>
             </div>
         </div>
-        <div 
-            class="popup-modal shadow prompt" 
-            data-popup-modal="unsaved">
+        <div class="popup-modal shadow prompt" data-popup-modal="unsaved">
             <div id="message"></div>
             <div class="buttons">
                 <button class="purple-button ok-button">Save</button>
@@ -132,17 +134,17 @@
                 <button class="purple-button cancel-button">Cancel</button>
             </div>
         </div>
-        <div 
-            class="popup-modal shadow prompt" 
-            data-popup-modal="message">
+        <div class="popup-modal shadow prompt" data-popup-modal="message">
             <div id="message"></div>
             <div class="buttons centered">
                 <button class="purple-button ok-button">Ok</button>
             </div>
         </div>
-        <div 
-            class="popup-modal shadow connect-dialog" 
-            data-popup-modal="ble-connect">
+        <div class="popup-modal shadow prompt" data-popup-modal="progress">
+            <div class="label centered" id="percentage"></div>
+            <progress value="0"></progress>
+        </div>
+        <div class="popup-modal shadow connect-dialog" data-popup-modal="ble-connect">
             <i class="fas fa-2x fa-times text-white bg-primary p-3 popup-modal__close"></i>
             <div id="ble-instructions" class="connection-layout content">
                 <p>If you are connecting to a new device, follow the steps below. Otherwise click the Reconnect button.</p>

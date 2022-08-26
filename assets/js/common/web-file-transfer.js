@@ -21,10 +21,15 @@ class FileTransferClient {
         }
     }
 
-    async readFile(path, rootDir='/fs') {
+    async readFile(path, asBlob=false, rootDir='/fs') {
         await this.checkConnection();
         const response = await this._fetch(`${rootDir}${path}`);
-        return response.status === 200 ? await response.text() : "";
+
+        if (response.ok) {
+            return asBlob ? await response.blob() : await response.text();
+        } else {
+            return asBlob ? null : "";
+        }
     }
 
     async checkWritable() {
@@ -33,7 +38,7 @@ class FileTransferClient {
         }
     }
 
-    async writeFile(path, offset, contents, modificationTime, isBinary = false) {
+    async writeFile(path, offset, contents, modificationTime, raw=false) {
         await this.checkConnection();
         await this.checkWritable();
 
@@ -45,7 +50,7 @@ class FileTransferClient {
             }
         }
 
-        if (isBinary) {
+        if (raw) {
             options.headers['Content-Type'] = "application/octet-stream";
         }
 
@@ -74,6 +79,7 @@ class FileTransferClient {
     }
 
     async _fetch(location, options = {}) {
+        let response;
         let fetchOptions = {
             credentials: 'include',
             ...options
@@ -81,11 +87,21 @@ class FileTransferClient {
 
         if (fetchOptions.method && fetchOptions.method.toUpperCase() != 'OPTIONS') {
             if (!this.isMethodAllowed(fetchOptions.method)) {
-                throw new ProtocolError(`${fetchOptions.method} is not allowed.`);
+                if (fetchOptions.method.toUpperCase() == "MOVE") {
+                    // This should only happen if rename is used and the user doesn't have latest version
+                    console.warn("Please upgrade to the latest version of CircuitPython. Allowing MOVE for now.");
+                } else {
+                    throw new ProtocolError(`${fetchOptions.method} is not allowed.`);
+                }
             }
         }
 
-        const response = await fetch(new URL(location, `http://${this.hostname}`), fetchOptions);
+        try {
+            response = await fetch(new URL(location, `http://${this.hostname}`), fetchOptions);
+        } catch(error) {
+            console.error(`Host '${this.hostname}' not found.`);
+            throw new ProtocolError(`Host '${this.hostname}' not found.`);
+        }
 
         if (!response.ok) {
             throw new ProtocolError(response.statusText);
@@ -151,7 +167,7 @@ class FileTransferClient {
     }
 
     async versionInfo() {
-        return await this.readFile('/version.json', '/cp');
+        return await this.readFile('/version.json', false, '/cp');
     }  
 }
 

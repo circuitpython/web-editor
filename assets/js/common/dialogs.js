@@ -1,8 +1,12 @@
+import {sleep} from './utilities.js'
+
 const FILE_DIALOG_OPEN = 1;
 const FILE_DIALOG_SAVE = 2;
 
 const SELECTOR_CLOSE_BUTTON = ".popup-modal__close";
-const SELECTOR_BLACKOUT = ".body-blackout";
+const SELECTOR_BLACKOUT = "#blackout";
+const SELECTOR_CLICKBLOCK = "#clickblock";
+const BLACKOUT_ZINDEX = 1000;
 
 // This is for mapping file extensions to font awesome icons
 const extensionMap = {
@@ -23,6 +27,8 @@ const extensionMap = {
     "wmv": {icon: "file-video", type: "bin"},
 }
 
+var modalLayers = [];
+
 class GenericModal {
     constructor(modalId) {
         this._modalId = modalId;
@@ -31,6 +37,7 @@ class GenericModal {
         this._reject = null;
         this.closeModal = this._closeModal.bind(this);
         this._elements = {};
+        this._modalLayerId;
     }
 
     _addDialogElement(elementId, domElement, eventName = null, eventHandler = null) {
@@ -75,21 +82,69 @@ class GenericModal {
         return null;
     }
 
+    async _showMessage(message) {
+        const messageDialog = new MessageModal("message");
+        return await messageDialog.open(message);
+    }
+
+    _addModalLayer(modal) {
+        if (modalLayers < 1) {
+            const bodyBlackout = document.querySelector(SELECTOR_BLACKOUT);
+            if (bodyBlackout) {
+                bodyBlackout.classList.add('is-blacked-out');
+                bodyBlackout.style.zIndex = BLACKOUT_ZINDEX;
+            }
+            this._addDialogElement('bodyBlackout', bodyBlackout, 'click', this._closeModal);
+            document.body.style.overflow = 'hidden';
+            bodyBlackout.style.top = `${window.scrollY}px`;
+        }
+
+        modalLayers.push(modal);
+        this._modalLayerId = modalLayers.length;
+        modal.style.zIndex = BLACKOUT_ZINDEX + 1 + (this._modalLayerId * 2);
+
+        if (modalLayers.length > 1) {
+            // Then we will make it so the clickblock layer appears
+            const clickBlock = document.querySelector(SELECTOR_CLICKBLOCK);
+            if (clickBlock) {
+                clickBlock.classList.add('is-blacked-out');
+                clickBlock.style.zIndex = modal.style.zIndex - 1
+            }
+        }
+    }
+
+    _removeTopModalLayer() {
+        modalLayers.pop()
+        if (modalLayers.length < 1) {
+            const bodyBlackout = document.querySelector(SELECTOR_BLACKOUT);
+            if (bodyBlackout) {
+                bodyBlackout.classList.remove('is-blacked-out');
+                const scrollY = document.body.style.top;
+                document.body.style.overflow = '';
+                window.scrollTo(0, parseInt(scrollY || '0') * -1);
+            }
+        } else {
+            const clickBlock = document.querySelector(SELECTOR_CLICKBLOCK);
+            if (clickBlock) {
+                if (modalLayers.length < 2) {
+                    clickBlock.classList.remove('is-blacked-out');
+                } else {
+                    // Move click block just underneath topmost layer
+                    clickBlock.style.zIndex = modalLayers[modalLayers.length - 1].style.zIndex - 1
+                }
+            }
+        }
+    }
+
     _openModal() {
         const modal = document.querySelector(`[data-popup-modal="${this._modalId}"]`);
         if (!modal) {
             throw new Error(`Modal with ID "${this._modalId}" not found.`);
         }
         modal.classList.add('is--visible');
-        const bodyBlackout = document.querySelector(SELECTOR_BLACKOUT);
-        if (bodyBlackout) {
-            bodyBlackout.classList.add('is-blacked-out');
-        }
-        this._addDialogElement('bodyBlackout', bodyBlackout, 'click', this._closeModal);
+        this._addModalLayer(modal);
         const closeButton = modal.querySelector(SELECTOR_CLOSE_BUTTON);
         this._addDialogElement('closeButton', closeButton, 'click', this._closeModal);
-        document.body.style.overflow = 'hidden';
-        bodyBlackout.style.top = `${window.scrollY}px`;
 
         return modal;
     }
@@ -103,15 +158,9 @@ class GenericModal {
         }
 
         if (this._currentModal) {
-            const bodyBlackout = this._getElement('bodyBlackout');
-            if (bodyBlackout) {
-                bodyBlackout.classList.remove('is-blacked-out');
-            }
+            this._removeTopModalLayer();
             this._removeAllDialogElements();
             this._currentModal.classList.remove('is--visible');
-            const scrollY = document.body.style.top;
-            document.body.style.overflow = '';
-            window.scrollTo(0, parseInt(scrollY || '0') * -1);
             this._currentModal = null;
         }
     }
@@ -121,6 +170,11 @@ class GenericModal {
         this._resolve = null;
         this._reject = null;
         this._closeModal();
+    }
+
+    isVisible() {
+        var style = window.getComputedStyle(this._currentModal);
+        return style.display !== 'none';
     }
 
     close() {
@@ -147,6 +201,23 @@ class MessageModal extends GenericModal{
         this._currentModal.querySelector("#message").innerHTML = message;
 
         return p;
+    }
+}
+
+class ProgressDialog extends GenericModal {
+    async open() {
+        let p = super.open();
+        while(!this.isVisible()) {
+            await sleep(10);
+        }
+        this.setPercentage(0);
+        return p;
+    }
+
+    setPercentage(percentage) {
+        percentage = Math.round(percentage);
+        this._currentModal.querySelector("#percentage").innerHTML = `${percentage}%`;
+        this._currentModal.querySelector("progress").value = percentage / 100;
     }
 }
 
@@ -180,6 +251,7 @@ class FileDialog extends GenericModal {
         this._currentPath = "/";
         this._fileHelper = null;
         this._readOnlyMode = false;
+        this._progressDialog = null;
     }
 
     _removeAllChildNodes(parent) {
@@ -232,10 +304,17 @@ class FileDialog extends GenericModal {
         const delButton = this._currentModal.querySelector("#del-button");
         delButton.disabled = true;
         this._addDialogElement('delButton', delButton, 'click', this._handleDelButton);
+        const renameButton = this._currentModal.querySelector("#rename-button");
+        renameButton.disabled = true;
+        this._addDialogElement('renameButton', renameButton, 'click', this._handleRenameButton);
+        const downloadButton = this._currentModal.querySelector("#download-button");
+        downloadButton.disabled = true;
+        this._addDialogElement('downloadButton', downloadButton, 'click', this._handleDownloadButton);
+        const uploadButton = this._currentModal.querySelector("#upload-button");
+        uploadButton.disabled = this._readOnlyMode;
+        this._addDialogElement('uploadButton', uploadButton, 'click', this._handleUploadFilesButton);
         const newFolderButton = this._currentModal.querySelector("#new-folder-button");
-        if (this._readOnlyMode) {
-            newFolderButton.disabled = true;
-        }
+        newFolderButton.disabled = this._readOnlyMode;
         this._addDialogElement('newFolderButton', newFolderButton, 'click', this._handleNewFolderButton);
         const fileNameField= this._currentModal.querySelector("#filename");
         fileNameField.disabled = type == FILE_DIALOG_OPEN;
@@ -252,7 +331,7 @@ class FileDialog extends GenericModal {
         }
         this._addDialogElement('fileList', this._currentModal.querySelector("#file-list"));
         this._addDialogElement('currentPathLabel', this._currentModal.querySelector("#current-path"));
-
+        this._progressDialog = new ProgressDialog("progress");
 
         await this._openFolder();
 
@@ -306,7 +385,9 @@ class FileDialog extends GenericModal {
         }
 
         this._getElement('okButton').disabled = clickedItem.getAttribute("data-type") == "bin";
-        this._getElement('delButton').disabled = !this._canDelete();        
+        this._getElement('delButton').disabled = !this._canDeleteOrRename();
+        this._getElement('renameButton').disabled = !this._canDeleteOrRename();
+        this._getElement('downloadButton').disabled = !this._canDownload();
     }
 
     _handleFilenameUpdate() {
@@ -335,19 +416,24 @@ class FileDialog extends GenericModal {
     }
 
     _validName(name) {
-        if (!name || name == '' || name[0] == "." || name.includes("/")) {
+        if (!name || name == '' || name == "." || name == ".." || name.includes("/")) {
+            return false;
+        }
+
+        // For now, don't allow hidden files
+        if (name[0] == ".") {
             return false;
         }
 
         return true;
     }
 
-    _folderNameExists(folderName) {
+    _nameExists(fileName) {
         const fileList = this._getElement('fileList');
 
         // Check if a file or folder already exists
         for (let listItem of fileList.childNodes) {
-            if (listItem.querySelector("span").innerHTML == folderName) {
+            if (listItem.querySelector("span").innerHTML == fileName) {
                 return true;
             }
         }
@@ -355,7 +441,7 @@ class FileDialog extends GenericModal {
         return false;
     }
 
-    _canDelete() {
+    _canDeleteOrRename() {
         if (this._readOnlyMode) {
             return false;
         }
@@ -370,43 +456,160 @@ class FileDialog extends GenericModal {
         return true;
     }
 
+    _canDownload() {
+        let selectedItem = this._getSelectedFile();
+        if (!selectedItem) {
+            return false;
+        }
+        let filetype = selectedItem.getAttribute("data-type");
+        let filename = selectedItem.querySelector("span").innerHTML;
+        if (filetype == "folder") {
+            return false;
+        }
+        if (!this._validName(filename)) {
+            return false;
+        }
+        return true;
+    }
+
     async _handleOkButton() {
         await this._openItem();
     }
 
     async _handleDelButton() {
-        if (!this._canDelete()) {
-            // Not sure how we got here, but this is for safety
-            return;
-        }
+        if (!this._canDeleteOrRename()) return;
+
         let filename = this._getSelectedFile().querySelector("span").innerHTML;
         filename = this._currentPath + filename;
 
-        // prompt if user is sure
         if (!confirm(`Are you sure you want to delete ${filename}?`)) {
-            // If cancelled, do nothing
-            return;
+            return; // If cancelled, do nothing
         }
 
-        // otherwise delete the item
+        // Delete the item
         await this._showBusy(this._fileHelper.delete(filename));
         // Refresh the file list
         await this._openFolder();
     };
 
+    async _handleUploadFilesButton() {
+        if (this._readOnlyMode) return;
+
+        let input = document.createElement('input');
+        input.type = 'file';
+        input.multiple = true;
+        input.addEventListener('change', async (event) => {
+            const readUploadedFileAsArrayBuffer = (inputFile) => {
+                const reader = new FileReader();
+
+                return new Promise((resolve, reject) => {
+                  reader.onerror = () => {
+                    reader.abort();
+                    reject(new DOMException("Problem parsing input file."));
+                  };
+            
+                  reader.onload = () => {
+                    resolve(reader.result);
+                  };
+                  reader.readAsArrayBuffer(inputFile);
+                });
+            };
+            let files = Array.from(input.files);
+            let totalBytes = 0;
+            let bytesCompleted = 0;
+            for(let file of files) {
+                totalBytes += file.size;
+            }
+
+            this._progressDialog.open();
+            for(let file of files) {
+                let filename = file.name;
+                bytesCompleted += file.size;
+                if (this._nameExists(filename) && !confirm(`${filename} already exists. Overwrite?`)) {
+                    this._progressDialog.setPercentage(bytesCompleted / totalBytes * 100);
+                    continue; // If cancelled, continue
+                }
+
+                let contents = await readUploadedFileAsArrayBuffer(file);
+
+                await this._fileHelper.writeFile(
+                    this._currentPath + filename,
+                    0,
+                    contents,
+                    file.lastModified,
+                    true
+                );
+                this._progressDialog.setPercentage(bytesCompleted / totalBytes * 100);
+            };
+            this._progressDialog.close();
+
+            // Refresh the file list
+            await this._openFolder();
+        });
+        input.click();
+    }
+
+    // Currently only files are downloadable, but it would be nice to eventually download zipped folders
+    async _handleDownloadButton() {
+        if (!this._canDownload()) return;
+
+        let filename = this._getSelectedFile().querySelector("span").innerHTML;
+
+        let blob = await this._showBusy(
+            this._fileHelper.readFile(this._currentPath + filename, true)
+        );
+        let a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.setAttribute('download', filename);
+        a.click();
+    }
+
+    async _handleRenameButton() {
+        if (!this._canDeleteOrRename()) return;
+
+        let oldName = this._getSelectedFile().querySelector("span").innerHTML;
+        let newName = prompt("Enter a new folder name", oldName);
+        // If cancelled, do nothing
+        if (!newName) {
+            return;
+        }
+        // If invalid, display message
+        if (newName == oldName) {
+            return;
+        } else if (!this._validName(newName)) {
+            await this._showMessage(`'${newName}' is an invalid name.`);
+            return;
+        } else if (this._nameExists(newName)) {
+            await this._showMessage(`'${newName}' already exists.`);
+            return;
+        }
+
+        // Rename the file, by moving in the same folder
+        await this._showBusy(
+            this._fileHelper.move(
+                this._currentPath + oldName,
+                this._currentPath + newName
+            )
+        );
+
+        // Refresh the file list
+        await this._openFolder();
+    }
+
     async _handleNewFolderButton() {
+        if (this._readOnlyMode) return;
         // prompt for new folder name
         let folderName = prompt("Enter a new folder name");
         // If cancelled, do nothing
         if (!folderName) {
             return;
         }
-        // If invalid, display alert
+        // If invalid, display message
         if (!this._validName(folderName)) {
-            alert(`'${folderName}' is an invalid name.`);
+            await this._showMessage(`'${folderName}' is an invalid name.`);
             return;
-        } else if (this._folderNameExists(folderName)) {
-            alert(`'${folderName}' already exists.`);
+        } else if (this._nameExists(folderName)) {
+            await this._showMessage(`'${folderName}' already exists.`);
             return;
         }
 
@@ -464,7 +667,7 @@ class FileDialog extends GenericModal {
             } else if (filetype == "text") {
                 this._returnValue(this._currentPath + filename);
             } else {
-                alert("Unable to use this type of file");
+                await this._showMessage("Unable to use this type of file");
             }
         }
     }
