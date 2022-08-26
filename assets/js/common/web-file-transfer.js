@@ -11,8 +11,8 @@ class FileTransferClient {
     }
 
     async checkConnection() {
-        if (!this.connectionStatus()) {
-            throw new Error("Unable to perform file operation. Not Connected");
+        if (!this.connectionStatus() && this._allowedMethods !== null) {
+            throw new Error("Unable to perform file operation. Not Connected.");
         }
         
         if (this._allowedMethods === null) {
@@ -158,7 +158,7 @@ class FileTransferClient {
         let options = {
             method: 'MOVE',
             headers: {
-                "X-Destination": newPath
+                "X-Destination": `/fs${newPath}`
             }
         }
         
