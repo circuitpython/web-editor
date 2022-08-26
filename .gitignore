@@ -127,3 +127,6 @@ localhost.cert
 localhost.key
 snowpack.crt
 snowpack.key
+
+# Testing folder
+code/
