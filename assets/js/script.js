@@ -141,8 +141,13 @@ function setFilename(path) {
 }
 
 // Dynamically Load a Workflow (where the magic happens)
-async function loadWorkflow(workflowType) {
-    if (!(workflowType in workflows)) {
+async function loadWorkflow(workflowType=null) {
+    if (workflow && workflowType == null) {
+        // Get the last workflow
+        workflowType = workflow.type;
+    }
+
+    if (!(workflowType in workflows) && workflowType != CONNTYPE.None) {
         return false;
     }
 
@@ -155,6 +160,7 @@ async function loadWorkflow(workflowType) {
     if (workflowType != CONNTYPE.None) {
         // Is the requested workflow different than the currently loaded one?
         if (workflow != workflows[workflowType]) {
+            console.log("Load workflow");
             workflow = workflows[workflowType];
             // Initialize the workflow
             await workflow.init({
@@ -165,8 +171,12 @@ async function loadWorkflow(workflowType) {
                 disconnectFunc: disconnectCallback,
             });
             fileDialog = new FileDialog("files", workflow.showBusy.bind(workflow));
+        } else {
+            console.log("Reload workflow");
         }
     } else {
+        console.log("Unload workflow");
+        console.log(workflow);
         if (workflow != null) {
             // Update Workflow specific UI elements
             await workflow.disconnectButtonHandler();
@@ -469,17 +479,16 @@ document.addEventListener('DOMContentLoaded', async (event) => {
             e.preventDefault();
             e.stopPropagation();
             // Check if we have an active connection
-            if (workflow != null && workflow.connectionType != CONNTYPE.None) {
-                console.log("Unload workflow");
+            if (workflow != null && workflow.connectionStatus()) {
                 // If so, unload the current workflow
-                await loadWorkflow(CONNTYPE.None);
+                await workflow.disconnectButtonHandler(null);
+                //await loadWorkflow(CONNTYPE.None);
             } else {
-                console.log("Load workflow");
                 // If not, it should display the available connections
-                // For now just connect BLE
-                await loadWorkflow(CONNTYPE.Ble);
+                // For now just connect to last workflow
+                await loadWorkflow();
                 // Eventually, the available connections dialog should call the appropriate loadWorkflow which should trigger a connect method
-                if (workflow.connectionType == CONNTYPE.None) {
+                if (!workflow.connectionStatus()) {
                     // Display the appropriate connection dialog
                     await workflow.connectDialog.open();
                 }

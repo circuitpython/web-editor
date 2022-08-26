@@ -17,17 +17,19 @@ class Workflow {
         this.terminalTitle = null;
         this.debugLog = null;
         this.loader = null;
-        this.connectionType = CONNTYPE.None;
+        this.type = CONNTYPE.None;
         this.partialWrites = false;
-        this.disconnect = function() {};
+        this.disconnectCallback = null;
         this.timeout = timeout;
         this.sleep = sleep;
+        this.connectDialog = null;
+        this._connected = false;
     }
 
     async init(params, loaderId) {
         this.terminal = params.terminal;
         this.debugLog = params.debugLogFunc;
-        this.disconnect = params.disconnectFunc;
+        this.disconnectCallback = params.disconnectFunc;
         this.loadEditor = params.loadEditorFunc;
         this.loader = document.getElementById(loaderId);
         if ("terminalTitle" in params) {
@@ -35,8 +37,45 @@ class Workflow {
         }
     }
 
+    async disconnectButtonHandler(e) {
+
+    }
+
+    async connect() {
+
+    }
+
+    async onDisconnected(e, reconnect=true) {
+        this.debugLog("disconnected");
+        this.updateConnected(false);
+        // Update Common UI Elements
+        if (this.disconnectCallback) {
+            this.disconnectCallback();
+        }
+        if (reconnect) {
+            await this.connect();
+        }
+    }
+
+    async onConnected(e) {
+        this.debugLog("connected");
+        console.log("Connected!");
+        this.updateConnected(true);
+        if (this.connectDialog) {
+            this.connectDialog.close();
+        }
+    }
+
+    connectionStatus() {
+        return this._connected;
+    }
+
     async deinit() {
 
+    }
+
+    updateConnected(isConnected) {
+        this._connected = isConnected;
     }
 
     async showBusy(functionPromise) {
@@ -57,23 +96,6 @@ class Workflow {
 
     writeToTerminal(data) {
         this.terminal.write(data);
-    }
-
-    // This function should run callback and if it takes longer than ms, retun
-    timeout(callback, ms) {
-        return new Promise(
-            resolve => {
-                setTimeout(
-                    () => {
-                        console.log("timeout func fail")
-                        resolve();
-                    }
-                , ms)
-                callback();
-                console.log("timeout func success")
-                resolve();
-            }
-        );
     }
 }
 

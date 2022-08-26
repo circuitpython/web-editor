@@ -24,6 +24,7 @@ class WebWorkflow extends Workflow {
         this.fileClient = null;
         this.connectDialog = new GenericModal("web-connect");
         this.connIntervalId = null;
+        this.type = CONNTYPE.Web;
     }
 
     async init(params) {
@@ -33,8 +34,8 @@ class WebWorkflow extends Workflow {
 
     // This is called when a user clicks the main disconnect button
     async disconnectButtonHandler(e) {
-        if (this.connectionType == CONNTYPE.Web) {
-            this.connectionType == CONNTYPE.None;
+        await super.disconnectButtonHandler(e);
+        if (this.connectionStatus()) {
             await this.onDisconnected(null, false);
         }
     }
@@ -68,11 +69,7 @@ class WebWorkflow extends Workflow {
     async initSerial(host) {
         try {
             this.websocket = new WebSocket("ws://" + host + "/cp/serial/");
-            this.websocket.onopen = function() {
-                // Stuff to do on successful connection
-                this.updateConnected(true);
-                //this.connIntervalId = setInterval(this.checkConnection.bind(this), PING_INTERVAL_MS);
-            }.bind(this); 
+            this.websocket.onopen = this.onConnected.bind(this);
             this.websocket.onmessage = this.onSerialReceive.bind(this);
             this.websocket.onclose = this.onDisconnected.bind(this);
             
@@ -98,7 +95,7 @@ class WebWorkflow extends Workflow {
         let success;
         try {
             console.log('Initializing File Transfer Client...');
-            this.fileClient = new FileTransferClient(host, this.connectionStatus);
+            this.fileClient = new FileTransferClient(host, this.connectionStatus.bind(this));
             await this.fileClient.listDir('/');
             success = await this.initSerial(host);
         } catch(error) {
@@ -121,12 +118,7 @@ class WebWorkflow extends Workflow {
         }
 
         if (success && this.connectionStatus()) {
-            this.debugLog("connected");
-            console.log("Connected!");
-            this.connectDialog.close();
-            if (this.connectionStatus()) {
-                await this.loadEditor();
-            }
+            await this.loadEditor();
             return true;
         }
 
@@ -156,29 +148,21 @@ class WebWorkflow extends Workflow {
     }
 
     async connect() {
+        await super.connect();
         return await this.connectToHost(this.host);
     }
 
-    async onDisconnected(e, reconnect = true) {
+    async onConnected(e) {
+        await super.onConnected(e);
+        //this.connIntervalId = setInterval(this.checkConnection.bind(this), PING_INTERVAL_MS);
+    }
+
+    async onDisconnected(e, reconnect=true) {
         if (this.connIntervalId) {
             clearInterval(this.connIntervalId);
             this.connIntervalId = null;
         }
-        this.debugLog("disconnected");
-        this.updateConnected(false);
-        // Update Common UI Elements
-        this.disconnect();
-        if (reconnect) {
-            await this.connect();
-        }
-    }
-
-    updateConnected(isConnected) {
-        if (isConnected) {
-            this.connectionType = CONNTYPE.Web;
-        } else {
-            this.connectionType = CONNTYPE.None;
-        }
+        await super.onDisconnected(e, reconnect);
     }
 
     async activeConnection() {
@@ -206,10 +190,6 @@ class WebWorkflow extends Workflow {
             //this.websocket.close();
             await this.onDisconnected(null, false);
         }
-    }
-
-    connectionStatus() {
-        return this.connectionType != CONNTYPE.None;
     }
 
     async parseParams(urlParams) {

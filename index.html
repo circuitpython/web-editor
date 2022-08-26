@@ -205,6 +205,28 @@
                 </section>
             </div>
         </div>
+        <div class="popup-modal shadow connect-dialog" data-popup-modal="web-connect">
+            <i class="fas fa-2x fa-times text-white bg-primary p-3 popup-modal__close"></i>
+            <div id="device-discovery" class="connection-layout content">
+                <h2>Current Device Info:</h2>
+                <dl>
+                    <dt>Board:</dt>
+                    <dd><a id="board"></a></dd>
+                    <dt>Version:</dt>
+                    <dd><span id="version"></span></dd>
+                    <dt>Hostname:</dt>
+                    <dd><a id="hostname"></a></dd>
+                    <dt>IP:</dt>
+                    <dd><a id="ip"></a></dd>
+                </dl>
+                <p>If you are connecting to a new device, follow the steps below. Otherwise click the Reconnect button.</p>
+                <p><button class="purple-button" id="webReconnect">Reconnect</button></p>
+            
+                <h2>Here are other CircuitPython devices on your network:</h2>
+                <ul id="devices">
+                </ul>                
+            </div>
+        </div>
         <script src="https://cdn.jsdelivr.net/npm/xterm@4.19.0/lib/xterm.min.js"></script>
         <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.5.0/lib/xterm-addon-fit.min.js"></script>
         <script src="assets/js/header_mobile.js"></script>
