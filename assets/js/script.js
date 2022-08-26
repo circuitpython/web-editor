@@ -58,7 +58,7 @@ const editorExtensions = [
 ]
 // New Buttons (Mobile and Desktop Layout)
 btnNew.forEach((element) => {
-    element.addEventListener('click',  async function(e) {
+    element.addEventListener('click', async function(e) {
         e.preventDefault();
         e.stopPropagation();
         if (await checkSaved()) {
@@ -258,10 +258,6 @@ async function saveFile(path) {
         return true;
     }
     return false;
-}
-
-async function showFiles() {
-    let path = await fileDialog.open(fileHelper, FILE_DIALOG_UPLOAD);
 }
 
 async function saveAs() {
