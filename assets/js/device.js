@@ -1,6 +1,6 @@
 // Boot strap load everything from code.circuitpython.org
 let SITE = "https://code.circuitpython.org"
-if (location.hostname == "localhost") {
+if (location.hostname == "localhost" || location.hostname == "127.0.0.1") {
     // For development purposes
     SITE = `${location.protocol}//${location.host}`;
 }

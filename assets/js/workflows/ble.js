@@ -28,6 +28,7 @@ class BLEWorkflow extends Workflow {
         this.fileClient = null;
         this.connectDialog = new GenericModal("ble-connect");
         this.partialWrites = true;
+        this.type = CONNTYPE.Ble;
     }
 
     async init(params) {
@@ -56,7 +57,7 @@ class BLEWorkflow extends Workflow {
     }
 
     async reconnectButtonHandler(e) {
-        if (this.connectionType == CONNTYPE.None) {
+        if (!this.connectionStatus()) {
             try {
                 console.log('Getting existing permitted Bluetooth devices...');
                 const devices = await navigator.bluetooth.getDevices();
@@ -76,13 +77,13 @@ class BLEWorkflow extends Workflow {
 
     // This is called when a user clicks the main disconnect button
     async disconnectButtonHandler(e) {
-        if (this.connectionType == CONNTYPE.Ble) {
+        await super.disconnectButtonHandler(e);
+        if (this.connectionStatus()) {
             // Disconnect BlueTooth and Reset things
             if (this.bleDevice !== undefined && this.bleDevice.gatt.connected) {
                 this.bleDevice.gatt.disconnect();
             }
-            this.connectionType == CONNTYPE.None;
-            await this.onDisconnected(null, false);
+            await this.onDisconnected(e, false);
         }
     }
 
@@ -94,7 +95,7 @@ class BLEWorkflow extends Workflow {
     async connectToSerial() {
         try {
             this.serialService = await this.bleServer.getPrimaryService(bleNusServiceUUID);
-            // TODO: create a terminal for each serial service
+            // TODO: create a terminal for each serial service (maybe?)
             this.txCharacteristic = await this.serialService.getCharacteristic(bleNusCharTXUUID);
             this.rxCharacteristic = await this.serialService.getCharacteristic(bleNusCharRXUUID);
         
@@ -161,6 +162,7 @@ class BLEWorkflow extends Workflow {
         btnRequestBluetoothDevice.disabled = true;
         btnReconnect.disabled = true;
 
+        await this.onConnected();
         this.connectDialog.close();
         await this.loadEditor();
     }
@@ -221,27 +223,24 @@ class BLEWorkflow extends Workflow {
         }
     }
 
-    async onDisconnected(e, reconnect = true) {
-        this.debugLog("disconnected");
+    async connect() {
+        await super.connect();
         await this.bleServer.connect();
         console.log(this.bleServer.connected);
-        if (reconnect) {
-            this.debugLog("connected");
-            await this.connectToSerial();
-        }
+        return await this.connectToSerial();
     }
 
     updateConnected(isConnected) {
-        if (isConnected) {
-            this.connectionType = CONNTYPE.Ble;
-        } else {
+        super.updateConnected(isConnected);
+        this._connected = true;
+        if (!isConnected) {
             btnBond.disabled = true;
             btnRequestBluetoothDevice.disabled = false;
             btnReconnect.disabled = false;
         }
     }
 
-    async parseParams(urlParams) {
+    async parseParams() {
         return false;
     }
 }

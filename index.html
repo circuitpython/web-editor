@@ -101,14 +101,20 @@
                     </div>
                 </div>
             </div>
-            <div class="container" id="mode-buttons">
+            <div class="container" id="footer-bar">
                 <button class="mode-button purple-button" id="btn-mode-editor">Editor</button>
                 <button class="mode-button purple-button active" id="btn-mode-serial">Serial</button>
+                <div class="spacer"></div>
+                <button class="purple-button" id="btn-info" disabled>Info<i class="fas fa-info-circle"></i></button>
             </div>
         </div>
+
+        <!-- Workflow Loading Animations -->
         <div class="loader" id="ble-loader"><div><img src="assets/images/loading-bluetooth.gif" alt="BLE Loading Animation" height="100" width="100"></div></div>
         <div class="loader" id="web-loader"><div><img src="assets/images/loading-web.gif" alt="Web Loading Animation" height="100" width="100"></div></div>
         <div class="loader" id="usb-loader"><div><img src="assets/images/loading-usb.gif" alt="USB Loading Animation" height="100" width="100"></div></div>
+
+        <!-- Dialog Box Templates -->
         <div class="popup-modal shadow file-dialog" data-popup-modal="files">
             <div class="buttons">
                 <button id="del-button" title="Delete" class="purple-button"><i class="fas fa-trash-alt"></i></button>
@@ -132,6 +138,18 @@
                 <button class="purple-button ok-button">Save</button>
                 <button class="purple-button not-ok-button">Don't Save</button>
                 <button class="purple-button cancel-button">Cancel</button>
+            </div>
+        </div>
+        <div class="popup-modal shadow prompt" data-popup-modal="upload-type">
+            <button id="upload-files" class="purple-button files-button">Upload Files<i class="fas fa-file"></i></button>
+            <button id="upload-folders" class="purple-button folders-button" disabled>Upload Folders<i class="fas fa-folder-closed"></i></button>
+        </div>
+        <div class="popup-modal shadow prompt" data-popup-modal="connection-type">
+            <div id="message"></div>
+            <div class="buttons stacked">
+                <button id="web-workflow" class="purple-button files-button" value="web">WiFi <i class="fas fa-wifi"></i></button>
+                <button id="ble-workflow" class="purple-button files-button" value="ble">Bluetooth <i class="fab fa-bluetooth"></i></button>
+                <button id="usb-workflow" class="purple-button files-button" value="usb">USB <i class="fab fa-usb"></i></button>
             </div>
         </div>
         <div class="popup-modal shadow prompt" data-popup-modal="message">
@@ -203,6 +221,78 @@
                         </p>
                     </div>
                 </section>
+            </div>
+        </div>
+        <div class="popup-modal shadow connect-dialog" data-popup-modal="web-connect">
+            <i class="fas fa-2x fa-times text-white bg-primary p-3 popup-modal__close"></i>
+            <div id="web-instructions" class="connection-layout content">
+                <section class="step">
+                    <div class="step-number">1</div>
+                    <div class="step-content">
+                        <h1>Update CircuitPython</h1>
+                        <p>
+                            Web Workflow is only available on CircuitPython boards with <a
+                            href="https://circuitpython.org/downloads?mcufamilies=esp32&mcufamilies=esp32c3&mcufamilies=esp32s2&mcufamilies=esp32s3"
+                            target="_blank">ESP chips running CircuitPython 8.0.0-beta.0 or newer</a>. 
+                        </p>
+                    </div>
+                </section>
+                <section class="step">
+                    <div class="step-number">2</div>
+                    <div class="step-content">
+                        <h1>Connect Device to the Internet</h1>
+                        <p>
+                            To connect the device to your network, you will need to set up the .env file on your device
+                            and add your WiFi credentials. The <a href="https://docs.circuitpython.org/en/latest/docs/workflows.html#web"
+                            target="_blank">CircuitPython Web Workflow Documentation</a> has more details how to create this file.
+                        </p>
+                    </div>
+                </section>
+                <section class="step">
+                    <div class="step-number">3</div>
+                    <div class="step-content">
+                        <h1>Navigate to your Device</h1>
+                        <p>
+                            Once your device is connected to your Local Area Network, you can navigate to 
+                            <a id="device-link" href="http://circuitpython.local/code/">http://circuitpython.local/code/</a>. This opens
+                            a page on your device that loads this website onto the device and to avoid any cross
+                            domain security issues.
+                        </p>
+                    </div>
+                </section>
+            </div>
+        </div>       
+        <div class="popup-modal shadow" data-popup-modal="device-discovery">
+            <i class="fas fa-2x fa-times text-white bg-primary p-3 popup-modal__close"></i>
+            <table class="device-info">
+                <thead>
+                    <tr>
+                        <th colspan="2">Current Device Info</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Board:</td>
+                        <td><a id="board"></a></td>
+                    </tr>
+                    <tr>
+                        <td>Version:</td>
+                        <td><span id="version"></span></td>
+                    </tr>
+                    <tr>
+                        <td>Hostname:</td>
+                        <td><a id="hostname"></a></td>
+                    </tr>
+                    <tr>
+                        <td>IP Address:</td>
+                        <td><a id="ip"></a></td>
+                    </tr>
+                </tbody>
+            </table>            
+            <h3>More network devices</h3>
+            <div id="devices"></div>               
+            <div class="buttons centered">
+                <button class="purple-button ok-button">Close</button>
             </div>
         </div>
         <script src="https://cdn.jsdelivr.net/npm/xterm@4.19.0/lib/xterm.min.js"></script>

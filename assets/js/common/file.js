@@ -14,6 +14,16 @@ class FileHelper {
         } else {
             this.readOnly = async () => { return false; }
         }
+        if (workflow.fileClient.versionInfo !== undefined) {
+            this.versionInfo = workflow.fileClient.versionInfo.bind(workflow.fileClient);
+        } else {
+            this.versionInfo = async () => { return null; }
+        }
+        if (workflow.fileClient.otherDevices !== undefined) {
+            this.otherDevices = workflow.fileClient.otherDevices.bind(workflow.fileClient);
+        } else {
+            this.otherDevices = async () => { return null; }
+        }
     }
 
     async fileExists(path) {
@@ -33,18 +43,6 @@ class FileHelper {
             }
         }
         return false;
-    }
-
-    // Return a list of features to enable in the file dialog
-    async features() {
-        // Possible flow
-        // We could start building up a list by checking if certain functions exist like move
-        // We could then check if it is readonly and disable the write features
-        // Then maybe could check against the workflow for certain things to disable
-        // (like uploading for ble)
-
-        // BLE file uploads may just work without doing anything special
-        // If nbot we could check workflow.partialWrites
     }
 }
 

@@ -1,4 +1,5 @@
 import {sleep} from './utilities.js'
+import {WebWorkflow} from '../workflows/web.js'
 
 const FILE_DIALOG_OPEN = 1;
 const FILE_DIALOG_SAVE = 2;
@@ -111,10 +112,11 @@ class GenericModal {
                 clickBlock.style.zIndex = modal.style.zIndex - 1
             }
         }
+        document.body.appendChild(modal);
     }
 
     _removeTopModalLayer() {
-        modalLayers.pop()
+        const modal = modalLayers.pop()
         if (modalLayers.length < 1) {
             const bodyBlackout = document.querySelector(SELECTOR_BLACKOUT);
             if (bodyBlackout) {
@@ -134,10 +136,11 @@ class GenericModal {
                 }
             }
         }
+        modal.remove();
     }
 
     _openModal() {
-        const modal = document.querySelector(`[data-popup-modal="${this._modalId}"]`);
+        const modal = document.querySelector(`[data-popup-modal="${this._modalId}"]`).cloneNode(true);
         if (!modal) {
             throw new Error(`Modal with ID "${this._modalId}" not found.`);
         }
@@ -181,6 +184,13 @@ class GenericModal {
         this._closeModal();
     }
 
+    getModal() {
+        if (this._currentModal) {
+            return this._currentModal;
+        }
+        throw Error("Modal has not been opened yet. No instance available");
+    }
+
     async open() {
         this._currentModal = this._openModal();
 
@@ -193,7 +203,7 @@ class GenericModal {
     }
 }
 
-class MessageModal extends GenericModal{
+class MessageModal extends GenericModal {
     async open(message) {
         let p = super.open()
         const okButton = this._currentModal.querySelector("button.ok-button");
@@ -240,6 +250,99 @@ class UnsavedDialog extends GenericModal {
         this._addDialogElement('dontSaveButton', dontSaveButton, 'click', this._handleDontSaveButton);
         this._currentModal.querySelector("#message").innerHTML = message;
 
+        return p;
+    }
+}
+
+// Returns the value of the clicked Button except cancel
+// (This should eventually replace the UnsavedDialog and possibly the MessageModal)
+class ButtonValueDialog extends GenericModal {
+    _handleOtherButton(event) {
+        let button = event.target;
+        if (button.tagName.toLowerCase() !== 'button') {
+            button = button.parentNode;
+        }
+        this._returnValue(button.value);
+    }
+
+    async open(message = null) {
+        let p = super.open()
+        let buttons = this._currentModal.querySelectorAll("button")
+        buttons.forEach((button) => {
+            if (button.classList.contains("cancel-button")) {
+                this._addDialogElement('cancelButton', button, 'click', this._closeModal);
+            } else {
+                const buttonName = button.id.replace(/-([a-z])/g, (g) => {
+                    return g[1].toUpperCase();
+                }) + 'Button';
+                this._addDialogElement(buttonName, button, 'click', this._handleOtherButton);
+            }
+        });
+
+        const msgElement = this._currentModal.querySelector("#message");
+        if (message && msgElement) {
+            msgElement.innerHTML = message;
+        }
+
+        return p;
+    }
+}
+
+class DiscoveryModal extends GenericModal {
+    async _getDeviceInfo() {
+        const deviceInfo = await this._showBusy(this._fileHelper.versionInfo());
+        this._currentModal.querySelector("#version").textContent = deviceInfo.version;
+        const boardLink = this._currentModal.querySelector("#board");
+        boardLink.href = `https://circuitpython.org/board/${deviceInfo.board_id}/`;
+        boardLink.textContent = deviceInfo.board_name;
+        const hostname = this._currentModal.querySelector("#hostname");
+        let port = `${deviceInfo.port != 80 ? ':' + deviceInfo.port : ''}`;
+        hostname.href = `http://${deviceInfo.hostname}.local${port}/code/`;
+        hostname.textContent = deviceInfo.hostname;
+        let ip = this._currentModal.querySelector("#ip");
+        ip.href = `http://${deviceInfo.ip + port}/code/`;
+        ip.textContent = deviceInfo.ip;
+    }
+
+    async _findDevices() {
+        const otherDevices = await this._showBusy(this._fileHelper.otherDevices());
+        let newDevices = [];
+        if (otherDevices.total == 0) {
+            let span = document.createElement("span");
+            span.textContent = "No devices found.";
+            newDevices.push(span);
+        } else {
+            for (let device of otherDevices.devices) {
+                let a = document.createElement("a");
+                let port = `${device.port != 80 ? ':' + device.port : ''}`;
+                let server = WebWorkflow.isIp() ? device.ip : device.hostname + ".local";
+                a.setAttribute("device-host", `${server}${port}`);
+                a.addEventListener("click", (event) => {
+                    let clickedItem = event.target;
+                    if (clickedItem.tagName.toLowerCase() != "a") {
+                        clickedItem = clickedItem.parentNode;
+                    }
+                    let deviceHost = clickedItem.getAttribute("device-host");
+                    this._workflow.switchDevice(deviceHost, this._document);
+                });
+                a.textContent = `${device.instance_name} (${device.hostname})`;
+                newDevices.push(a);
+            }
+        }
+        this._currentModal.querySelector("#devices").replaceChildren(...newDevices);
+    }
+    
+    async open(workflow, document) {
+        this._workflow = workflow;
+        this._fileHelper = workflow.fileClient;
+        this._showBusy = workflow.showBusy.bind(workflow);
+        this._document = document;
+
+        let p = super.open();
+        const okButton = this._currentModal.querySelector("button.ok-button");
+        this._addDialogElement('okButton', okButton, 'click', this._closeModal);
+        await this._getDeviceInfo();
+        await this._findDevices();
         return p;
     }
 }
@@ -554,10 +657,11 @@ class FileDialog extends GenericModal {
         if (!this._canDownload()) return;
 
         let filename = this._getSelectedFile().querySelector("span").innerHTML;
-
-        let blob = await this._showBusy(
-            this._fileHelper.readFile(this._currentPath + filename, true)
-        );
+        let getBlob = async () => {
+            let response = await this._fileHelper.readFile(this._currentPath + filename, true);
+            return response.blob();
+        }
+        let blob = await this._showBusy(getBlob());
         let a = document.createElement('a');
         a.href = URL.createObjectURL(blob);
         a.setAttribute('download', filename);
@@ -729,4 +833,13 @@ class FileDialog extends GenericModal {
     }
 }
 
-export {GenericModal, MessageModal, UnsavedDialog, FileDialog, FILE_DIALOG_OPEN, FILE_DIALOG_SAVE}
+export {
+    GenericModal,
+    MessageModal,
+    ButtonValueDialog,
+    UnsavedDialog,
+    DiscoveryModal,
+    FileDialog,
+    FILE_DIALOG_OPEN,
+    FILE_DIALOG_SAVE
+}
