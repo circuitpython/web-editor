@@ -162,9 +162,13 @@ async function checkConnected() {
 }
 
 function setFilename(path) {
-    workflow.currentFilename = path;
     if (path === null) {
         path = "[New Document]";
+    } else if (!workflow) {
+        throw Error("Unable to set path when no workflow is loaded");
+    }
+    if (workflow) {
+        workflow.currentFilename = path;
     }
     document.querySelector('#editor-bar .file-path').innerHTML = path;
     document.querySelector('#mobile-editor-bar .file-path').innerHTML = path.split("/")[path.split("/").length - 1];
@@ -195,6 +199,8 @@ async function chooseConnection() {
 
 // Dynamically Load a Workflow (where the magic happens)
 async function loadWorkflow(workflowType=null) {
+    let currentFilename = null;
+
     if (workflow && workflowType == null) {
         // Get the last workflow
         workflowType = workflow.type;
@@ -214,6 +220,9 @@ async function loadWorkflow(workflowType=null) {
         // Is the requested workflow different than the currently loaded one?
         if (workflow != workflows[workflowType]) {
             console.log("Load workflow");
+            if (workflow) {
+                currentFilename = workflow.currentFilename;
+            }
             workflow = workflows[workflowType];
             // Initialize the workflow
             await workflow.init({
@@ -222,6 +231,7 @@ async function loadWorkflow(workflowType=null) {
                 loadEditorFunc: loadEditor,
                 debugLogFunc: debugLog,
                 disconnectFunc: disconnectCallback,
+                currentFilename: currentFilename,
             });
             fileDialog = new FileDialog("files", workflow.showBusy.bind(workflow));
         } else {
@@ -253,6 +263,7 @@ function loadEditorContents(content) {
         extensions: editorExtensions
     }));
 }
+setFilename(null);
 
 async function runCode(path) {
     if (path == "/code.py") {

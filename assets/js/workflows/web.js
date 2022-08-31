@@ -216,8 +216,10 @@ class WebWorkflow extends Workflow {
             state: encodeURIComponent(JSON.stringify(documentState))
         });
         let oldHost = window.location.host;
+        let oldPath = window.location.pathname;
         window.location.href = server;
-        if (new URL(server).host == oldHost) {
+        let serverUrl = new URL(server);
+        if (serverUrl.host == oldHost && serverUrl.pathname == oldPath) {
             window.location.reload();
         }
     }

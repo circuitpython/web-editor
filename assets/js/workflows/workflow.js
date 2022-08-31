@@ -36,6 +36,7 @@ class Workflow {
         if ("terminalTitle" in params) {
             this.terminalTitle = params.terminalTitle;
         }
+        this.currentFilename = params.currentFilename;
     }
 
     async getDeviceFileContents() {
