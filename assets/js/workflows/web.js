@@ -195,13 +195,13 @@ class WebWorkflow extends Workflow {
         //let newHost = await FileTransferClient.getRedirectedHost(url.host);
         //deviceLink.setAttribute("device-host", newHost);
         deviceLink.addEventListener("click", (event) => {
+            event.preventDefault();
+            event.stopPropagation();
             let clickedItem = event.target;
             if (clickedItem.tagName.toLowerCase() != "a") {
                 clickedItem = clickedItem.parentNode;
             }
             this.switchDevice(new URL(clickedItem.href).host, document);
-            event.preventDefault();
-            event.stopPropagation();
         });
         return await p;
     }
@@ -217,6 +217,7 @@ class WebWorkflow extends Workflow {
         });
         let oldHost = window.location.host;
         let oldPath = window.location.pathname;
+        console.log(server);
         window.location.href = server;
         let serverUrl = new URL(server);
         if (serverUrl.host == oldHost && serverUrl.pathname == oldPath) {
