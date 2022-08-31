@@ -40,7 +40,6 @@ class Workflow {
 
     async getDeviceFileContents() {
         let filename = this.currentFilename;
-        console.log(filename);
         if (!filename) {
             return "";
         }
