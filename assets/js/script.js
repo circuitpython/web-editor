@@ -61,6 +61,7 @@ btnNew.forEach((element) => {
     element.addEventListener('click', async function(e) {
         e.preventDefault();
         e.stopPropagation();
+        await checkConnected();
         if (await checkSaved()) {
             loadEditorContents("");
             unchanged = editor.state.doc.length;
@@ -75,6 +76,7 @@ btnOpen.forEach((element) => {
     element.addEventListener('click', async function(e) {
         e.preventDefault();
         e.stopPropagation();
+        await checkConnected();
         if (await checkSaved()) {
             let path = await fileDialog.open(fileHelper, FILE_DIALOG_OPEN);
             if (path !== null) {
@@ -93,6 +95,7 @@ btnSaveAs.forEach((element) => {
     element.addEventListener('click', async function(e) {
         e.preventDefault();
         e.stopPropagation();
+        await checkConnected();
         let path = await saveAs();
         if (path !== null) {
             console.log("Current File Changed to: " + workflow.currentFilename);
@@ -105,6 +108,7 @@ btnSaveRun.forEach((element) => {
     element.addEventListener('click', async function(e) {
         e.preventDefault();
         e.stopPropagation();
+        await checkConnected();
         await saveFile();
         await runCode(workflow.currentFilename);
     });
@@ -112,6 +116,7 @@ btnSaveRun.forEach((element) => {
 
 // Restart Button
 btnRestart.addEventListener('click', async function(e) {
+    await checkConnected();
     // Send the Ctrl+D control character to the board via serial
     await workflow.serialTransmit(CHAR_CTRL_D);
 });
@@ -126,15 +131,41 @@ btnModeSerial.addEventListener('click', async function(e) {
 });
 
 btnInfo.addEventListener('click', async function(e) {
+    await checkConnected();
     await workflow.showInfo(editor.state.doc.sliceString(0));
 });
+
+async function checkConnected() {
+    let connected = workflow != null && workflow.connectionStatus();
+    if (!connected) {
+        let connType = await chooseConnection();
+        // For now just connect to last workflow
+        if (!connType) {
+            return;
+        }
+        await loadWorkflow(connType);
+
+        // Connect if we're local
+        let isLocal = WebWorkflow.isLocal();
+        if (isLocal && workflow.host) {
+            await workflow.showBusy(workflow.connect());
+        }
+
+        if (!workflow.connectionStatus()) {
+            // Display the appropriate connection dialog
+            await workflow.showConnect(editor.state.doc.sliceString(0));
+        } else if (workflow.type === CONNTYPE.Web) {
+            // We're connected, local, and using Web Workflow
+            await workflow.showInfo(editor.state.doc.sliceString(0));
+        }
+    }
+}
 
 function setFilename(path) {
     workflow.currentFilename = path;
     if (path === null) {
         path = "[New Document]";
     }
-    console.log(path);
     document.querySelector('#editor-bar .file-path').innerHTML = path;
     document.querySelector('#mobile-editor-bar .file-path').innerHTML = path.split("/")[path.split("/").length - 1];
 }
@@ -250,6 +281,7 @@ async function showMessage(message) {
 
 async function checkSaved() {
     if (isDirty()) {
+        await checkConnected();
         let result = await unsavedDialog.open("Current changes will be lost. Do you want to save?");
         if (result !== null) {
             if (!result || await saveFile()) {
@@ -376,7 +408,7 @@ async function loadEditor() {
     if (documentState) {
         setFilename(documentState.path);
         loadEditorContents(documentState.contents);
-    } else if (await fileHelper.fileExists("/code.py")) {
+    } else if (editor.state.doc.length == 0 && await fileHelper.fileExists("/code.py")) {
         setFilename("/code.py");
         loadEditorContents(await workflow.getDeviceFileContents());
     } else {
@@ -513,26 +545,7 @@ document.addEventListener('DOMContentLoaded', async (event) => {
                 //await loadWorkflow(CONNTYPE.None);
             } else {
                 // If not, it should display the available connections
-                let connType = await chooseConnection();
-                // For now just connect to last workflow
-                if (!connType) {
-                    return;
-                }
-                await loadWorkflow(connType);
-
-                // Connect if we're local
-                let isLocal = WebWorkflow.isLocal();
-                if (isLocal && workflow.host) {
-                    await workflow.showBusy(workflow.connect());
-                }
-
-                if (!workflow.connectionStatus()) {
-                    // Display the appropriate connection dialog
-                    await workflow.showConnect(editor.state.doc.sliceString(0));
-                } else if (workflow.type === CONNTYPE.Web) {
-                    // We're connected, local, and using Web Workflow
-                    await workflow.showInfo(editor.state.doc.sliceString(0));
-                }
+                await checkConnected();
 
                 // Web Workflow Notes
                 // ------------------------

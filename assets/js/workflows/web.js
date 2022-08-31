@@ -211,16 +211,14 @@ class WebWorkflow extends Workflow {
             path: this.currentFilename,
             contents: document,
         };
-        console.log(documentState);
         let url = `http://${deviceHost}/code/`;
         let server = WebWorkflow.makeUrl(url, {
             state: encodeURIComponent(JSON.stringify(documentState))
         });
-        console.log(server);
         let oldHost = window.location.host;
         window.location.href = server;
         if (new URL(server).host == oldHost) {
-            //window.location.reload();
+            window.location.reload();
         }
     }
 
