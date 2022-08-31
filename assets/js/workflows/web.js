@@ -4,7 +4,7 @@
 
 import {FileTransferClient} from '../common/web-file-transfer.js';
 import {Workflow, CONNTYPE} from './workflow.js'
-import {GenericModal} from '../common/dialogs.js';
+import {GenericModal, DiscoveryModal} from '../common/dialogs.js';
 
 const CHAR_TITLE_START = "\x1b]0;";
 const CHAR_TITLE_END = "\x1b\\";
@@ -23,6 +23,7 @@ class WebWorkflow extends Workflow {
         this.loadEditor = null;
         this.fileClient = null;
         this.connectDialog = new GenericModal("web-connect");
+        this.deviceDiscoveryDialog = new DiscoveryModal("device-discovery");
         this.connIntervalId = null;
         this.type = CONNTYPE.Web;
     }
@@ -87,10 +88,6 @@ class WebWorkflow extends Workflow {
         }
     }
 
-    async getDeviceFileContents(filename) {
-        return await this.fileClient.readFile(filename);
-    }
-
     async connectToHost(host) {
         let success;
         try {
@@ -139,6 +136,7 @@ class WebWorkflow extends Workflow {
 
     async onConnectButtonClick(e) {
         try {
+            await this.checkHost();
             await this.connectToHost(this.host);
         }
         catch(error) {
@@ -149,7 +147,19 @@ class WebWorkflow extends Workflow {
 
     async connect() {
         await super.connect();
+        await this.checkHost();
         return await this.connectToHost(this.host);
+    }
+
+    async checkHost() {
+        if (!this.host) {
+            this.parseParams();
+        }
+
+        if (this.host.toLowerCase() == "circuitpython.local") {
+            this.host = await FileTransferClient.getRedirectedHost(this.host);
+            console.log("New Host", this.host);
+        }
     }
 
     async onConnected(e) {
@@ -178,6 +188,46 @@ class WebWorkflow extends Workflow {
         return true;
     }
 
+    async showConnect(document) {
+        let p = this.connectDialog.open();
+        let modal = this.connectDialog.getModal();
+        let deviceLink = modal.querySelector("#device-link");
+        //let newHost = await FileTransferClient.getRedirectedHost(url.host);
+        //deviceLink.setAttribute("device-host", newHost);
+        deviceLink.addEventListener("click", (event) => {
+            let clickedItem = event.target;
+            if (clickedItem.tagName.toLowerCase() != "a") {
+                clickedItem = clickedItem.parentNode;
+            }
+            this.switchDevice(new URL(clickedItem.href).host, document);
+            event.preventDefault();
+            event.stopPropagation();
+        });
+        return await p;
+    }
+
+    switchDevice(deviceHost, document) {
+        let documentState = {
+            path: this.currentFilename,
+            contents: document,
+        };
+        console.log(documentState);
+        let url = `http://${deviceHost}/code/`;
+        let server = WebWorkflow.makeUrl(url, {
+            state: encodeURIComponent(JSON.stringify(documentState))
+        });
+        console.log(server);
+        let oldHost = window.location.host;
+        window.location.href = server;
+        if (new URL(server).host == oldHost) {
+            //window.location.reload();
+        }
+    }
+
+    async showInfo(document) {
+        return await this.deviceDiscoveryDialog.open(this, document);
+    }
+
     async checkConnection() {
         try {
             await this.timeout(
@@ -192,10 +242,13 @@ class WebWorkflow extends Workflow {
         }
     }
 
-    async parseParams(urlParams) {
-        if ((location.hostname == "localhost") && ("host" in urlParams)) {
+    parseParams() {
+        let urlParams = Workflow.getUrlParams();
+        if (this.constructor.isTestHost() && "host" in urlParams) {
             this.host = urlParams.host.toLowerCase();
-        } else if (location.hostname.search(/cpy-[0-9a-f]{6}.local/gi) >= 0) {
+        } else if (this.constructor.isMdns()) {
+            this.host = location.hostname;
+        } else if (this.constructor.isIp()) {
             this.host = location.hostname;
         }
 
@@ -204,6 +257,44 @@ class WebWorkflow extends Workflow {
         }
 
         return false;
+    }
+
+    static isTestHost() {
+        return location.hostname == "localhost" || location.hostname == "127.0.0.1";
+    }
+
+    static buildHash(hashParams) {
+        let segments = [];
+        for (const item in hashParams) {
+            segments.push(`${item}=${hashParams[item]}`);
+        }
+        return '#'+segments.join('&');
+    }
+
+    static makeUrl(url, extraParams = []) {
+        let urlParams = {
+            ...Workflow.getUrlParams(),
+            ...extraParams
+        }        
+        let oldUrl = new URL(url);
+        if (this.isTestHost()) {
+            urlParams.host = oldUrl.hostname;
+            return new URL(oldUrl.pathname, `http://${location.host}/`) + this.buildHash(urlParams);
+        }
+
+        return oldUrl;
+    }
+    
+    static isMdns() {
+        return location.hostname.search(/cpy-[0-9a-f]{6}.local/gi) == 0;
+    }
+
+    static isIp() {
+        return location.hostname.search(/([0-9]{1,3}.){4}/gi) == 0;
+    }
+
+    static isLocal() {
+        return (this.isMdns() || location.hostname == "localhost" || this.isIp()) && (location.pathname == "/code/");
     }
 }
 

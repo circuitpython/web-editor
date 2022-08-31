@@ -128,6 +128,16 @@
     text-overflow: ellipsis;
 }
 
+#footer-bar {
+    display: flex;
+    .spacer {
+        flex: auto;
+    }
+    button:last-child {
+        margin-right: 10px;;
+    }
+}
+
 #editor-bar {
     display: flex;
 }

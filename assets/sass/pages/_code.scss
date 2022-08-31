@@ -1,4 +1,4 @@
-#ble-instructions {
+#ble-instructions, #web-instructions {
     h1 {
         font-weight: 400;
     }
@@ -187,6 +187,10 @@
     &.prompt {
         max-height: 365px;
     }
+
+    &.shadow {
+        filter: drop-shadow(0px 0px 10px rgba(0,0,0,.5));
+    }
     
     &.is--visible {
         opacity: 1;
@@ -206,38 +210,6 @@
 
     &.no-padding, &.connect-dialog {
         padding: 0;
-    }
-
-    #current-path {
-        position: absolute;
-        font-size: 1.2rem;
-        top: 12px;
-        left: 30px;
-        max-width: 570px;
-        text-overflow: ellipsis;
-        overflow: hidden;
-    }
-
-    #file-list {
-        font-size: 1.4em;
-        overflow: auto;
-        height: 200px;
-        padding: 5px 0;
-        a {
-            padding-left: 5px;
-            display: block;
-            cursor: default;
-            i {
-                width: 30px;
-                text-align: center;
-            }
-            span {
-                margin-left: 5px;
-            }
-            &.selected {
-                background-color: $light-purple;
-            }
-        }
     }
 
     .label {
@@ -274,5 +246,110 @@
         &.centered {
             justify-content: center;
         }
+
+        &.stacked {
+            flex-direction: column;
+            button {
+                margin: 5px 0;
+                width: 250px;
+            }
+        }
+
     }
+
+    &[data-popup-modal="files"] {
+        #current-path {
+            position: absolute;
+            font-size: 1.2rem;
+            top: 12px;
+            left: 30px;
+            max-width: 570px;
+            text-overflow: ellipsis;
+            overflow: hidden;
+        }
+
+        #file-list {
+            font-size: 1.4em;
+            overflow: auto;
+            height: 200px;
+            padding: 5px 0;
+            a {
+                padding-left: 5px;
+                display: block;
+                cursor: default;
+                i {
+                    width: 30px;
+                    text-align: center;
+                }
+                span {
+                    margin-left: 5px;
+                }
+                &.selected {
+                    background-color: $light-purple;
+                }
+            }
+        }
+    }
+
+    &[data-popup-modal="device-discovery"] {
+        .device-info {
+            margin-top: 5px;
+            width: 100%;
+            border-collapse: collapse;
+            filter: drop-shadow(0px 0px 2px rgba(0,0,0,.5));
+
+            thead tr {
+                background-color: $light-purple;
+                color: #ffffff;
+                text-align: center;
+
+                th {
+                    border-top-left-radius: 5px;
+                    border-top-right-radius: 5px;
+                }
+            }
+
+            th, td {
+                padding: 5px 10px;
+            }
+    
+            tbody {
+                tr {
+                    border-bottom: 1px solid #ddd;
+                    &:nth-of-type(even) {
+                        background-color: #f3f3f3;
+                    }
+                    &:nth-of-type(odd) {
+                        background-color: #fff;
+                    }
+                    &:last-of-type {
+                        border-bottom: 2px solid #aaa;
+                    }
+
+                    td {
+                        &:first-child {
+                            text-align: right;
+                        }
+                    }
+                }
+            }       
+        }
+
+        h3 {
+            margin: 10px auto 5px;
+        }
+
+        #devices {
+            max-width: 500px;
+            font-size: 1.2rem;
+            height: 120px;
+            border: 1px solid #333;
+            text-overflow: ellipsis;
+            overflow-y: scroll;
+
+            a {
+                cursor: pointer;
+            }
+        }
+    }    
 }

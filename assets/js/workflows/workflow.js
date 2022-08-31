@@ -24,6 +24,7 @@ class Workflow {
         this.sleep = sleep;
         this.connectDialog = null;
         this._connected = false;
+        this.currentFilename = null;
     }
 
     async init(params, loaderId) {
@@ -35,6 +36,15 @@ class Workflow {
         if ("terminalTitle" in params) {
             this.terminalTitle = params.terminalTitle;
         }
+    }
+
+    async getDeviceFileContents() {
+        let filename = this.currentFilename;
+        console.log(filename);
+        if (!filename) {
+            return "";
+        }
+        return await this.showBusy(this.fileClient.readFile(this.currentFilename));
     }
 
     async disconnectButtonHandler(e) {
@@ -96,6 +106,19 @@ class Workflow {
 
     writeToTerminal(data) {
         this.terminal.write(data);
+    }
+
+    static getUrlParams() {
+        // This should look for and validate very specific values
+        var hashParams = {};
+        if (location.hash) {
+            location.hash.substr(1).split("&").forEach(function(item) {hashParams[item.split("=")[0]] = item.split("=")[1]});
+        }
+        return hashParams;
+    }
+
+    async showConnect() {
+        return await this.connectDialog.open();
     }
 }
 

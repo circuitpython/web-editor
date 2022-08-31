@@ -95,7 +95,7 @@ class BLEWorkflow extends Workflow {
     async connectToSerial() {
         try {
             this.serialService = await this.bleServer.getPrimaryService(bleNusServiceUUID);
-            // TODO: create a terminal for each serial service
+            // TODO: create a terminal for each serial service (maybe?)
             this.txCharacteristic = await this.serialService.getCharacteristic(bleNusCharTXUUID);
             this.rxCharacteristic = await this.serialService.getCharacteristic(bleNusCharRXUUID);
         
@@ -240,7 +240,7 @@ class BLEWorkflow extends Workflow {
         }
     }
 
-    async parseParams(urlParams) {
+    async parseParams() {
         return false;
     }
 }
