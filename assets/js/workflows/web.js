@@ -195,8 +195,7 @@ class WebWorkflow extends Workflow {
         //let newHost = await FileTransferClient.getRedirectedHost(url.host);
         //deviceLink.setAttribute("device-host", newHost);
         deviceLink.addEventListener("click", (event) => {
-            event.preventDefault();
-            event.stopPropagation();
+            event.stopImmediatePropagation();
             let clickedItem = event.target;
             if (clickedItem.tagName.toLowerCase() != "a") {
                 clickedItem = clickedItem.parentNode;
