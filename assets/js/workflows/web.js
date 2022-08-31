@@ -266,6 +266,10 @@ class WebWorkflow extends Workflow {
         for (const item in hashParams) {
             segments.push(`${item}=${hashParams[item]}`);
         }
+        if (segments.length == 0) {
+            return '';
+        }
+
         return '#'+segments.join('&');
     }
 
