@@ -239,7 +239,6 @@ async function loadWorkflow(workflowType=null) {
         }
     } else {
         console.log("Unload workflow");
-        console.log(workflow);
         if (workflow != null) {
             // Update Workflow specific UI elements
             await workflow.disconnectButtonHandler();

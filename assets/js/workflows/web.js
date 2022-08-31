@@ -192,9 +192,8 @@ class WebWorkflow extends Workflow {
         let p = this.connectDialog.open();
         let modal = this.connectDialog.getModal();
         let deviceLink = modal.querySelector("#device-link");
-        //let newHost = await FileTransferClient.getRedirectedHost(url.host);
-        //deviceLink.setAttribute("device-host", newHost);
         deviceLink.addEventListener("click", (event) => {
+            event.preventDefault();
             event.stopImmediatePropagation();
             let clickedItem = event.target;
             if (clickedItem.tagName.toLowerCase() != "a") {
@@ -211,12 +210,11 @@ class WebWorkflow extends Workflow {
             contents: document,
         };
         let url = `http://${deviceHost}/code/`;
-        let server = WebWorkflow.makeUrl(url, {
+        let server = this.constructor.makeUrl(url, {
             state: encodeURIComponent(JSON.stringify(documentState))
         });
         let oldHost = window.location.host;
         let oldPath = window.location.pathname;
-        console.log(server);
         window.location.href = server;
         let serverUrl = new URL(server);
         if (serverUrl.host == oldHost && serverUrl.pathname == oldPath) {
@@ -271,7 +269,7 @@ class WebWorkflow extends Workflow {
         return '#'+segments.join('&');
     }
 
-    static makeUrl(url, extraParams = []) {
+    static makeUrl(url, extraParams = {}) {
         let urlParams = {
             ...Workflow.getUrlParams(),
             ...extraParams
@@ -282,7 +280,7 @@ class WebWorkflow extends Workflow {
             return new URL(oldUrl.pathname, `http://${location.host}/`) + this.buildHash(urlParams);
         }
 
-        return oldUrl;
+        return new URL(oldUrl) + this.buildHash(urlParams);
     }
     
     static isMdns() {
