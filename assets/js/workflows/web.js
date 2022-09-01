@@ -134,20 +134,11 @@ class WebWorkflow extends Workflow {
         }
     }
 
-    async onConnectButtonClick(e) {
-        try {
-            await this.checkHost();
-            await this.connectToHost(this.host);
-        }
-        catch(error) {
-            console.log('Argh: ' + error);
-            this.debugLog('No device selected. Try to connect to existing.');
-        }
-    }
-
     async connect() {
         await super.connect();
-        await this.checkHost();
+        if (!await this.checkHost()) {
+            return false;
+        }
         return await this.connectToHost(this.host);
     }
 
@@ -155,11 +146,17 @@ class WebWorkflow extends Workflow {
         if (!this.host) {
             this.parseParams();
         }
-
         if (this.host.toLowerCase() == "circuitpython.local") {
-            this.host = await FileTransferClient.getRedirectedHost(this.host);
-            console.log("New Host", this.host);
+            try {
+                this.host = await FileTransferClient.getRedirectedHost(this.host);
+                console.log("New Host", this.host);
+            } catch(e) {
+                console.error("Unable to forward to device. Ensure they are set up and connected to the same local network.");
+                return false;
+            }
         }
+
+        return true;
     }
 
     async onConnected(e) {

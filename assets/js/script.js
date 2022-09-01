@@ -536,7 +536,9 @@ function loadParameterizedContent() {
     if ("state" in urlParams) {
         let documentState = JSON.parse(decodeURIComponent(urlParams["state"]));
         delete urlParams["state"];
-        window.location.hash = WebWorkflow.buildHash(urlParams);
+        let currentURL = new URL(window.location);
+        currentURL.hash = WebWorkflow.buildHash(urlParams);
+        window.history.replaceState({}, '', currentURL);
         return documentState;
     }
     return null;
@@ -607,7 +609,7 @@ document.addEventListener('DOMContentLoaded', async (event) => {
             }
         } else {
             if (!(await workflow.showBusy(workflow.connect()))) {
-                showMessage("Unable to connect");
+                showMessage("Unable to connect. Be sure device is plugged in and set up properly.");
             }
         }
     }
