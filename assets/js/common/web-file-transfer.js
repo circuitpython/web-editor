@@ -183,9 +183,12 @@ class FileTransferClient {
     }
 
     static async getRedirectedHost(host) {
-        let versionResponse = await fetch(`http://${host}/cp/version.json`, {mode: "cors"});
-        if (!versionResponse.ok && versionResponse.redirected) {
-            versionResponse = await fetch(versionResponse.url);
+        let versionResponse;
+        try {
+            versionResponse = await fetch(`http://${host}/cp/version.json`, {mode: "cors"});
+        } catch(error) {
+            console.error(`Host '${host}' not found.`);
+            throw new ProtocolError(`Host '${host}' not found.`);
         }
         return new URL("/", versionResponse.url).host;
     }
