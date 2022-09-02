@@ -418,12 +418,9 @@ async function loadEditor() {
     if (documentState) {
         setFilename(documentState.path);
         loadEditorContents(documentState.contents);
-    } else if (editor.state.doc.length == 0 && await fileHelper.fileExists("/code.py")) {
-        setFilename("/code.py");
-        loadEditorContents(await workflow.getDeviceFileContents());
     } else {
         setFilename(null);
-        loadEditorContents(await workflow.getDeviceFileContents());
+        loadEditorContents("");
     }
 
     unchanged = editor.state.doc.length;
@@ -558,40 +555,6 @@ document.addEventListener('DOMContentLoaded', async (event) => {
             } else {
                 // If not, it should display the available connections
                 await checkConnected();
-
-                // Web Workflow Notes
-                // ------------------------
-                // Possible Entry Points
-                // 1. User goes to /code/ on device
-                //      It is already handled without issue
-                // 2. User goes to https://code.circuitpython.org and clicks Connect -> Web Workflow
-                //      Instructions appear and tell the user to go to http://circuitpython.local/code/
-                //      Perhaps some instructions regarding how to set up the device
-                //      Is there a good way to transfer their work via parameters or a POST???
-                //      What happens when they're redirected to cpy-XXXXXX.local?
-                //          hashtag remains
-                //      Continue to Entry Point 1
-                // 3. User has already connected from Device and clicks Disconect -> Connect -> Web Workflow
-                //      Show the connection options (BLE and Web Workflow for now)
-                //      If user chooses BLE, user should be forwarded to code.circuitpython.org
-                //          Work should be transferred as well
-                //          We don't want to destroy any work they've done at this point,
-                //          but what if they unplugged the device or hit reset?
-                //              It should be in a disconnected state
-                //      If user chooses Web Workflow:
-                //          It connects to last device and
-                //          shows List of any other devices
-                //          If they click one, can we transfer work again like in Entry 2?
-                // 4. They click a link from Device Discovery
-                //      Same as #1 really
-                //
-                // Is there an easier way to allow the user to see other devices?
-                // Perhaps a button that only appears for Web Workflow.
-                // Where is a good place for it? Maybe next to Save As
-                // Device Discovery is the Web Workflow analog to the Web Bluetooth List and Web Serial Device List
-                // Device Info could be shown about each device in the discovery dialog (perhaps a hover?)
-
-                // Device Discovery should be similar to the one on the welcome screen
             }
         });
     });
@@ -612,5 +575,7 @@ document.addEventListener('DOMContentLoaded', async (event) => {
                 showMessage("Unable to connect. Be sure device is plugged in and set up properly.");
             }
         }
+    } else {
+        await checkConnected();
     }
 });
