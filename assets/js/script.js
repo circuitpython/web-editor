@@ -562,7 +562,7 @@ document.addEventListener('DOMContentLoaded', async (event) => {
         await loadWorkflow(backend);
         // If we don't have all the info we need to connect
         if (!workflow.parseParams()) {
-            if (backend == validBackends["web"]) {
+            if (workflow.type === CONNTYPE.Web) {
                 await showMessage("You are connected with localhost, but didn't supply the device hostname.");
             } else {
                 await workflow.showConnect(editor.state.doc.sliceString(0));
@@ -570,6 +570,9 @@ document.addEventListener('DOMContentLoaded', async (event) => {
         } else {
             if (!(await workflow.showBusy(workflow.connect()))) {
                 showMessage("Unable to connect. Be sure device is plugged in and set up properly.");
+            } else if (workflow.type === CONNTYPE.Web) {
+                // We're connected, local, and using Web Workflow
+                await workflow.showInfo(editor.state.doc.sliceString(0));
             }
         }
     } else {
