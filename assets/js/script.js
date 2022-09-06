@@ -418,9 +418,6 @@ async function loadEditor() {
     if (documentState) {
         setFilename(documentState.path);
         loadEditorContents(documentState.contents);
-    } else {
-        setFilename(null);
-        loadEditorContents("");
     }
 
     unchanged = editor.state.doc.length;
