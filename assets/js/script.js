@@ -148,7 +148,9 @@ async function checkConnected() {
         // Connect if we're local
         let isLocal = WebWorkflow.isLocal();
         if (isLocal && workflow.host) {
-            await workflow.showBusy(workflow.connect());
+            if (await workflow.showBusy(workflow.connect())) {
+                await checkReadOnly();
+            }
         }
 
         if (!workflow.connectionStatus()) {
@@ -403,17 +405,6 @@ window.addEventListener("resize", fixViewportHeight);
 
 async function loadEditor() {
     fileHelper = new FileHelper(workflow);
-    const readOnly = await fileHelper.readOnly();
-    btnSaveAs.forEach((element) => {
-        element.disabled = readOnly;
-    });
-    btnSaveRun.forEach((element) => {
-        element.disabled = readOnly;
-    });
-    if (readOnly) {
-        await showMessage("Warning: File System is in read only mode. Disable the USB drive to allow write access.");
-    }
-
     let documentState = loadParameterizedContent();
     if (documentState) {
         setFilename(documentState.path);
@@ -424,6 +415,19 @@ async function loadEditor() {
     //console.log("doc length", unchanged);
     updateUIConnected(true);
     await changeMode(MODE_EDITOR);
+}
+
+async function checkReadOnly() {
+    const readOnly = await fileHelper.readOnly();
+    btnSaveAs.forEach((element) => {
+        element.disabled = readOnly;
+    });
+    btnSaveRun.forEach((element) => {
+        element.disabled = readOnly;
+    });
+    if (readOnly) {
+        await showMessage("Warning: File System is in read only mode. Disable the USB drive to allow write access.");
+    }
 }
 
 var editor;
@@ -571,6 +575,7 @@ document.addEventListener('DOMContentLoaded', async (event) => {
             if (!(await workflow.showBusy(workflow.connect()))) {
                 showMessage("Unable to connect. Be sure device is plugged in and set up properly.");
             } else if (workflow.type === CONNTYPE.Web) {
+                await checkReadOnly();
                 // We're connected, local, and using Web Workflow
                 await workflow.showInfo(editor.state.doc.sliceString(0));
             }
