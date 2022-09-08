@@ -304,7 +304,7 @@ class DiscoveryModal extends GenericModal {
         ip.textContent = deviceInfo.ip;
     }
 
-    async _findDevices() {
+    async _refreshDevices() {
         const otherDevices = await this._showBusy(this._fileHelper.otherDevices());
         let newDevices = [];
         if (otherDevices.total == 0) {
@@ -331,7 +331,7 @@ class DiscoveryModal extends GenericModal {
         }
         this._currentModal.querySelector("#devices").replaceChildren(...newDevices);
     }
-    
+
     async open(workflow, document) {
         this._workflow = workflow;
         this._fileHelper = workflow.fileClient;
@@ -341,8 +341,12 @@ class DiscoveryModal extends GenericModal {
         let p = super.open();
         const okButton = this._currentModal.querySelector("button.ok-button");
         this._addDialogElement('okButton', okButton, 'click', this._closeModal);
+
+        const refreshIcon = this._currentModal.querySelector("i.refresh");
+        this._addDialogElement('refreshIcon', refreshIcon, 'click', this._refreshDevices);
+
         await this._getDeviceInfo();
-        await this._findDevices();
+        await this._refreshDevices();
         return p;
     }
 }
