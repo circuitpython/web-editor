@@ -337,6 +337,14 @@
 
         h3 {
             margin: 10px auto 5px;
+            i {
+                margin-left: 10px;
+                cursor: pointer;
+
+                &:hover {
+                    color: $purple;
+                }
+            }
         }
 
         #devices {
