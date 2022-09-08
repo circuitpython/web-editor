@@ -169,6 +169,16 @@ class WebWorkflow extends Workflow {
             clearInterval(this.connIntervalId);
             this.connIntervalId = null;
         }
+
+        if (this.websocket) {
+            if (!reconnect) {
+                // Prevent this function from called again when WebSocket is closed
+                this.websocket.onclose = () => {};
+                this.websocket.close();
+            }
+            this.websocket = null;
+        }
+
         await super.onDisconnected(e, reconnect);
     }
 
@@ -232,7 +242,6 @@ class WebWorkflow extends Workflow {
             );                
         } catch (error) {
             console.log("Ping timed out. Closing connection.");
-            //this.websocket.close();
             await this.onDisconnected(null, false);
         }
     }
