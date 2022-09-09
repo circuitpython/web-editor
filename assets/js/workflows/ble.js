@@ -32,7 +32,7 @@ class BLEWorkflow extends Workflow {
     }
 
     async init(params) {
-        await super.init(params, "ble-loader");
+        await super.init(params);
         this.loadEditor = params.loadEditorFunc;
         if (navigator.bluetooth) {
             btnRequestBluetoothDevice.addEventListener('click', async function(e) {
