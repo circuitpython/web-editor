@@ -29,7 +29,7 @@ class WebWorkflow extends Workflow {
     }
 
     async init(params) {
-        await super.init(params, "web-loader");
+        await super.init(params);
         document.getElementById('terminal-title');
     }
 

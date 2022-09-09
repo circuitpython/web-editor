@@ -109,13 +109,11 @@
             </div>
         </div>
 
-        <!-- Workflow Loading Animations -->
-        <div class="loader" id="ble-loader"><div><img src="assets/images/loading-bluetooth.gif" alt="BLE Loading Animation" height="100" width="100"></div></div>
-        <div class="loader" id="web-loader"><div><img src="assets/images/loading-web.gif" alt="Web Loading Animation" height="100" width="100"></div></div>
-        <div class="loader" id="usb-loader"><div><img src="assets/images/loading-usb.gif" alt="USB Loading Animation" height="100" width="100"></div></div>
+        <!-- Loading Animation -->
+        <div class="loader" id="loader"><div><img src="assets/images/loading-blinka.gif" alt="Loading Animation" height="100" width="100"></div></div>
 
         <!-- Dialog Box Templates -->
-        <div class="popup-modal shadow file-dialog" data-popup-modal="files">
+        <div class="popup-modal shadow file-dialog closable" data-popup-modal="files">
             <div class="buttons">
                 <button id="del-button" title="Delete" class="purple-button"><i class="fas fa-trash-alt"></i></button>
                 <button id="rename-button" title="Rename" class="purple-button"><i class="fas fa-pencil-alt"></i></button>
@@ -132,7 +130,7 @@
                 <button class="purple-button cancel-button">Cancel</button>
             </div>
         </div>
-        <div class="popup-modal shadow prompt" data-popup-modal="unsaved">
+        <div class="popup-modal shadow prompt closable" data-popup-modal="unsaved">
             <div id="message"></div>
             <div class="buttons">
                 <button class="purple-button ok-button">Save</button>
@@ -140,11 +138,14 @@
                 <button class="purple-button cancel-button">Cancel</button>
             </div>
         </div>
-        <div class="popup-modal shadow prompt" data-popup-modal="upload-type">
-            <button id="upload-files" class="purple-button files-button">Upload Files<i class="fas fa-file"></i></button>
-            <button id="upload-folders" class="purple-button folders-button" disabled>Upload Folders<i class="fas fa-folder-closed"></i></button>
+        <div class="popup-modal shadow prompt closable" data-popup-modal="upload-type">
+            <div id="message"></div>
+            <div class="buttons stacked">
+                <button id="upload-files" class="purple-button files-button" value="files">Upload Files <i class="fas fa-file"></i></button>
+                <button id="upload-folders" class="purple-button folders-button" value="folders">Upload Folders <i class="fas fa-folder"></i></button>
+            </div>
         </div>
-        <div class="popup-modal shadow prompt" data-popup-modal="connection-type">
+        <div class="popup-modal shadow prompt closable" data-popup-modal="connection-type">
             <div id="message"></div>
             <div class="buttons stacked">
                 <button id="web-workflow" class="purple-button files-button" value="web">WiFi <i class="fas fa-wifi"></i></button>
@@ -152,17 +153,18 @@
                 <button id="usb-workflow" class="purple-button files-button" value="usb">USB <i class="fab fa-usb"></i></button>
             </div>
         </div>
-        <div class="popup-modal shadow prompt" data-popup-modal="message">
+        <div class="popup-modal shadow prompt closable" data-popup-modal="message">
             <div id="message"></div>
             <div class="buttons centered">
                 <button class="purple-button ok-button">Ok</button>
             </div>
         </div>
         <div class="popup-modal shadow prompt" data-popup-modal="progress">
+            <div class="label centered" id="status"></div>
             <div class="label centered" id="percentage"></div>
             <progress value="0"></progress>
         </div>
-        <div class="popup-modal shadow connect-dialog" data-popup-modal="ble-connect">
+        <div class="popup-modal shadow connect-dialog closable" data-popup-modal="ble-connect">
             <i class="fas fa-2x fa-times text-white bg-primary p-3 popup-modal__close"></i>
             <div id="ble-instructions" class="connection-layout content">
                 <p>If you are connecting to a new device, follow the steps below. Otherwise click the Reconnect button.</p>
@@ -223,7 +225,7 @@
                 </section>
             </div>
         </div>
-        <div class="popup-modal shadow connect-dialog" data-popup-modal="web-connect">
+        <div class="popup-modal shadow connect-dialog closable" data-popup-modal="web-connect">
             <i class="fas fa-2x fa-times text-white bg-primary p-3 popup-modal__close"></i>
             <div id="web-instructions" class="connection-layout content">
                 <section class="step">
@@ -262,7 +264,7 @@
                 </section>
             </div>
         </div>       
-        <div class="popup-modal shadow" data-popup-modal="device-discovery">
+        <div class="popup-modal shadow closable" data-popup-modal="device-discovery">
             <i class="fas fa-2x fa-times text-white bg-primary p-3 popup-modal__close"></i>
             <table class="device-info">
                 <thead>
@@ -289,7 +291,7 @@
                     </tr>
                 </tbody>
             </table>            
-            <h3>More network devices<i class="refresh fas fa-sync-alt"></i></h3>
+            <h3>More network devices<i class="refresh fas fa-sync-alt" title="Refresh Device List"></i></h3>
             <div id="devices"></div>               
             <div class="buttons centered">
                 <button class="purple-button ok-button">Close</button>

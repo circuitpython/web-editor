@@ -27,12 +27,12 @@ class Workflow {
         this.currentFilename = null;
     }
 
-    async init(params, loaderId) {
+    async init(params) {
         this.terminal = params.terminal;
         this.debugLog = params.debugLogFunc;
         this.disconnectCallback = params.disconnectFunc;
         this.loadEditor = params.loadEditorFunc;
-        this.loader = document.getElementById(loaderId);
+        this.loader = document.getElementById("loader");
         if ("terminalTitle" in params) {
             this.terminalTitle = params.terminalTitle;
         }
@@ -88,8 +88,13 @@ class Workflow {
         this._connected = isConnected;
     }
 
-    async showBusy(functionPromise) {
+    async showBusy(functionPromise, darkBackground=true) {
         if (this.loader) {
+            if (darkBackground) {
+                this.loader.classList.add("overlay");
+            } else {
+                this.loader.classList.remove("overlay");
+            }
             this.loader.classList.add("busy");
         }
         let result = await functionPromise;

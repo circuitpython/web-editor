@@ -100,16 +100,22 @@ class GenericModal {
             bodyBlackout.style.top = `${window.scrollY}px`;
         }
 
-        modalLayers.push(modal);
+        modalLayers.push(this);
         this._modalLayerId = modalLayers.length;
         modal.style.zIndex = BLACKOUT_ZINDEX + 1 + (this._modalLayerId * 2);
 
-        if (modalLayers.length > 1) {
+        if (modalLayers.length >= 2) {
             // Then we will make it so the clickblock layer appears
             const clickBlock = document.querySelector(SELECTOR_CLICKBLOCK);
             if (clickBlock) {
                 clickBlock.classList.add('is-blacked-out');
-                clickBlock.style.zIndex = modal.style.zIndex - 1
+                clickBlock.style.zIndex = modal.style.zIndex - 1;
+                // Remove any existing events from clickblock
+                const topmostDialog = modalLayers[modalLayers.length - 2];
+                clickBlock.removeEventListener("click", topmostDialog.close.bind(topmostDialog));
+                if (modal.classList.contains("closable")) {
+                    clickBlock.addEventListener("click", this.close.bind(this));
+                }
             }
         }
         document.body.appendChild(modal);
@@ -133,10 +139,16 @@ class GenericModal {
                 } else {
                     // Move click block just underneath topmost layer
                     clickBlock.style.zIndex = modalLayers[modalLayers.length - 1].style.zIndex - 1
+                    clickBlock.removeEventListener("click", this.close.bind(this));
+                    // if the topmost modal has the closable class then:
+                    if (modal.getModal().classList.contains("closable")) {
+                    // Clickblock needs to have a click event added that will close the top most dialog
+                        clickBlock.addEventListener("click", modal.close.bind(modal));
+                    }
                 }
             }
         }
-        modal.remove();
+        modal.getModal().remove();
     }
 
     _openModal() {
@@ -220,8 +232,12 @@ class ProgressDialog extends GenericModal {
         while(!this.isVisible()) {
             await sleep(10);
         }
-        this.setPercentage(0);
+        await this.setPercentage(0);
         return p;
+    }
+
+    setStatus(message) {
+        this._currentModal.querySelector("#status").innerHTML = message;
     }
 
     setPercentage(percentage) {
@@ -419,7 +435,7 @@ class FileDialog extends GenericModal {
         this._addDialogElement('downloadButton', downloadButton, 'click', this._handleDownloadButton);
         const uploadButton = this._currentModal.querySelector("#upload-button");
         uploadButton.disabled = this._readOnlyMode;
-        this._addDialogElement('uploadButton', uploadButton, 'click', this._handleUploadFilesButton);
+        this._addDialogElement('uploadButton', uploadButton, 'click', this._handleUploadButton);
         const newFolderButton = this._currentModal.querySelector("#new-folder-button");
         newFolderButton.disabled = this._readOnlyMode;
         this._addDialogElement('newFolderButton', newFolderButton, 'click', this._handleNewFolderButton);
@@ -599,12 +615,44 @@ class FileDialog extends GenericModal {
         await this._openFolder();
     };
 
-    async _handleUploadFilesButton() {
+    async _handleUploadButton() {
+        if (this._readOnlyMode) return;
+
+        const uploadTypeDialog = new ButtonValueDialog("upload-type");
+        const uploadType = await uploadTypeDialog.open();
+
+        if (uploadType == "files") {
+            await this._upload(false);
+        } else if (uploadType == "folders") {
+            await this._upload(true);
+        }
+    }
+
+    round(number, decimalPlaces) {
+        if (decimalPlaces < 1) {
+            return Math.round(number);
+        }
+
+        return Math.round(number * (decimalPlaces * 10)) / (decimalPlaces * 10);
+    }
+
+    prettySize(filesize) {
+        const units = ["Bytes", "KB", "MB", "GB"];
+        let unitIndex = 0;
+        while (filesize > 1024 && unitIndex < units.length) {
+            unitIndex += 1;
+            filesize /= 1024;
+        }
+        return `${this.round(filesize, 1)} ${units[unitIndex]}`;
+    }
+
+    async _upload(onlyFolders=false) {
         if (this._readOnlyMode) return;
 
         let input = document.createElement('input');
         input.type = 'file';
         input.multiple = true;
+        input.webkitdirectory = onlyFolders;
         input.addEventListener('change', async (event) => {
             const readUploadedFileAsArrayBuffer = (inputFile) => {
                 const reader = new FileReader();
@@ -624,13 +672,24 @@ class FileDialog extends GenericModal {
             let files = Array.from(input.files);
             let totalBytes = 0;
             let bytesCompleted = 0;
-            for(let file of files) {
+            for(let file of files) {             
                 totalBytes += file.size;
             }
 
+            let madeDirs = new Set();
             this._progressDialog.open();
-            for(let file of files) {
+            for(let [index, file] of files.entries()) {
                 let filename = file.name;
+                if (file.webkitRelativePath) {
+                    filename = file.webkitRelativePath;
+                    let parentDir = filename.split("/").slice(0, -1).join("/");
+                    if (!madeDirs.has(parentDir)) {
+                        this._progressDialog.setStatus(`Creating Folder ${parentDir}...`);
+                        await this._fileHelper.makeDir(this._currentPath + parentDir);
+                        await this._openFolder();
+                        madeDirs.add(parentDir);
+                    }
+                }
                 bytesCompleted += file.size;
                 if (this._nameExists(filename) && !confirm(`${filename} already exists. Overwrite?`)) {
                     this._progressDialog.setPercentage(bytesCompleted / totalBytes * 100);
@@ -638,14 +697,14 @@ class FileDialog extends GenericModal {
                 }
 
                 let contents = await readUploadedFileAsArrayBuffer(file);
-
-                await this._fileHelper.writeFile(
+                this._progressDialog.setStatus(`Uploading file ${filename} (${this.prettySize(file.size)})...`);
+                await this._showBusy(this._fileHelper.writeFile(
                     this._currentPath + filename,
                     0,
                     contents,
                     file.lastModified,
                     true
-                );
+                ), false);
                 this._progressDialog.setPercentage(bytesCompleted / totalBytes * 100);
             };
             this._progressDialog.close();
