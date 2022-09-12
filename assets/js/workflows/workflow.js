@@ -1,4 +1,6 @@
 import {sleep, timeout} from '../common/utilities.js';
+import {FileHelper} from '../common/file.js'
+import {UnsavedDialog, FileDialog, FILE_DIALOG_OPEN, FILE_DIALOG_SAVE} from '../common/dialogs.js';
 
 /*
  * This class will encapsulate all of the common workflow-related functions 
@@ -10,6 +12,10 @@ const CONNTYPE = {
     Usb: 3,
     Web: 4
 }
+
+const CHAR_CTRL_C = '\x03';
+const CHAR_CTRL_D = '\x04';
+const CHAR_CRLF = '\x0a\x0d';
 
 class Workflow {
     constructor() {
@@ -25,6 +31,9 @@ class Workflow {
         this.connectDialog = null;
         this._connected = false;
         this.currentFilename = null;
+        this._fileHelper = null;
+        this._unsavedDialog = new UnsavedDialog("unsaved");
+        this._fileDialog = new FileDialog("files", this.showBusy);
     }
 
     async init(params) {
@@ -32,11 +41,20 @@ class Workflow {
         this.debugLog = params.debugLogFunc;
         this.disconnectCallback = params.disconnectFunc;
         this.loadEditor = params.loadEditorFunc;
+        this._isDirty = params.isDirtyFunc;
+        this._setFilename = params.setFilenameFunc;
+        this._writeText = params.writeTextFunc;
+        this._loadEditorContents = params.loadEditorContentsFunc;
         this.loader = document.getElementById("loader");
         if ("terminalTitle" in params) {
             this.terminalTitle = params.terminalTitle;
         }
         this.currentFilename = params.currentFilename;
+    }
+
+    async initFileClient(fileClient) {
+        this.fileClient = fileClient;
+        this._fileHelper = new FileHelper(fileClient, this.showBusy.bind(this));
     }
 
     async getDeviceFileContents() {
@@ -113,18 +131,107 @@ class Workflow {
         this.terminal.write(data);
     }
 
-    static getUrlParams() {
-        // This should look for and validate very specific values
-        var hashParams = {};
-        if (location.hash) {
-            location.hash.substr(1).split("&").forEach(function(item) {hashParams[item.split("=")[0]] = item.split("=")[1]});
-        }
-        return hashParams;
-    }
-
     async showConnect() {
         return await this.connectDialog.open();
     }
+
+    async runCode() {
+        let path = this.currentFilename;
+
+        if (!path) {
+            console.log("File has not been saved")
+            return;
+        }
+
+        if (path == "/code.py") {
+            await this.serialTransmit(CHAR_CTRL_D);
+        }
+    
+        let extension = path.split('.').pop();
+        if (extension === null) {
+            console.log("Extension not found");
+            return false;
+        }
+        if (String(extension).toLowerCase() != "py") {
+            console.log("Extension not py, twas " + String(extension).toLowerCase());
+            return false;
+        }
+        path = path.substr(1, path.length - 4);
+        path = path.replace(/\//g, ".");
+    
+        await changeMode(MODE_SERIAL);
+        await this.serialTransmit(CHAR_CTRL_C + "import " + path + CHAR_CRLF);
+    }
+
+    async checkSaved() {
+        if (this._isDirty()) {
+            let result = await this._unsavedDialog.open("Current changes will be lost. Do you want to save?");
+            if (result !== null) {
+                if (!result || await this.saveFile()) {
+                    return true;
+                }
+            }
+            return false;
+        }
+        return true;
+    }
+
+    async saveFile(path) {
+        const previousFile = this.currentFilename;
+        if (path !== undefined) {
+            // All good, continue
+        } else if (this.currentFilename !== null) {
+            path = this.currentFilename;
+        } else {
+            path = await this.saveAs();
+        }
+        if (path !== null) {
+            this._setFilename(path);
+            // If this is a different file, we write everything
+            await this._writeText(path !== previousFile ? 0 : null);
+            return true;
+        }
+        return false;
+    }
+    
+    async saveAs() {
+        let path = await this._fileDialog.open(this._fileHelper, FILE_DIALOG_SAVE);
+        if (path !== null) {
+            // check if filename exists
+            if (path != this.currentFilename && await this._fileHelper.fileExists(path)) {
+                if (window.confirm("Overwrite existing file '" + path + "'?")) {
+                    await this.saveFile(path);
+                } else {
+                    return null;
+                }
+            } else {
+                await this.saveFile(path);
+            }
+        }
+        return path;
+    }
+
+    async openFile() {
+        if (await this.checkSaved()) {
+            let path = await this._fileDialog.open(this._fileHelper, FILE_DIALOG_OPEN);
+            if (path !== null) {
+                let contents = await this.showBusy(this._fileHelper.readFile(path));
+                this._loadEditorContents(contents);
+                this._setFilename(path);
+                console.log("Current File Changed to: " + this.currentFilename);
+            }
+        }
+    }
+
+    async writeFile(contents, offset=0) {
+        await this.showBusy(
+            this._fileHelper.writeFile(this.currentFilename, offset, contents)
+        );
+    }
+
+    async readOnly() {
+        return await this._fileHelper.readOnly()
+    }
 }
 
-export {Workflow, CONNTYPE};
+export {Workflow, CHAR_CTRL_C, CHAR_CTRL_D, CHAR_CRLF, CONNTYPE};

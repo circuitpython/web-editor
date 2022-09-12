@@ -1,5 +1,4 @@
-import {sleep} from './utilities.js'
-import {WebWorkflow} from '../workflows/web.js'
+import {sleep, isIp} from './utilities.js'
 
 const FILE_DIALOG_OPEN = 1;
 const FILE_DIALOG_SAVE = 2;
@@ -331,7 +330,7 @@ class DiscoveryModal extends GenericModal {
             for (let device of otherDevices.devices) {
                 let a = document.createElement("a");
                 let port = `${device.port != 80 ? ':' + device.port : ''}`;
-                let server = WebWorkflow.isIp() ? device.ip : device.hostname + ".local";
+                let server = isIp() ? device.ip : device.hostname + ".local";
                 a.setAttribute("device-host", `${server}${port}`);
                 a.addEventListener("click", (event) => {
                     let clickedItem = event.target;

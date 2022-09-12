@@ -153,7 +153,7 @@ class BLEWorkflow extends Workflow {
         console.log(services);
     
         console.log('Initializing File Transfer Client...');
-        this.fileClient = new FileTransferClient(this.bleDevice, 65536);
+        this.initFileClient(new FileTransferClient(this.bleDevice, 65536));
         this.debugLog("connected");
         await this.connectToSerial();
     

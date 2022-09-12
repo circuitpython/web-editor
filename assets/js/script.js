@@ -3,10 +3,9 @@ import {python} from "../../_snowpack/pkg/@codemirror/lang-python.js"
 import {classHighlightStyle} from "../../_snowpack/pkg/@codemirror/highlight.js"
 import {BLEWorkflow} from './workflows/ble.js'
 import {WebWorkflow} from './workflows/web.js'
-import {CONNTYPE, Workflow} from './workflows/workflow.js'
-import {FileDialog, ButtonValueDialog, UnsavedDialog, MessageModal, FILE_DIALOG_OPEN, FILE_DIALOG_SAVE} from './common/dialogs.js';
-import {FileHelper} from './common/file.js'
-import {sleep} from './common/utilities.js'
+import {CONNTYPE, CHAR_CTRL_D} from './workflows/workflow.js'
+import {ButtonValueDialog, MessageModal} from './common/dialogs.js';
+import {sleep, buildHash, isLocal, getUrlParams} from './common/utilities.js'
 
 var terminal;
 var fitter;
@@ -38,13 +37,7 @@ const terminalTitle = document.getElementById('terminal-title');
 
 const MODE_EDITOR = 1;
 const MODE_SERIAL = 2;
-const CHAR_CTRL_C = '\x03';
-const CHAR_CTRL_D = '\x04';
-const CHAR_CRLF = '\x0a\x0d';
-var fileDialog = null;
-var fileHelper = null;
 
-const unsavedDialog = new UnsavedDialog("unsaved");
 const messageDialog = new MessageModal("message");
 const connectionType = new ButtonValueDialog("connection-type");
 
@@ -62,9 +55,8 @@ btnNew.forEach((element) => {
         e.preventDefault();
         e.stopPropagation();
         await checkConnected();
-        if (await checkSaved()) {
+        if (await workflow.checkSaved()) {
             loadEditorContents("");
-            unchanged = editor.state.doc.length;
             setFilename(null);
             console.log("Current File Changed to: " + workflow.currentFilename);
         }
@@ -77,16 +69,7 @@ btnOpen.forEach((element) => {
         e.preventDefault();
         e.stopPropagation();
         await checkConnected();
-        if (await checkSaved()) {
-            let path = await fileDialog.open(fileHelper, FILE_DIALOG_OPEN);
-            if (path !== null) {
-                let contents = await workflow.showBusy(fileHelper.readFile(path));
-                loadEditorContents(contents);
-                unchanged = editor.state.doc.length;
-                setFilename(path);
-                console.log("Current File Changed to: " + workflow.currentFilename);
-            }
-        }
+        await workflow.openFile();
     });
 });
 
@@ -96,7 +79,7 @@ btnSaveAs.forEach((element) => {
         e.preventDefault();
         e.stopPropagation();
         await checkConnected();
-        let path = await saveAs();
+        let path = await workflow.saveAs();
         if (path !== null) {
             console.log("Current File Changed to: " + workflow.currentFilename);
         }
@@ -109,8 +92,9 @@ btnSaveRun.forEach((element) => {
         e.preventDefault();
         e.stopPropagation();
         await checkConnected();
-        await saveFile();
-        await runCode(workflow.currentFilename);
+        if (await workflow.saveFile()) {
+            await workflow.runCode();
+        }
     });
 });
 
@@ -136,8 +120,7 @@ btnInfo.addEventListener('click', async function(e) {
 });
 
 async function checkConnected() {
-    let connected = workflow != null && workflow.connectionStatus();
-    if (!connected) {
+    if (!workflow || !workflow.connectionStatus()) {
         let connType = await chooseConnection();
         // For now just connect to last workflow
         if (!connType) {
@@ -146,8 +129,7 @@ async function checkConnected() {
         await loadWorkflow(connType);
 
         // Connect if we're local
-        let isLocal = WebWorkflow.isLocal();
-        if (isLocal && workflow.host) {
+        if (isLocal() && workflow.host) {
             if (await workflow.showBusy(workflow.connect())) {
                 await checkReadOnly();
             }
@@ -163,17 +145,19 @@ async function checkConnected() {
     }
 }
 
+/* Update the filename and update the UI */
 function setFilename(path) {
+    let filename = path;
     if (path === null) {
-        path = "[New Document]";
+        filename = "[New Document]";
     } else if (!workflow) {
         throw Error("Unable to set path when no workflow is loaded");
     }
     if (workflow) {
         workflow.currentFilename = path;
     }
-    document.querySelector('#editor-bar .file-path').innerHTML = path;
-    document.querySelector('#mobile-editor-bar .file-path').innerHTML = path.split("/")[path.split("/").length - 1];
+    document.querySelector('#editor-bar .file-path').innerHTML = filename;
+    document.querySelector('#mobile-editor-bar .file-path').innerHTML = path === null ? filename : filename.split("/")[filename.split("/").length - 1];
 }
 
 async function chooseConnection() {
@@ -233,9 +217,12 @@ async function loadWorkflow(workflowType=null) {
                 loadEditorFunc: loadEditor,
                 debugLogFunc: debugLog,
                 disconnectFunc: disconnectCallback,
+                isDirtyFunc: isDirty,
+                setFilenameFunc: setFilename,
+                writeTextFunc: writeText,
+                loadEditorContentsFunc: loadEditorContents,
                 currentFilename: currentFilename,
             });
-            fileDialog = new FileDialog("files", workflow.showBusy.bind(workflow));
         } else {
             console.log("Reload workflow");
         }
@@ -247,8 +234,6 @@ async function loadWorkflow(workflowType=null) {
         }
         // Unload whatever
         workflow = null;
-        fileDialog = null;
-        fileHelper = null;
     }
 }
 
@@ -263,84 +248,14 @@ function loadEditorContents(content) {
         doc: content,
         extensions: editorExtensions
     }));
+    unchanged = editor.state.doc.length;
+    //console.log("doc length", unchanged);
 }
+
 setFilename(null);
-
-async function runCode(path) {
-    if (path == "/code.py") {
-        await workflow.serialTransmit(CHAR_CTRL_D);
-    }
-
-    let extension = path.split('.').pop();
-    if (extension === null) {
-        console.log("Extension not found");
-        return false;
-    }
-    if (String(extension).toLowerCase() != "py") {
-        console.log("Extension not py, twas " + String(extension).toLowerCase());
-        return false;
-    }
-    path = path.substr(1, path.length - 4);
-    path = path.replace(/\//g, ".");
-
-    await changeMode(MODE_SERIAL);
-    await workflow.serialTransmit(CHAR_CTRL_C + "import " + path + CHAR_CRLF);
-}
 
 async function showMessage(message) {
     return await messageDialog.open(message);
-}
-
-async function checkSaved() {
-    if (isDirty()) {
-        await checkConnected();
-        let result = await unsavedDialog.open("Current changes will be lost. Do you want to save?");
-        if (result !== null) {
-            if (!result || await saveFile()) {
-                return true;
-            }
-        }
-        return false;
-    }
-    return true;
-}
-
-async function saveFile(path) {
-    const previousFile = workflow.currentFilename;
-    if (path !== undefined) {
-        // All good, continue
-    } else if (workflow.currentFilename !== null) {
-        path = workflow.currentFilename;
-    } else {
-        path = await saveAs();
-    }
-    if (path !== null) {
-        if (path !== previousFile) {
-            // This is a different file, so we write everything
-            unchanged = 0;
-        }
-        setFilename(path);
-        await writeText();
-        return true;
-    }
-    return false;
-}
-
-async function saveAs() {
-    let path = await fileDialog.open(fileHelper, FILE_DIALOG_SAVE);
-    if (path !== null) {
-        // check if filename exists
-        if (path != workflow.currentFilename && await fileHelper.fileExists(path)) {
-            if (window.confirm("Overwrite existing file '" + path + "'?")) {
-                await saveFile(path);
-            } else {
-                return null;
-            }
-        } else {
-            await saveFile(path);
-        }
-    }
-    return path;
 }
 
 async function changeMode(mode) {
@@ -358,8 +273,6 @@ async function changeMode(mode) {
         fitter.fit();
     }
 }
-
-var connected = false;
 
 async function debugLog(msg) {
     terminal.write(`\x1b[93m${msg}\x1b[m\n`);
@@ -383,7 +296,6 @@ function updateUIConnected(isConnected) {
         });
         btnInfo.disabled = true;
     }
-    connected = isConnected;
 }
 
 function fixViewportHeight() {
@@ -404,21 +316,18 @@ fixViewportHeight();
 window.addEventListener("resize", fixViewportHeight);
 
 async function loadEditor() {
-    fileHelper = new FileHelper(workflow);
     let documentState = loadParameterizedContent();
     if (documentState) {
         setFilename(documentState.path);
         loadEditorContents(documentState.contents);
     }
 
-    unchanged = editor.state.doc.length;
-    //console.log("doc length", unchanged);
     updateUIConnected(true);
     await changeMode(MODE_EDITOR);
 }
 
 async function checkReadOnly() {
-    const readOnly = await fileHelper.readOnly();
+    const readOnly = await workflow.readOnly();
     btnSaveAs.forEach((element) => {
         element.disabled = readOnly;
     });
@@ -432,13 +341,12 @@ async function checkReadOnly() {
 
 var editor;
 var currentTimeout = null;
-async function writeText() {
+async function writeText(writeFrom = null) {
     if (workflow.partialWrites) {
         console.log("sync starting at", unchanged, "to", editor.state.doc.length);
     }
-    if (!fileHelper) {
-        console.log("no file client");
-        return;
+    if (writeFrom !== null) {
+        unchanged = writeFrom;
     }
     let encoder = new TextEncoder();
     let doc = editor.state.doc;
@@ -455,7 +363,7 @@ async function writeText() {
     unchanged = doc.length;
     try {
         console.log("write");
-        await workflow.showBusy(fileHelper.writeFile(workflow.currentFilename, offset, contents));
+        await workflow.writeFile(contents, offset);
     } catch (e) {
         console.log("write failed", e, e.stack);
         unchanged = Math.min(oldUnchanged, unchanged);
@@ -522,7 +430,7 @@ function setupXterm() {
 
 // TODO: Check parameters if on code.circuitpython.org for #backend
 function getBackend() {
-    if (WebWorkflow.isLocal()) {
+    if (isLocal()) {
         return validBackends["web"];
     }
 
@@ -530,12 +438,12 @@ function getBackend() {
 }
 
 function loadParameterizedContent() {
-    let urlParams = Workflow.getUrlParams();
+    let urlParams = getUrlParams();
     if ("state" in urlParams) {
         let documentState = JSON.parse(decodeURIComponent(urlParams["state"]));
         delete urlParams["state"];
         let currentURL = new URL(window.location);
-        currentURL.hash = WebWorkflow.buildHash(urlParams);
+        currentURL.hash = buildHash(urlParams);
         window.history.replaceState({}, '', currentURL);
         return documentState;
     }
