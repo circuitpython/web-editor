@@ -1,6 +1,8 @@
-import {EditorState, EditorView, basicSetup} from "../../_snowpack/pkg/@codemirror/basic-setup.js"
+import {EditorView, basicSetup} from "../../_snowpack/pkg/codemirror.js"
+import {EditorState} from "../../_snowpack/pkg/@codemirror/state.js"
 import {python} from "../../_snowpack/pkg/@codemirror/lang-python.js"
-import {classHighlightStyle} from "../../_snowpack/pkg/@codemirror/highlight.js"
+import {classHighlighter} from "../../_snowpack/pkg/@lezer/highlight.js";
+import {syntaxHighlighting} from "../../_snowpack/pkg/@codemirror/language.js"
 import {BLEWorkflow} from './workflows/ble.js'
 import {WebWorkflow} from './workflows/web.js'
 import {CONNTYPE, CHAR_CTRL_D} from './workflows/workflow.js'
@@ -46,7 +48,7 @@ const editorExtensions = [
     basicSetup,
     python(),
     editorTheme,
-    classHighlightStyle,
+    syntaxHighlighting(classHighlighter),
     EditorView.updateListener.of(onTextChange)
 ]
 // New Buttons (Mobile and Desktop Layout)
