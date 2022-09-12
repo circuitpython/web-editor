@@ -5,6 +5,7 @@
 import {FileTransferClient} from '../common/web-file-transfer.js';
 import {Workflow, CONNTYPE} from './workflow.js'
 import {GenericModal, DiscoveryModal} from '../common/dialogs.js';
+import {isTestHost, isMdns, isIp, makeUrl, getUrlParams} from '../common/utilities.js';
 
 const CHAR_TITLE_START = "\x1b]0;";
 const CHAR_TITLE_END = "\x1b\\";
@@ -90,15 +91,15 @@ class WebWorkflow extends Workflow {
 
     async connectToHost(host) {
         let success;
-        try {
+        //try {
             console.log('Initializing File Transfer Client...');
-            this.fileClient = new FileTransferClient(host, this.connectionStatus.bind(this));
+            this.initFileClient(new FileTransferClient(host, this.connectionStatus.bind(this)));
             await this.fileClient.listDir('/');
             success = await this.initSerial(host);
-        } catch(error) {
+        /*} catch(error) {
             console.log("Device not found");
             return false;
-        }
+        }*/
         // Wait for a connection with a timeout
         console.log("Waiting for connection...");
         try {
@@ -217,7 +218,7 @@ class WebWorkflow extends Workflow {
             contents: document,
         };
         let url = `http://${deviceHost}/code/`;
-        let server = this.constructor.makeUrl(url, {
+        let server = makeUrl(url, {
             state: encodeURIComponent(JSON.stringify(documentState))
         });
         let oldHost = window.location.host;
@@ -247,12 +248,12 @@ class WebWorkflow extends Workflow {
     }
 
     parseParams() {
-        let urlParams = Workflow.getUrlParams();
-        if (this.constructor.isTestHost() && "host" in urlParams) {
+        let urlParams = getUrlParams();
+        if (isTestHost() && "host" in urlParams) {
             this.host = urlParams.host.toLowerCase();
-        } else if (this.constructor.isMdns()) {
+        } else if (isMdns()) {
             this.host = location.hostname;
-        } else if (this.constructor.isIp()) {
+        } else if (isIp()) {
             this.host = location.hostname;
         }
 
@@ -261,48 +262,6 @@ class WebWorkflow extends Workflow {
         }
 
         return false;
-    }
-
-    static isTestHost() {
-        return location.hostname == "localhost" || location.hostname == "127.0.0.1";
-    }
-
-    static buildHash(hashParams) {
-        let segments = [];
-        for (const item in hashParams) {
-            segments.push(`${item}=${hashParams[item]}`);
-        }
-        if (segments.length == 0) {
-            return '';
-        }
-
-        return '#'+segments.join('&');
-    }
-
-    static makeUrl(url, extraParams = {}) {
-        let urlParams = {
-            ...Workflow.getUrlParams(),
-            ...extraParams
-        }        
-        let oldUrl = new URL(url);
-        if (this.isTestHost()) {
-            urlParams.host = oldUrl.hostname;
-            return new URL(oldUrl.pathname, `http://${location.host}/`) + this.buildHash(urlParams);
-        }
-
-        return new URL(oldUrl) + this.buildHash(urlParams);
-    }
-    
-    static isMdns() {
-        return location.hostname.search(/cpy-[0-9a-f]{6}.local/gi) == 0;
-    }
-
-    static isIp() {
-        return location.hostname.search(/([0-9]{1,3}.){4}/gi) == 0;
-    }
-
-    static isLocal() {
-        return (this.isMdns() || location.hostname == "localhost" || this.isIp()) && (location.pathname == "/code/");
     }
 }
 

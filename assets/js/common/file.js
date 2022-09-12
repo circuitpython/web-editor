@@ -1,26 +1,26 @@
 // This is a wrapper that builds on top of file transfer clients
 // with a common set of additional functions
 class FileHelper {
-    constructor(workflow) {
-        this.readFile = workflow.fileClient.readFile.bind(workflow.fileClient);
-        this.writeFile = workflow.fileClient.writeFile.bind(workflow.fileClient);
-        this.listDir = workflow.fileClient.listDir.bind(workflow.fileClient);
-        this.makeDir = workflow.fileClient.makeDir.bind(workflow.fileClient);
-        this.move = workflow.fileClient.move.bind(workflow.fileClient);
-        this.delete = workflow.fileClient.delete.bind(workflow.fileClient);
-        this._showBusy = workflow.showBusy.bind(workflow);
-        if (workflow.fileClient.readOnly !== undefined) {
-            this.readOnly = workflow.fileClient.readOnly.bind(workflow.fileClient);
+    constructor(fileClient, showBusy) {
+        this.readFile = fileClient.readFile.bind(fileClient);
+        this.writeFile = fileClient.writeFile.bind(fileClient);
+        this.listDir = fileClient.listDir.bind(fileClient);
+        this.makeDir = fileClient.makeDir.bind(fileClient);
+        this.move = fileClient.move.bind(fileClient);
+        this.delete = fileClient.delete.bind(fileClient);
+        this._showBusy = showBusy;
+        if (fileClient.readOnly !== undefined) {
+            this.readOnly = fileClient.readOnly.bind(fileClient);
         } else {
             this.readOnly = async () => { return false; }
         }
-        if (workflow.fileClient.versionInfo !== undefined) {
-            this.versionInfo = workflow.fileClient.versionInfo.bind(workflow.fileClient);
+        if (fileClient.versionInfo !== undefined) {
+            this.versionInfo = fileClient.versionInfo.bind(fileClient);
         } else {
             this.versionInfo = async () => { return null; }
         }
-        if (workflow.fileClient.otherDevices !== undefined) {
-            this.otherDevices = workflow.fileClient.otherDevices.bind(workflow.fileClient);
+        if (fileClient.otherDevices !== undefined) {
+            this.otherDevices = fileClient.otherDevices.bind(fileClient);
         } else {
             this.otherDevices = async () => { return null; }
         }
