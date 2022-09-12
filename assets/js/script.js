@@ -1,6 +1,8 @@
-import {EditorState, EditorView, basicSetup} from "@codemirror/basic-setup"
+import {EditorView, basicSetup} from "codemirror"
+import {EditorState} from "@codemirror/state"
 import {python} from "@codemirror/lang-python"
-import {classHighlightStyle} from "@codemirror/highlight"
+import {classHighlighter} from "@lezer/highlight";
+import {syntaxHighlighting} from "@codemirror/language"
 import {BLEWorkflow} from './workflows/ble.js'
 import {WebWorkflow} from './workflows/web.js'
 import {CONNTYPE, CHAR_CTRL_D} from './workflows/workflow.js'
@@ -46,7 +48,7 @@ const editorExtensions = [
     basicSetup,
     python(),
     editorTheme,
-    classHighlightStyle,
+    syntaxHighlighting(classHighlighter),
     EditorView.updateListener.of(onTextChange)
 ]
 // New Buttons (Mobile and Desktop Layout)

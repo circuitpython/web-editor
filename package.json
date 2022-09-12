@@ -3,9 +3,10 @@
     "snowpack": "^3.8.8"
   },
   "dependencies": {
-    "@codemirror/basic-setup": "^0.18.2",
-    "@codemirror/lang-python": "^0.18.0",
+    "@codemirror/lang-python": "^6.0.1",
     "@snowpack/plugin-run-script": "^2.3.0",
-    "@snowpack/plugin-sass": "^1.4.0"
+    "@snowpack/plugin-sass": "^1.4.0",
+    "codemirror": "^6.0.1",
+    "npm-install-missing": "^0.1.4"
   }
 }

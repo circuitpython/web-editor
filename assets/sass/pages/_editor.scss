@@ -44,31 +44,31 @@
       overflow: auto;
   }
   /* Highlight Tags */
-  .cmt-comment {
+  .tok-comment {
       color: #7F848E;
   }
-  .cmt-variableName {
+  .tok-variableName {
       color: #61AFEF;
   }
-  .cmt-operator {
+  .tok-operator {
       color: #56B6C2;
   }
-  .cmt-string {
+  .tok-string {
     color: #98C379;
   }
-  .cmt-punctuation {
+  .tok-punctuation {
       color: #fff;
   }
-  .cmt-number {
+  .tok-number {
     color: #E5C07B,
   }
-  .cmt-keyword {
+  .tok-keyword {
     color: #C678DD,
   }
-  .cmt-propertyName {
+  .tok-propertyName {
       color: #D19A66;
   }
-  .cmt-atom, .cmt-bool {
+  .tok-atom, .tok-bool {
       color: #E06C75;
   }
 }
