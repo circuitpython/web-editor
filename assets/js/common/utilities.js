@@ -24,7 +24,7 @@ function buildHash(hashParams) {
 
 function makeUrl(url, extraParams = {}) {
     let urlParams = {
-        ...Workflow.getUrlParams(),
+        ...getUrlParams(),
         ...extraParams
     }        
     let oldUrl = new URL(url);
