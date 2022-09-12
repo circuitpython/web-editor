@@ -60,6 +60,7 @@ btnNew.forEach((element) => {
         if (await workflow.checkSaved()) {
             loadEditorContents("");
             setFilename(null);
+            setSaved(true);
             console.log("Current File Changed to: " + workflow.currentFilename);
         }
     });
@@ -72,6 +73,9 @@ btnOpen.forEach((element) => {
         e.stopPropagation();
         await checkConnected();
         await workflow.openFile();
+        if (!isDirty()) {
+            setSaved(true);
+        }
     });
 });
 
@@ -95,6 +99,7 @@ btnSaveRun.forEach((element) => {
         e.stopPropagation();
         await checkConnected();
         if (await workflow.saveFile()) {
+            setSaved(true);
             await workflow.runCode();
         }
     });
@@ -120,6 +125,14 @@ btnInfo.addEventListener('click', async function(e) {
     await checkConnected();
     await workflow.showInfo(editor.state.doc.sliceString(0));
 });
+
+function setSaved(saved) {
+    if (saved) {
+        mainContent.classList.remove("unsaved")
+    } else {
+        mainContent.classList.add("unsaved")
+    }
+}
 
 async function checkConnected() {
     if (!workflow || !workflow.connectionStatus()) {
@@ -262,7 +275,7 @@ async function showMessage(message) {
 
 async function changeMode(mode) {
     if (mode > 0) {
-        mainContent.classList.remove("mode-landing", "mode-editor", "mode-serial");
+        mainContent.classList.remove("mode-editor", "mode-serial");
     }
     if (mode == MODE_EDITOR) {
         mainContent.classList.add("mode-editor");
@@ -365,7 +378,12 @@ async function writeText(writeFrom = null) {
     unchanged = doc.length;
     try {
         console.log("write");
-        await workflow.writeFile(contents, offset);
+        if (await workflow.writeFile(contents, offset)) {
+            setFilename(workflow.currentFilename);
+            setSaved(true);
+        } else {
+            await showMessage(`Saving file '${workflow.currentFilename} failed.`);
+        }
     } catch (e) {
         console.log("write failed", e, e.stack);
         unchanged = Math.min(oldUnchanged, unchanged);
@@ -380,6 +398,7 @@ async function onTextChange(update) {
     if (!update.docChanged) {
         return;
     }
+
     var hasGap = false;
     update.changes.desc.iterGaps(function(posA, posB, length) {
         // this are unchanged gaps.
@@ -400,6 +419,8 @@ async function onTextChange(update) {
     if (currentTimeout != null) {
         clearTimeout(currentTimeout);
     }
+
+    setSaved(false);
 }
 
 function disconnectCallback() {

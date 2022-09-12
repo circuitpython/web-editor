@@ -1,4 +1,4 @@
-#ble-instructions, #web-instructions {
+#ble-instructions, #web-instructions, #usb-instructions {
     h1 {
         font-weight: 400;
     }
@@ -103,15 +103,21 @@
     }
 }
 
-.mode-editor {
-    #serial-page {
-        display: none;
+#main-content {
+    &.mode-editor {
+        #serial-page {
+            display: none;
+        }
     }
-}
 
-.mode-serial {
-    #editor-page {
-        display: none;
+    &.mode-serial {
+        #editor-page {
+            display: none;
+        }
+    }
+
+    &.unsaved .file-path {
+        color: #f60;
     }
 }
 

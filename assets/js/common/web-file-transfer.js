@@ -54,8 +54,7 @@ class FileTransferClient {
             options.headers['Content-Type'] = "application/octet-stream";
         }
 
-        const response = await this._fetch(`/fs${path}`, options);
-        return await response.text();
+        await this._fetch(`/fs${path}`, options);
     }
 
     // Makes the directory and any missing parents
