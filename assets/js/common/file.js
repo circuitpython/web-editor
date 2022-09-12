@@ -3,7 +3,7 @@
 class FileHelper {
     constructor(fileClient, showBusy) {
         this.readFile = fileClient.readFile.bind(fileClient);
-        this.writeFile = fileClient.writeFile.bind(fileClient);
+        this._writeFile = fileClient.writeFile.bind(fileClient);
         this.listDir = fileClient.listDir.bind(fileClient);
         this.makeDir = fileClient.makeDir.bind(fileClient);
         this.move = fileClient.move.bind(fileClient);
@@ -43,6 +43,15 @@ class FileHelper {
             }
         }
         return false;
+    }
+
+    async writeFile(path, offset, contents, modificationTime=Date.now(), raw=false) {
+        try {
+            await this._writeFile(path, offset, contents, modificationTime, raw);
+        } catch(e) {
+            return false;
+        }
+        return true;
     }
 }
 

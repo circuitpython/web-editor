@@ -33,7 +33,7 @@ class Workflow {
         this.currentFilename = null;
         this._fileHelper = null;
         this._unsavedDialog = new UnsavedDialog("unsaved");
-        this._fileDialog = new FileDialog("files", this.showBusy);
+        this._fileDialog = new FileDialog("files", this.showBusy.bind(this));
     }
 
     async init(params) {
@@ -186,11 +186,12 @@ class Workflow {
             path = await this.saveAs();
         }
         if (path !== null) {
-            this._setFilename(path);
+            this.currentFilename = path;
             // If this is a different file, we write everything
             await this._writeText(path !== previousFile ? 0 : null);
             return true;
         }
+        this.currentFilename = previousFile;
         return false;
     }
     
@@ -219,12 +220,14 @@ class Workflow {
                 this._loadEditorContents(contents);
                 this._setFilename(path);
                 console.log("Current File Changed to: " + this.currentFilename);
+                return true;
             }
         }
+        return false;
     }
 
     async writeFile(contents, offset=0) {
-        await this.showBusy(
+        return await this.showBusy(
             this._fileHelper.writeFile(this.currentFilename, offset, contents)
         );
     }
