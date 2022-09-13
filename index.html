@@ -120,7 +120,18 @@
                 <button id="new-folder-button" title="New Folder" class="purple-button"><i class="fas fa-folder-plus"></i></button>
                 <button id="upload-button" title="Upload" class="purple-button"><i class="fas fa-upload"></i></button>
                 <button id="download-button" title="Download" class="purple-button"><i class="fas fa-download"></i></button>
+                <button id="move-button" title="Move File" class="purple-button"><i class="fas fa-file-export"></i></button>
             </div>
+            <span id="current-path"></span>
+            <i class="fas fa-2x fa-times text-white bg-primary p-3 popup-modal__close"></i>
+            <div id="file-list" style="border:1px solid #888"></div>
+            <div class="buttons">
+                <input type="text" id="filename" />
+                <button class="purple-button ok-button">Ok</button>
+                <button class="purple-button cancel-button">Cancel</button>
+            </div>
+        </div>
+        <div class="popup-modal shadow file-dialog closable" data-popup-modal="folder-select">
             <span id="current-path"></span>
             <i class="fas fa-2x fa-times text-white bg-primary p-3 popup-modal__close"></i>
             <div id="file-list" style="border:1px solid #888"></div>

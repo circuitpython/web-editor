@@ -1,6 +1,7 @@
 import {sleep, timeout} from '../common/utilities.js';
 import {FileHelper} from '../common/file.js'
-import {UnsavedDialog, FileDialog, FILE_DIALOG_OPEN, FILE_DIALOG_SAVE} from '../common/dialogs.js';
+import {UnsavedDialog} from '../common/dialogs.js';
+import {FileDialog, FILE_DIALOG_OPEN, FILE_DIALOG_SAVE} from '../common/file_dialog.js';
 
 /*
  * This class will encapsulate all of the common workflow-related functions 
