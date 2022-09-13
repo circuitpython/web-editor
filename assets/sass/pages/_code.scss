@@ -266,7 +266,8 @@
 
     }
 
-    &[data-popup-modal="files"] {
+    &[data-popup-modal="files"],
+    &[data-popup-modal="folder-select"] {
         #current-path {
             position: absolute;
             font-size: 1.2rem;
@@ -297,6 +298,12 @@
                     background-color: $light-purple;
                 }
             }
+        }
+    }
+
+    &[data-popup-modal="folder-select"] {
+        #file-list {
+            margin-top: 20px;
         }
     }
 
