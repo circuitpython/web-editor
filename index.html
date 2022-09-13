@@ -115,12 +115,12 @@
         <!-- Dialog Box Templates -->
         <div class="popup-modal shadow file-dialog closable" data-popup-modal="files">
             <div class="buttons">
-                <button id="del-button" title="Delete" class="purple-button"><i class="fas fa-trash-alt"></i></button>
-                <button id="rename-button" title="Rename" class="purple-button"><i class="fas fa-pencil-alt"></i></button>
-                <button id="new-folder-button" title="New Folder" class="purple-button"><i class="fas fa-folder-plus"></i></button>
-                <button id="upload-button" title="Upload" class="purple-button"><i class="fas fa-upload"></i></button>
-                <button id="download-button" title="Download" class="purple-button"><i class="fas fa-download"></i></button>
-                <button id="move-button" title="Move File" class="purple-button"><i class="fas fa-file-export"></i></button>
+                <button id="del-button" title="Delete Selected Folder or File" class="purple-button"><i class="fas fa-trash-alt"></i></button>
+                <button id="rename-button" title="Rename Selected Folder or File" class="purple-button"><i class="fas fa-pencil-alt"></i></button>
+                <button id="new-folder-button" title="Create New Folder in Current Folder" class="purple-button"><i class="fas fa-folder-plus"></i></button>
+                <button id="upload-button" title="Upload to Current Folder" class="purple-button"><i class="fas fa-upload"></i></button>
+                <button id="download-button" title="Download Folder or File" class="purple-button"><i class="fas fa-download"></i></button>
+                <button id="move-button" title="Move Selected Folder or File" class="purple-button"><i class="fas fa-file-export"></i></button>
             </div>
             <span id="current-path"></span>
             <i class="fas fa-2x fa-times text-white bg-primary p-3 popup-modal__close"></i>
@@ -310,6 +310,7 @@
         </div>
         <script src="https://cdn.jsdelivr.net/npm/xterm@4.19.0/lib/xterm.min.js"></script>
         <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.5.0/lib/xterm-addon-fit.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" integrity="sha512-XMVd28F1oH/O71fzwBnV7HucLxVwtxf26XV8P4wPk26EDxuGZ91N8bsOttmnomcCD3CS5ZMRL50H0GgOHvegtg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
         <script src="assets/js/header_mobile.js"></script>
         <script type="module" src="assets/js/script.js"></script>
     </body>

@@ -345,7 +345,7 @@ class DiscoveryModal extends GenericModal {
 
     async open(workflow, document) {
         this._workflow = workflow;
-        this._fileHelper = workflow.fileClient;
+        this._fileHelper = workflow.fileHelper;
         this._showBusy = workflow.showBusy.bind(workflow);
         this._document = document;
 

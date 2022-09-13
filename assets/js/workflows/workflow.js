@@ -32,7 +32,7 @@ class Workflow {
         this.connectDialog = null;
         this._connected = false;
         this.currentFilename = null;
-        this._fileHelper = null;
+        this.fileHelper = null;
         this._unsavedDialog = new UnsavedDialog("unsaved");
         this._fileDialog = new FileDialog("files", this.showBusy.bind(this));
     }
@@ -54,8 +54,7 @@ class Workflow {
     }
 
     async initFileClient(fileClient) {
-        this.fileClient = fileClient;
-        this._fileHelper = new FileHelper(fileClient, this.showBusy.bind(this));
+        this.fileHelper = new FileHelper(fileClient);
     }
 
     async getDeviceFileContents() {
@@ -63,7 +62,7 @@ class Workflow {
         if (!filename) {
             return "";
         }
-        return await this.showBusy(this.fileClient.readFile(this.currentFilename));
+        return await this.showBusy(this.fileHelper.readFile(this.currentFilename));
     }
 
     async disconnectButtonHandler(e) {
@@ -197,10 +196,10 @@ class Workflow {
     }
     
     async saveAs() {
-        let path = await this._fileDialog.open(this._fileHelper, FILE_DIALOG_SAVE);
+        let path = await this._fileDialog.open(this.fileHelper, FILE_DIALOG_SAVE);
         if (path !== null) {
             // check if filename exists
-            if (path != this.currentFilename && await this._fileHelper.fileExists(path)) {
+            if (path != this.currentFilename && await this.showBusy(this.fileHelper.fileExists(path))) {
                 if (window.confirm("Overwrite existing file '" + path + "'?")) {
                     await this.saveFile(path);
                 } else {
@@ -215,9 +214,9 @@ class Workflow {
 
     async openFile() {
         if (await this.checkSaved()) {
-            let path = await this._fileDialog.open(this._fileHelper, FILE_DIALOG_OPEN);
+            let path = await this._fileDialog.open(this.fileHelper, FILE_DIALOG_OPEN);
             if (path !== null) {
-                let contents = await this.showBusy(this._fileHelper.readFile(path));
+                let contents = await this.showBusy(this.fileHelper.readFile(path));
                 this._loadEditorContents(contents);
                 this._setFilename(path);
                 console.log("Current File Changed to: " + this.currentFilename);
@@ -229,12 +228,12 @@ class Workflow {
 
     async writeFile(contents, offset=0) {
         return await this.showBusy(
-            this._fileHelper.writeFile(this.currentFilename, offset, contents)
+            this.fileHelper.writeFile(this.currentFilename, offset, contents)
         );
     }
 
     async readOnly() {
-        return await this._fileHelper.readOnly()
+        return await this.fileHelper.readOnly()
     }
 }
 

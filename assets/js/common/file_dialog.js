@@ -1,4 +1,5 @@
-import {GenericModal, ProgressDialog} from './dialogs.js'
+import { GenericModal, ProgressDialog, ButtonValueDialog } from './dialogs.js';
+import { saveAs } from 'file-saver';
 
 const FILE_DIALOG_OPEN = 1;
 const FILE_DIALOG_SAVE = 2;
@@ -90,7 +91,7 @@ class FileDialog extends GenericModal {
         this._setElementEnabled('renameButton', false);
         const downloadButton = this._currentModal.querySelector("#download-button");
         this._addDialogElement('downloadButton', downloadButton, 'click', this._handleDownloadButton);
-        this._setElementEnabled('downloadButton', false);
+        this._setElementEnabled('downloadButton', true);
         const uploadButton = this._currentModal.querySelector("#upload-button");
         this._addDialogElement('uploadButton', uploadButton, 'click', this._handleUploadButton);
         this._setElementEnabled('uploadButton', !this._readOnlyMode);
@@ -161,6 +162,7 @@ class FileDialog extends GenericModal {
         }
         this._setElementValue('fileNameField', "");
         this._setElementEnabled('okButton', this._validSelectableFolder());
+        this._updateToolbar();
     }
 
     _validSelectableFolder() {
@@ -185,8 +187,11 @@ class FileDialog extends GenericModal {
         if (clickedItem.getAttribute("data-type") != "folder") {
             this._getElement('fileNameField').value = clickedItem.querySelector("span").innerHTML;
         }
-
         this._setElementEnabled('okButton', clickedItem.getAttribute("data-type") != "bin");
+        this._updateToolbar();
+    }
+
+    _updateToolbar() {
         this._setElementEnabled('delButton', this._canPerformWritableFileOperation());
         this._setElementEnabled('renameButton', this._canPerformWritableFileOperation());
         this._setElementEnabled('moveButton', this._canPerformWritableFileOperation());
@@ -265,10 +270,7 @@ class FileDialog extends GenericModal {
     _canDownload() {
         let selectedItem = this._getSelectedFile();
         if (!selectedItem) {
-            return false;
-        }
-        if (selectedItem.getAttribute("data-type") == "folder") {
-            return false;
+            return true;
         }
         if (!this._validName(selectedItem.querySelector("span").innerHTML)) {
             return false;
@@ -335,81 +337,116 @@ class FileDialog extends GenericModal {
         input.multiple = true;
         input.webkitdirectory = onlyFolders;
         input.addEventListener('change', async (event) => {
-            const readUploadedFileAsArrayBuffer = (inputFile) => {
-                const reader = new FileReader();
+            try {
+                const readUploadedFileAsArrayBuffer = (inputFile) => {
+                    const reader = new FileReader();
 
-                return new Promise((resolve, reject) => {
-                  reader.onerror = () => {
-                    reader.abort();
-                    reject(new DOMException("Problem parsing input file."));
-                  };
-            
-                  reader.onload = () => {
-                    resolve(reader.result);
-                  };
-                  reader.readAsArrayBuffer(inputFile);
-                });
-            };
-            let files = Array.from(input.files);
-            let totalBytes = 0;
-            let bytesCompleted = 0;
-            for(let file of files) {             
-                totalBytes += file.size;
-            }
+                    return new Promise((resolve, reject) => {
+                    reader.onerror = () => {
+                        reader.abort();
+                        reject(new DOMException("Problem parsing input file."));
+                    };
+                
+                    reader.onload = () => {
+                        resolve(reader.result);
+                    };
+                    reader.readAsArrayBuffer(inputFile);
+                    });
+                };
+                let files = Array.from(input.files);
+                let totalBytes = 0;
+                let bytesCompleted = 0;
+                for(let file of files) {             
+                    totalBytes += file.size;
+                }
 
-            let madeDirs = new Set();
-            this._progressDialog.open();
-            for(let [index, file] of files.entries()) {
-                let filename = file.name;
-                if (file.webkitRelativePath) {
-                    filename = file.webkitRelativePath;
-                    let parentDir = filename.split("/").slice(0, -1).join("/");
-                    if (!madeDirs.has(parentDir)) {
-                        this._progressDialog.setStatus(`Creating Folder ${parentDir}...`);
-                        await this._fileHelper.makeDir(this._currentPath + parentDir);
-                        await this._openFolder();
-                        madeDirs.add(parentDir);
+                let madeDirs = new Set();
+                this._progressDialog.open();
+                for(let [index, file] of files.entries()) {
+                    let filename = file.name;
+                    if (file.webkitRelativePath) {
+                        filename = file.webkitRelativePath;
+                        let parentDir = filename.split("/").slice(0, -1).join("/");
+                        if (!madeDirs.has(parentDir)) {
+                            this._progressDialog.setStatus(`Creating Folder ${parentDir}...`);
+                            await this._fileHelper.makeDir(this._currentPath + parentDir);
+                            await this._openFolder();
+                            madeDirs.add(parentDir);
+                        }
                     }
-                }
-                bytesCompleted += file.size;
-                if (this._nameExists(filename) && !confirm(`${filename} already exists. Overwrite?`)) {
+                    bytesCompleted += file.size;
+                    if (this._nameExists(filename) && !confirm(`${filename} already exists. Overwrite?`)) {
+                        this._progressDialog.setPercentage(bytesCompleted / totalBytes * 100);
+                        continue; // If cancelled, continue
+                    }
+
+                    let contents = await readUploadedFileAsArrayBuffer(file);
+                    this._progressDialog.setStatus(`Uploading file ${filename} (${this.prettySize(file.size)})...`);
+                    await this._showBusy(this._fileHelper.writeFile(
+                        this._currentPath + filename,
+                        0,
+                        contents,
+                        file.lastModified,
+                        true
+                    ), false);
                     this._progressDialog.setPercentage(bytesCompleted / totalBytes * 100);
-                    continue; // If cancelled, continue
-                }
+                };
+                this._progressDialog.close();
 
-                let contents = await readUploadedFileAsArrayBuffer(file);
-                this._progressDialog.setStatus(`Uploading file ${filename} (${this.prettySize(file.size)})...`);
-                await this._showBusy(this._fileHelper.writeFile(
-                    this._currentPath + filename,
-                    0,
-                    contents,
-                    file.lastModified,
-                    true
-                ), false);
-                this._progressDialog.setPercentage(bytesCompleted / totalBytes * 100);
-            };
-            this._progressDialog.close();
-
-            // Refresh the file list
-            await this._openFolder();
+                // Refresh the file list
+                await this._openFolder();
+            } catch(error) {
+                this._progressDialog.close();
+                await this._showMessage(`Error: ${error.message}`);
+                console.error(error);
+            }
         });
         input.click();
     }
 
     // Currently only files are downloadable, but it would be nice to eventually download zipped folders
     async _handleDownloadButton() {
+        await this._download(this._getSelectedFilename());
+    }
+
+    async _download(filename) {
         if (!this._canDownload()) return;
 
-        let filename = this._getSelectedFilename();
-        let getBlob = async () => {
-            let response = await this._fileHelper.readFile(this._currentPath + filename, true);
+        let type, folder, blob;
+
+        let getBlob = async (path) => {
+            let response = await this._fileHelper.readFile(path, true);
             return response.blob();
         }
-        let blob = await this._showBusy(getBlob());
-        let a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.setAttribute('download', filename);
-        a.click();
+
+        if (filename) {
+            type = this._getSelectedFileType();
+        }
+
+        if (type == "folder" || !filename) {
+            folder = this._currentPath;
+            if (filename) {
+                folder += filename + "/";
+                filename = `${filename}.zip`;
+            } else {
+                if (folder == "/") {
+                    filename = "CIRCUITPY.zip";
+                } else {
+                    filename = folder.split("/").slice(-2).join("") + ".zip";
+                }
+            }
+
+            let files = await this._fileHelper.findContainedFiles(folder, true);
+            let zip = new JSZip();
+            for (let location of files) {
+                let contents = await this._showBusy(getBlob(folder + location));
+                zip.file(location, contents);
+            }
+            blob = await zip.generateAsync({type:"blob"});
+        } else {
+            blob = await this._showBusy(getBlob(this._currentPath + filename));
+        }
+        saveAs(blob, filename);
     }
 
     async _handleMoveButton() {
