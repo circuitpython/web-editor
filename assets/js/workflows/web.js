@@ -22,7 +22,6 @@ class WebWorkflow extends Workflow {
         this.websocket = null;
         this.serialService = null;
         this.loadEditor = null;
-        this.fileClient = null;
         this.connectDialog = new GenericModal("web-connect");
         this.deviceDiscoveryDialog = new DiscoveryModal("device-discovery");
         this.connIntervalId = null;
@@ -94,7 +93,7 @@ class WebWorkflow extends Workflow {
         try {
             console.log('Initializing File Transfer Client...');
             this.initFileClient(new FileTransferClient(host, this.connectionStatus.bind(this)));
-            await this.fileClient.listDir('/');
+            await this.fileHelper.listDir('/');
             success = await this.initSerial(host);
         } catch(error) {
             console.log("Device not found");
@@ -185,7 +184,7 @@ class WebWorkflow extends Workflow {
 
     async activeConnection() {
         try {
-            let version = await this.fileClient.versionInfo();
+            let version = await this.fileHelper.versionInfo();
             if (!version) {
                 return false;
             }

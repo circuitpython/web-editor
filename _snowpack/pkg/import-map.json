@@ -4,6 +4,7 @@
     "@codemirror/language": "./@codemirror/language.js",
     "@codemirror/state": "./@codemirror/state.js",
     "@lezer/highlight": "./@lezer/highlight.js",
-    "codemirror": "./codemirror.js"
+    "codemirror": "./codemirror.js",
+    "file-saver": "./file-saver.js"
   }
 }
