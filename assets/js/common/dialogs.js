@@ -1,4 +1,4 @@
-import {sleep, isIp} from './utilities.js'
+import {sleep, isIp, timeout} from './utilities.js'
 
 const SELECTOR_CLOSE_BUTTON = ".popup-modal__close";
 const SELECTOR_BLACKOUT = "#blackout";
@@ -300,7 +300,7 @@ class ButtonValueDialog extends GenericModal {
 }
 
 class DiscoveryModal extends GenericModal {
-    async _getDeviceInfo() {
+    async _getVersionInfo() {
         const deviceInfo = await this._showBusy(this._fileHelper.versionInfo());
         this._currentModal.querySelector("#version").textContent = deviceInfo.version;
         const boardLink = this._currentModal.querySelector("#board");
@@ -320,7 +320,7 @@ class DiscoveryModal extends GenericModal {
         let newDevices = [];
         if (otherDevices.total == 0) {
             let span = document.createElement("span");
-            span.textContent = "No devices found.";
+            span.textContent = "No other devices found.";
             newDevices.push(span);
         } else {
             for (let device of otherDevices.devices) {
@@ -356,7 +356,7 @@ class DiscoveryModal extends GenericModal {
         const refreshIcon = this._currentModal.querySelector("i.refresh");
         this._addDialogElement('refreshIcon', refreshIcon, 'click', this._refreshDevices);
 
-        await this._getDeviceInfo();
+        await this._getVersionInfo();
         await this._refreshDevices();
         return p;
     }
