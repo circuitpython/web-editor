@@ -99,9 +99,11 @@ class BLEWorkflow extends Workflow {
             this.rxCharacteristic = await this.serialService.getCharacteristic(bleNusCharRXUUID);
         
             this.txCharacteristic.addEventListener('characteristicvaluechanged', this.onSerialReceive.bind(this));
-            await this.txCharacteristic.startNotifications();    
+            await this.txCharacteristic.startNotifications();
+            return true;
         } catch(e) {
             console.log(e, e.stack);
+            return e;
         }
     }
 

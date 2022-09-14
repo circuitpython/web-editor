@@ -73,31 +73,25 @@ class WebWorkflow extends Workflow {
             this.websocket.onopen = this.onConnected.bind(this);
             this.websocket.onmessage = this.onSerialReceive.bind(this);
             this.websocket.onclose = this.onDisconnected.bind(this);
-            
-            this.websocket.onerror = function(e) {
-                console.log("WebSocket Error:", e);
-                if (this.connected) {
-                    this.websocket.close();
-                }
-                this.websocket = null;
-            }.bind(this);
             return true;
         } catch(e) {
             //console.log(e, e.stack);
-            return false;
+            return new Error("Error initializing Web Socket.");
         }
     }
 
     async connectToHost(host) {
-        let success;
+        let returnVal;
+        console.log('Initializing File Transfer Client...');
+        this.initFileClient(new FileTransferClient(host, this.connectionStatus.bind(this)));
         try {
-            console.log('Initializing File Transfer Client...');
-            this.initFileClient(new FileTransferClient(host, this.connectionStatus.bind(this)));
             await this.fileHelper.listDir('/');
-            success = await this.initSerial(host);
         } catch(error) {
-            console.log("Device not found");
-            return false;
+            return new Error(`The device ${host} was not found. Be sure it is plugged in and set up properly.`);
+        }
+        returnVal = await this.initSerial(host);
+        if (returnVal instanceof Error) {
+            return returnVal;
         }
         // Wait for a connection with a timeout
         console.log("Waiting for connection...");
@@ -110,16 +104,15 @@ class WebWorkflow extends Workflow {
                 }, CONNECT_TIMEOUT_MS
             );
         } catch(error) {
-            console.log("Connection timed out");
-            return false;
+            return new Error("Connection timed out. Make sure you don't have more than one browser tab open.");
         }
 
-        if (success && this.connectionStatus()) {
+        if (this.connectionStatus()) {
             await this.loadEditor();
             return true;
         }
 
-        return false;
+        return new Error("Unknown Error. Try resetting the device.");
     }
 
     async serialTransmit(msg) {

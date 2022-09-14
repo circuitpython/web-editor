@@ -98,7 +98,6 @@ class FileTransferClient {
         try {
             response = await fetch(new URL(location, `http://${this.hostname}`), fetchOptions);
         } catch(error) {
-            console.error(`Host '${this.hostname}' not found.`);
             throw new ProtocolError(`Host '${this.hostname}' not found.`);
         }
 

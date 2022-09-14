@@ -145,7 +145,7 @@ async function checkConnected() {
 
         // Connect if we're local
         if (isLocal() && workflow.host) {
-            if (await workflow.showBusy(workflow.connect())) {
+            if (await workflowConnect()) {
                 await checkReadOnly();
             }
         }
@@ -157,6 +157,30 @@ async function checkConnected() {
             // We're connected, local, and using Web Workflow
             await workflow.showInfo(editor.state.doc.sliceString(0));
         }
+    }
+}
+
+async function workflowConnect() {    
+    let returnVal;
+    if (!workflow) return false;
+
+    if ((returnVal = await workflow.showBusy(workflow.connect())) instanceof Error) {
+        await showMessage(`Unable to connect. ${returnVal.message}`);
+        return false;
+    }
+    return true;
+}
+
+async function checkReadOnly() {
+    const readOnly = await workflow.readOnly();
+    btnSaveAs.forEach((element) => {
+        element.disabled = readOnly;
+    });
+    btnSaveRun.forEach((element) => {
+        element.disabled = readOnly;
+    });
+    if (readOnly) {
+        await showMessage("Warning: File System is in read only mode. Disable the USB drive to allow write access.");
     }
 }
 
@@ -341,19 +365,6 @@ async function loadEditor() {
     await changeMode(MODE_EDITOR);
 }
 
-async function checkReadOnly() {
-    const readOnly = await workflow.readOnly();
-    btnSaveAs.forEach((element) => {
-        element.disabled = readOnly;
-    });
-    btnSaveRun.forEach((element) => {
-        element.disabled = readOnly;
-    });
-    if (readOnly) {
-        await showMessage("Warning: File System is in read only mode. Disable the USB drive to allow write access.");
-    }
-}
-
 var editor;
 var currentTimeout = null;
 async function writeText(writeFrom = null) {
@@ -503,13 +514,11 @@ document.addEventListener('DOMContentLoaded', async (event) => {
                 await workflow.showConnect(editor.state.doc.sliceString(0));
             }
         } else {
-            if (!(await workflow.showBusy(workflow.connect()))) {
-                showMessage("Unable to connect. Be sure device is plugged in and set up properly.");
-            } else if (workflow.type === CONNTYPE.Web) {
+            if (await workflowConnect() && workflow.type === CONNTYPE.Web) {
                 await checkReadOnly();
                 // We're connected, local, and using Web Workflow
                 await workflow.showInfo(editor.state.doc.sliceString(0));
-            }
+            }            
         }
     } else {
         await checkConnected();
