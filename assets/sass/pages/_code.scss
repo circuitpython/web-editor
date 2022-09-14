@@ -93,7 +93,18 @@
 @media (min-width: 650px) {
     .popup-modal.file-dialog {
         max-height: 365px;
-        max-width: 650px;    
+        max-width: 650px;
+    }
+}
+
+@media (max-width: 767px) {
+    .popup-modal.file-dialog {
+        #file-list a {
+            span:nth-child(3),
+            span:nth-child(4) {
+                visibility: hidden;
+            }
+        }
     }
 }
 
@@ -266,8 +277,7 @@
 
     }
 
-    &[data-popup-modal="files"],
-    &[data-popup-modal="folder-select"] {
+    &.file-dialog {
         #current-path {
             position: absolute;
             font-size: 1.2rem;
@@ -290,17 +300,20 @@
                     }
                 }
                 padding-left: 5px;
-                display: block;
+                display: grid;
+                grid-template-columns: 30px minmax(60px, 1fr) 60px 1fr;
+                grid-gap: 10px;
                 cursor: default;
+                &.selected {
+                    background-color: $light-purple;
+                }
                 i {
-                    width: 30px;
                     text-align: center;
                 }
                 span {
-                    margin-left: 5px;
-                }
-                &.selected {
-                    background-color: $light-purple;
+                    text-overflow: ellipsis;
+                    overflow: hidden;
+                    white-space: nowrap;
                 }
             }
         }
