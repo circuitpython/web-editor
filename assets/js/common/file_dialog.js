@@ -34,6 +34,9 @@ const extensionMap = {
 const FOLDER_ICON = ["far", "fa-folder"];
 const DEFAULT_FILE_ICON = ["far", "fa-file"];
 
+const FILESIZE_UNITS = ["bytes", "KB", "MB", "GB"];
+const COMPACT_UNITS = ["", "K", "M", "G"];
+
 class FileDialog extends GenericModal {
     constructor(modalId, showBusy) {
         super(modalId);
@@ -338,14 +341,18 @@ class FileDialog extends GenericModal {
         return Math.round(number * (decimalPlaces * 10)) / (decimalPlaces * 10);
     }
 
-    prettySize(filesize) {
-        const units = ["Bytes", "KB", "MB", "GB"];
+    prettySize(filesize, decimals=1, units=FILESIZE_UNITS) {
+        let [size, unit] = this._getUnit(filesize, units);
+        return `${this.round(size, decimals)} ${unit}`;
+    }
+
+    _getUnit(size, units) {
         let unitIndex = 0;
-        while (filesize > 1024 && unitIndex < units.length) {
+        while (size > 1024 && unitIndex < units.length) {
             unitIndex += 1;
-            filesize /= 1024;
+            size /= 1024;
         }
-        return `${this.round(filesize, 1)} ${units[unitIndex]}`;
+        return [size, units[unitIndex]];
     }
 
     async _upload(onlyFolders=false) {
@@ -663,6 +670,8 @@ class FileDialog extends GenericModal {
             fileItem.classList.add("hidden-file");
         }
         fileItem.setAttribute("data-type", this._getType(fileObj));
+
+        // Add Events
         fileItem.addEventListener("click", (event) => {
             let clickedItem = event.target;
             if (clickedItem.tagName.toLowerCase() != "a") {
@@ -677,18 +686,43 @@ class FileDialog extends GenericModal {
             }
             this._openItem(clickedItem, true);
         });
-        let iconElement = document.createElement("i");
-        
+
+        // Icon
+        let iconElement = document.createElement("i");       
         if (iconClass !== undefined) {
             styles = [iconStyle, iconClass];
         } else {
             styles = this._getIcon(fileObj);
         }
         styles.forEach(iconElement.classList.add, iconElement.classList);
+
+        // Filename
         let filename = document.createElement("span");
-        filename.innerHTML = fileObj.path;
+        filename.classList.add("filename");
+        filename.innerText = fileObj.path;
+        filename.title = fileObj.path;
+
+        // Size
+        let size = document.createElement("span");
+        size.classList.add("filesize");
+        if (!fileObj.isDir) {
+            size.innerText = this.prettySize(fileObj.fileSize, 0, COMPACT_UNITS);
+        }
+
+        // Modified Date
+        let date = document.createElement("span");
+        date.classList.add("filedate");
+        if (fileObj.fileDate) {
+            let dateString = (new Date(fileObj.fileDate)).toLocaleString();
+            date.innerText = dateString;
+            date.title = dateString;
+        }
+
         fileItem.appendChild(iconElement);
         fileItem.appendChild(filename);
+        fileItem.appendChild(size);
+        fileItem.appendChild(date);
+
         fileList.appendChild(fileItem);
     }
 }
