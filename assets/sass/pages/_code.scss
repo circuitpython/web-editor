@@ -284,6 +284,11 @@
             height: 200px;
             padding: 5px 0;
             a {
+                &.hidden-file {
+                    i, span {
+                        opacity: 0.65;
+                    }
+                }
                 padding-left: 5px;
                 display: block;
                 cursor: default;

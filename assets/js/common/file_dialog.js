@@ -6,24 +6,33 @@ const FILE_DIALOG_SAVE = 2;
 const FILE_DIALOG_MOVE = 3;
 const FILE_DIALOG_COPY = 4;
 
+// Hide any file or folder matching these exact names
+const HIDDEN_FILES = [".Trashes", ".metadata_never_index", ".fseventsd"];
+
+// Hide any file or folder starting with these strings
+const HIDDEN_PREFIXES = ["._"];
+
 // This is for mapping file extensions to font awesome icons
 const extensionMap = {
-    "wav": {icon: "file-audio", type: "bin"},
-    "mp3": {icon: "file-audio", type: "bin"},
-    "bmp": {icon: "file-image", type: "bin"},
-    "gif": {icon: "file-image", type: "bin"},
-    "jpg": {icon: "file-image", type: "bin"},
-    "jpeg": {icon: "file-image", type: "bin"},
-    "zip": {icon: "file-archive", type: "bin"},
-    "py": {icon: "file-alt", type: "text"},
-    "json": {icon: "file-code", type: "text"},
-    "mpy": {icon: "file", type: "bin"},
-    "txt": {icon: "file-alt", type: "text"},
-    "mov": {icon: "file-video", type: "bin"},
-    "mp4": {icon: "file-video", type: "bin"},
-    "avi": {icon: "file-video", type: "bin"},
-    "wmv": {icon: "file-video", type: "bin"},
+    "wav": {style:"r", icon: "file-audio", type: "bin"},
+    "mp3": {style:"r", icon: "file-audio", type: "bin"},
+    "bmp": {style:"r", icon: "file-image", type: "bin"},
+    "gif": {style:"r", icon: "file-image", type: "bin"},
+    "jpg": {style:"r", icon: "file-image", type: "bin"},
+    "jpeg": {style:"r", icon: "file-image", type: "bin"},
+    "zip": {style:"r", icon: "file-archive", type: "bin"},
+    "py": {style:"r", icon: "file-alt", type: "text"},
+    "json": {style:"r", icon: "file-code", type: "text"},
+    "mpy": {style:"r", icon: "file", type: "bin"},
+    "txt": {style:"r", icon: "file-alt", type: "text"},
+    "mov": {style:"r", icon: "file-video", type: "bin"},
+    "mp4": {style:"r", icon: "file-video", type: "bin"},
+    "avi": {style:"r", icon: "file-video", type: "bin"},
+    "wmv": {style:"r", icon: "file-video", type: "bin"},
 }
+
+const FOLDER_ICON = ["far", "fa-folder"];
+const DEFAULT_FILE_ICON = ["far", "fa-file"];
 
 class FileDialog extends GenericModal {
     constructor(modalId, showBusy) {
@@ -50,17 +59,18 @@ class FileDialog extends GenericModal {
     }
 
     _getIcon(fileObj) {
-        if (fileObj.isDir) return "fa-folder";
+        if (fileObj.isDir) return FOLDER_ICON;
         const fileExtension = this._getExtension(fileObj.path);
         if (fileExtension in extensionMap) {
-            return "fa-" + extensionMap[fileExtension].icon;
+            return ["fa" + extensionMap[fileExtension].style, "fa-" + extensionMap[fileExtension].icon];
         }
 
-        return "fa-file";
+        return DEFAULT_FILE_ICON;
     }
 
     _getType(fileObj) {
         if (fileObj.isDir) return "folder";
+        if (this._hiddenFile(fileObj)) return "text";
         const fileExtension = this._getExtension(fileObj.path);
         if (fileExtension in extensionMap) {
             return extensionMap[fileExtension].type;
@@ -152,7 +162,7 @@ class FileDialog extends GenericModal {
         try {
             const files = this._sortFolderFirst(await this._showBusy(this._fileHelper.listDir(this._currentPath)));
             for (let fileObj of files) {
-                if (fileObj.path[0] == ".") continue;
+                if (!this._validName(fileObj.path)) continue;
                 if (this._currentModal.getAttribute("data-type") == "folder-select" && !fileObj.isDir) continue;
                 if (this._hidePaths.has(this._currentPath + fileObj.path)) continue;
                 this._addFile(fileObj);
@@ -228,14 +238,23 @@ class FileDialog extends GenericModal {
             return false;
         }
 
-        // For now, don't allow hidden files
-        if (name[0] == ".") {
+        for (let prefix of HIDDEN_PREFIXES) {
+            if (name.slice(0, prefix.length) == prefix) {
+                return false;
+            }
+        }
+
+        if (HIDDEN_FILES.includes(name)) {
             return false;
         }
 
         return true;
     }
 
+    _hiddenFile(fileObj) {
+        return fileObj.path[0] == "." && fileObj.path != "." && fileObj.path != "..";
+    }
+    
     _nameExists(fileName) {
         const fileList = this._getElement('fileList');
 
@@ -625,7 +644,7 @@ class FileDialog extends GenericModal {
             }
         }
 
-        return this._sortAlpha(folders).concat(this._sortAlpha(files))
+        return this._sortAlpha(folders).concat(this._sortAlpha(files));
     }
 
     _sortAlpha(files) {
@@ -633,12 +652,16 @@ class FileDialog extends GenericModal {
             var keyA = a.path;
             var keyB = b.path;
             return keyA.localeCompare(keyB);
-          });
+        });
     }
     
-    _addFile(fileObj, iconClass) {
+    _addFile(fileObj, iconClass, iconStyle="far") {
         const fileList = this._getElement('fileList');
-        let fileItem = document.createElement("A");
+        let styles = [];
+        let fileItem = document.createElement("a");
+        if (this._hiddenFile(fileObj)) {
+            fileItem.classList.add("hidden-file");
+        }
         fileItem.setAttribute("data-type", this._getType(fileObj));
         fileItem.addEventListener("click", (event) => {
             let clickedItem = event.target;
@@ -654,15 +677,15 @@ class FileDialog extends GenericModal {
             }
             this._openItem(clickedItem, true);
         });
-
-        let iconElement = document.createElement("I");
-        iconElement.classList.add("far");
+        let iconElement = document.createElement("i");
+        
         if (iconClass !== undefined) {
-            iconElement.classList.add(iconClass);
+            styles = [iconStyle, iconClass];
         } else {
-            iconElement.classList.add(this._getIcon(fileObj));
+            styles = this._getIcon(fileObj);
         }
-        let filename = document.createElement("SPAN");
+        styles.forEach(iconElement.classList.add, iconElement.classList);
+        let filename = document.createElement("span");
         filename.innerHTML = fileObj.path;
         fileItem.appendChild(iconElement);
         fileItem.appendChild(filename);
