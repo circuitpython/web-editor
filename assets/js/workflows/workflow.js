@@ -1,10 +1,10 @@
 import {sleep, timeout} from '../common/utilities.js';
-import {FileHelper} from '../common/file.js'
+import {FileHelper} from '../common/file.js';
 import {UnsavedDialog} from '../common/dialogs.js';
 import {FileDialog, FILE_DIALOG_OPEN, FILE_DIALOG_SAVE} from '../common/file_dialog.js';
 
 /*
- * This class will encapsulate all of the common workflow-related functions 
+ * This class will encapsulate all of the common workflow-related functions
  */
 
 const CONNTYPE = {
@@ -12,7 +12,7 @@ const CONNTYPE = {
     Ble: 2,
     Usb: 3,
     Web: 4
-}
+};
 
 const CHAR_CTRL_C = '\x03';
 const CHAR_CTRL_D = '\x04';
@@ -73,7 +73,7 @@ class Workflow {
 
     }
 
-    async onDisconnected(e, reconnect=true) {
+    async onDisconnected(e, reconnect = true) {
         this.debugLog("disconnected");
         this.updateConnected(false);
         // Update Common UI Elements
@@ -106,7 +106,7 @@ class Workflow {
         this._connected = isConnected;
     }
 
-    async showBusy(functionPromise, darkBackground=true) {
+    async showBusy(functionPromise, darkBackground = true) {
         if (this.loader) {
             if (darkBackground) {
                 this.loader.classList.add("overlay");
@@ -123,7 +123,7 @@ class Workflow {
     }
 
     async parseParams(urlParams) {
-        // Connection specific params check
+        // Workflow specific params check
         return false;
     }
 
@@ -139,14 +139,14 @@ class Workflow {
         let path = this.currentFilename;
 
         if (!path) {
-            console.log("File has not been saved")
+            console.log("File has not been saved");
             return;
         }
 
         if (path == "/code.py") {
             await this.serialTransmit(CHAR_CTRL_D);
         }
-    
+
         let extension = path.split('.').pop();
         if (extension === null) {
             console.log("Extension not found");
@@ -158,7 +158,7 @@ class Workflow {
         }
         path = path.substr(1, path.length - 4);
         path = path.replace(/\//g, ".");
-    
+
         await changeMode(MODE_SERIAL);
         await this.serialTransmit(CHAR_CTRL_C + "import " + path + CHAR_CRLF);
     }
@@ -194,7 +194,7 @@ class Workflow {
         this.currentFilename = previousFile;
         return false;
     }
-    
+
     async saveAs() {
         let path = await this._fileDialog.open(this.fileHelper, FILE_DIALOG_SAVE);
         if (path !== null) {
@@ -226,14 +226,14 @@ class Workflow {
         return false;
     }
 
-    async writeFile(contents, offset=0) {
+    async writeFile(contents, offset = 0) {
         return await this.showBusy(
             this.fileHelper.writeFile(this.currentFilename, offset, contents)
         );
     }
 
     async readOnly() {
-        return await this.fileHelper.readOnly()
+        return await this.fileHelper.readOnly();
     }
 }
 

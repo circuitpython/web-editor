@@ -43,10 +43,10 @@ class FileHelper {
         let pathParts = path.split("/");
         const filename = pathParts.pop();
         const folder = pathParts.join("/");
-    
+
         // Get a list of files in current path
         const files = await this.listDir(folder);
-    
+
         // See if the file is in the list of files
         for (let fileObj of files) {
             if (fileObj.path[0] == ".") continue;
@@ -57,20 +57,20 @@ class FileHelper {
         return false;
     }
 
-    async writeFile(path, offset, contents, modificationTime=Date.now(), raw=false) {
+    async writeFile(path, offset, contents, modificationTime = Date.now(), raw = false) {
         try {
             await this._writeFile(path, offset, contents, modificationTime, raw);
-        } catch(e) {
+        } catch (e) {
             return false;
         }
         return true;
     }
 
-    async findContainedFiles(containingFolder, relative=false) {
+    async findContainedFiles(containingFolder, relative = false) {
         return await this._findFiles(containingFolder, relative);
     }
 
-    async _findFiles(containingFolder, relative, rootFolder=null) {
+    async _findFiles(containingFolder, relative, rootFolder = null) {
         let paths = [];
         if (!rootFolder) rootFolder = containingFolder;
         const files = await this.listDir(containingFolder);
@@ -89,4 +89,4 @@ class FileHelper {
 
 }
 
-export {FileHelper}
+export {FileHelper};

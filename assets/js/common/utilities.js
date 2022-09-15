@@ -19,14 +19,14 @@ function buildHash(hashParams) {
         return '';
     }
 
-    return '#'+segments.join('&');
+    return '#' + segments.join('&');
 }
 
 function makeUrl(url, extraParams = {}) {
     let urlParams = {
         ...getUrlParams(),
         ...extraParams
-    }        
+    };
     let oldUrl = new URL(url);
     if (isTestHost()) {
         urlParams.host = oldUrl.hostname;
@@ -37,7 +37,8 @@ function makeUrl(url, extraParams = {}) {
 }
 
 function isMdns() {
-    return location.hostname.search(/cpy-[0-9a-f]{6}.local/gi) == 0;
+    // Check for cpy-XXXXXX.local and optionally cpy-XXXXXX-###.local for mDNS name resolution
+    return location.hostname.search(/cpy-[0-9a-f]{6}(?:-[0-9]+)?.local/gi) == 0;
 }
 
 function isIp() {
@@ -52,9 +53,29 @@ function getUrlParams() {
     // This should look for and validate very specific values
     var hashParams = {};
     if (location.hash) {
-        location.hash.substr(1).split("&").forEach(function(item) {hashParams[item.split("=")[0]] = item.split("=")[1]});
+        location.hash.substr(1).split("&").forEach(function(item) {hashParams[item.split("=")[0]] = item.split("=")[1];});
     }
     return hashParams;
 }
 
-export {isTestHost, buildHash, makeUrl, isMdns, isIp, isLocal, getUrlParams, timeout, sleep};
+function getUrlParam(name) {
+    let urlParams = getUrlParams();
+    if (name in urlParams) {
+        return urlParams[name];
+    }
+
+    return null;
+}
+
+export {
+    isTestHost,
+    buildHash,
+    makeUrl,
+    isMdns,
+    isIp,
+    isLocal,
+    getUrlParams,
+    getUrlParam,
+    timeout,
+    sleep
+};

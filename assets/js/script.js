@@ -1,13 +1,13 @@
-import {EditorView, basicSetup} from "../../_snowpack/pkg/codemirror.js"
-import {EditorState} from "../../_snowpack/pkg/@codemirror/state.js"
-import {python} from "../../_snowpack/pkg/@codemirror/lang-python.js"
+import {EditorView, basicSetup} from "../../_snowpack/pkg/codemirror.js";
+import {EditorState} from "../../_snowpack/pkg/@codemirror/state.js";
+import {python} from "../../_snowpack/pkg/@codemirror/lang-python.js";
 import {classHighlighter} from "../../_snowpack/pkg/@lezer/highlight.js";
-import {syntaxHighlighting} from "../../_snowpack/pkg/@codemirror/language.js"
-import {BLEWorkflow} from './workflows/ble.js'
-import {WebWorkflow} from './workflows/web.js'
-import {CONNTYPE, CHAR_CTRL_D} from './workflows/workflow.js'
+import {syntaxHighlighting} from "../../_snowpack/pkg/@codemirror/language.js";
+import {BLEWorkflow} from './workflows/ble.js';
+import {WebWorkflow} from './workflows/web.js';
+import {CONNTYPE, CHAR_CTRL_D} from './workflows/workflow.js';
 import {ButtonValueDialog, MessageModal} from './common/dialogs.js';
-import {sleep, buildHash, isLocal, getUrlParams} from './common/utilities.js'
+import {sleep, buildHash, isLocal, getUrlParams, getUrlParam} from './common/utilities.js';
 
 var terminal;
 var fitter;
@@ -18,10 +18,10 @@ var validBackends = {
     "web": CONNTYPE.Web,
     "ble": CONNTYPE.Ble,
     "usb": CONNTYPE.Usb,
-}
+};
 
 // Instantiate workflows
-var workflows = {}
+var workflows = {};
 workflows[CONNTYPE.Ble] = new BLEWorkflow();
 workflows[CONNTYPE.Web] = new WebWorkflow();
 
@@ -43,14 +43,14 @@ const MODE_SERIAL = 2;
 const messageDialog = new MessageModal("message");
 const connectionType = new ButtonValueDialog("connection-type");
 
-const editorTheme = EditorView.theme({}, {dark: true})
+const editorTheme = EditorView.theme({}, {dark: true});
 const editorExtensions = [
     basicSetup,
     python(),
     editorTheme,
     syntaxHighlighting(classHighlighter),
     EditorView.updateListener.of(onTextChange)
-]
+];
 // New Buttons (Mobile and Desktop Layout)
 btnNew.forEach((element) => {
     element.addEventListener('click', async function(e) {
@@ -123,21 +123,20 @@ btnModeSerial.addEventListener('click', async function(e) {
 
 btnInfo.addEventListener('click', async function(e) {
     await checkConnected();
-    await workflow.showInfo(editor.state.doc.sliceString(0));
+    await workflow.showInfo(editor.state.doc.sliceString(0), unchanged);
 });
 
 function setSaved(saved) {
     if (saved) {
-        mainContent.classList.remove("unsaved")
+        mainContent.classList.remove("unsaved");
     } else {
-        mainContent.classList.add("unsaved")
+        mainContent.classList.add("unsaved");
     }
 }
 
 async function checkConnected() {
     if (!workflow || !workflow.connectionStatus()) {
         let connType = await chooseConnection();
-        // For now just connect to last workflow
         if (!connType) {
             return;
         }
@@ -152,15 +151,15 @@ async function checkConnected() {
 
         if (!workflow.connectionStatus()) {
             // Display the appropriate connection dialog
-            await workflow.showConnect(editor.state.doc.sliceString(0));
+            await workflow.showConnect(editor.state.doc.sliceString(0), unchanged);
         } else if (workflow.type === CONNTYPE.Web) {
             // We're connected, local, and using Web Workflow
-            await workflow.showInfo(editor.state.doc.sliceString(0));
+            await workflow.showInfo(editor.state.doc.sliceString(0), unchanged);
         }
     }
 }
 
-async function workflowConnect() {    
+async function workflowConnect() {
     let returnVal;
     if (!workflow) return false;
 
@@ -223,7 +222,7 @@ async function chooseConnection() {
 }
 
 // Dynamically Load a Workflow (where the magic happens)
-async function loadWorkflow(workflowType=null) {
+async function loadWorkflow(workflowType = null) {
     let currentFilename = null;
 
     if (workflow && workflowType == null) {
@@ -271,7 +270,7 @@ async function loadWorkflow(workflowType=null) {
             // Update Workflow specific UI elements
             await workflow.disconnectButtonHandler();
         }
-        // Unload whatever
+        // Unload workflow
         workflow = null;
     }
 }
@@ -320,8 +319,8 @@ async function debugLog(msg) {
 function updateUIConnected(isConnected) {
     if (isConnected) {
         // Set to Connected State
-        btnConnect.forEach((element) => { 
-            element.innerHTML = "Disconnect"; 
+        btnConnect.forEach((element) => {
+            element.innerHTML = "Disconnect";
             element.disabled = false;
         });
         if (workflow.showInfo !== undefined) {
@@ -329,9 +328,9 @@ function updateUIConnected(isConnected) {
         }
     } else {
         // Set to Disconnected State
-        btnConnect.forEach((element) => { 
+        btnConnect.forEach((element) => {
             element.innerHTML = "Connect";
-            element.disabled = false; 
+            element.disabled = false;
         });
         btnInfo.disabled = true;
     }
@@ -345,11 +344,11 @@ function fixViewportHeight() {
     }
 }
 
-/*window.onbeforeunload = () => {
+window.onbeforeunload = () => {
     if (isDirty()) {
-        return "You have unsaved changed, exit anyways?"
+        return "You have unsaved changed, exit anyways?";
     }
-};*/
+};
 
 fixViewportHeight();
 window.addEventListener("resize", fixViewportHeight);
@@ -357,8 +356,10 @@ window.addEventListener("resize", fixViewportHeight);
 async function loadEditor() {
     let documentState = loadParameterizedContent();
     if (documentState) {
-        setFilename(documentState.path);
         loadEditorContents(documentState.contents);
+        setFilename(documentState.path);
+        unchanged = documentState.pos;
+        setSaved(!isDirty());
     }
 
     updateUIConnected(true);
@@ -444,14 +445,14 @@ editor = new EditorView({
         extensions: editorExtensions
     }),
     parent: document.querySelector('#editor')
-})
+});
 
 function setupXterm() {
     terminal = new Terminal({
         theme: {
-          background: '#333',
-          foreground: '#ddd',
-          cursor: '#ddd',
+            background: '#333',
+            foreground: '#ddd',
+            cursor: '#ddd',
         }
     });
     fitter = new FitAddon.FitAddon();
@@ -462,9 +463,11 @@ function setupXterm() {
     });
 }
 
-// TODO: Check parameters if on code.circuitpython.org for #backend
 function getBackend() {
-    if (isLocal()) {
+    let backend = getUrlParam("backend");
+    if (backend && (backend in validBackends)) {
+        return validBackends[backend];
+    } else if (isLocal()) {
         return validBackends["web"];
     }
 
@@ -511,14 +514,14 @@ document.addEventListener('DOMContentLoaded', async (event) => {
             if (workflow.type === CONNTYPE.Web) {
                 await showMessage("You are connected with localhost, but didn't supply the device hostname.");
             } else {
-                await workflow.showConnect(editor.state.doc.sliceString(0));
+                await workflow.showConnect(editor.state.doc.sliceString(0), unchanged);
             }
         } else {
             if (await workflowConnect() && workflow.type === CONNTYPE.Web) {
                 await checkReadOnly();
                 // We're connected, local, and using Web Workflow
-                await workflow.showInfo(editor.state.doc.sliceString(0));
-            }            
+                await workflow.showInfo(editor.state.doc.sliceString(0), unchanged);
+            }
         }
     } else {
         await checkConnected();

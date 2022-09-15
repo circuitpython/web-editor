@@ -14,14 +14,14 @@ class FileTransferClient {
         if (!this.connectionStatus() && this._allowedMethods !== null) {
             throw new Error("Unable to perform file operation. Not Connected.");
         }
-        
+
         if (this._allowedMethods === null) {
             const status = await this._fetch("/fs/", {method: "OPTIONS"});
-            this._allowedMethods = status.headers.get("Access-Control-Allow-Methods").split(/,/).map(method => {return method.trim().toUpperCase();}); 
+            this._allowedMethods = status.headers.get("Access-Control-Allow-Methods").split(/,/).map(method => {return method.trim().toUpperCase();});
         }
     }
 
-    async readFile(path, rawResponse=false, rootDir='/fs') {
+    async readFile(path, rawResponse = false, rootDir = '/fs') {
         await this.checkConnection();
         const response = await this._fetch(`${rootDir}${path}`);
 
@@ -38,7 +38,7 @@ class FileTransferClient {
         }
     }
 
-    async writeFile(path, offset, contents, modificationTime, raw=false) {
+    async writeFile(path, offset, contents, modificationTime, raw = false) {
         await this.checkConnection();
         await this.checkWritable();
 
@@ -48,7 +48,7 @@ class FileTransferClient {
             headers: {
                 "X-Timestamp": modificationTime
             }
-        }
+        };
 
         if (raw) {
             options.headers['Content-Type'] = "application/octet-stream";
@@ -71,8 +71,8 @@ class FileTransferClient {
             headers: {
                 "X-Timestamp": modificationTime
             }
-        }
-        
+        };
+
         const response = await this._fetch(`/fs${path}`, options);
         return response.ok;
     }
@@ -82,7 +82,7 @@ class FileTransferClient {
         let fetchOptions = {
             credentials: 'include',
             ...options
-        }
+        };
 
         if (fetchOptions.method && fetchOptions.method.toUpperCase() != 'OPTIONS') {
             if (!this.isMethodAllowed(fetchOptions.method)) {
@@ -97,7 +97,7 @@ class FileTransferClient {
 
         try {
             response = await fetch(new URL(location, `http://${this.hostname}`), fetchOptions);
-        } catch(error) {
+        } catch (error) {
             throw new ProtocolError(`Host '${this.hostname}' not found.`);
         }
 
@@ -135,7 +135,7 @@ class FileTransferClient {
                 fileDate: Number(result.modified_ns / 1000000),
             });
         }
-        
+
         return paths;
     }
 
@@ -158,8 +158,8 @@ class FileTransferClient {
             headers: {
                 "X-Destination": `/fs${newPath}`
             }
-        }
-        
+        };
+
         const response = await this._fetch(`/fs${oldPath}`, options);
         return response.ok;
     }
@@ -184,7 +184,7 @@ class FileTransferClient {
         let versionResponse;
         try {
             versionResponse = await fetch(`http://${host}/cp/version.json`, {mode: "cors"});
-        } catch(error) {
+        } catch (error) {
             console.error(`Host '${host}' not found.`);
             throw new ProtocolError(`Host '${host}' not found.`);
         }
@@ -199,4 +199,4 @@ class ProtocolError extends Error {
     }
 }
 
-export {FileTransferClient, ProtocolError}
+export {FileTransferClient, ProtocolError};

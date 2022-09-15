@@ -1,6 +1,6 @@
 /*
  * This class will encapsulate all of the workflow functions specific to USB.
- * 
+ *
  * Note: This class isn't currently functional and only serves as a placeholder
  * for USB-related code.
  */
@@ -33,17 +33,17 @@ class USBWorkflow extends Workflow {
         while (device.readable) {
             reader = device.readable.getReader();
             try {
-            while (true) {
-                const { value, done } = await reader.read();
-                if (done) {
-                // |reader| has been canceled.
-                break;
+                while (true) {
+                    const {value, done} = await reader.read();
+                    if (done) {
+                        // |reader| has been canceled.
+                        break;
+                    }
+                    terminal.io.print(decoder.decode(value));
                 }
-                terminal.io.print(decoder.decode(value));
-            }
             } catch (error) {
-            // Handle |error|...
-            console.log("error", error);
+                // Handle |error|...
+                console.log("error", error);
             } finally {
                 reader.releaseLock();
             }
@@ -62,7 +62,7 @@ class USBWorkflow extends Workflow {
     async onSerialConnected(e) {
         console.log(e, "connected!");
     }
-    
+
     async onSerialDisconnected(e) {
         console.log(e, "disconnected");
     }
