@@ -1,13 +1,13 @@
-import {EditorView, basicSetup} from "codemirror"
-import {EditorState} from "@codemirror/state"
-import {python} from "@codemirror/lang-python"
+import {EditorView, basicSetup} from "codemirror";
+import {EditorState} from "@codemirror/state";
+import {python} from "@codemirror/lang-python";
 import {classHighlighter} from "@lezer/highlight";
-import {syntaxHighlighting} from "@codemirror/language"
-import {BLEWorkflow} from './workflows/ble.js'
-import {WebWorkflow} from './workflows/web.js'
-import {CONNTYPE, CHAR_CTRL_D} from './workflows/workflow.js'
+import {syntaxHighlighting} from "@codemirror/language";
+import {BLEWorkflow} from './workflows/ble.js';
+import {WebWorkflow} from './workflows/web.js';
+import {CONNTYPE, CHAR_CTRL_D} from './workflows/workflow.js';
 import {ButtonValueDialog, MessageModal} from './common/dialogs.js';
-import {sleep, buildHash, isLocal, getUrlParams, getUrlParam} from './common/utilities.js'
+import {sleep, buildHash, isLocal, getUrlParams, getUrlParam} from './common/utilities.js';
 
 var terminal;
 var fitter;
@@ -18,10 +18,10 @@ var validBackends = {
     "web": CONNTYPE.Web,
     "ble": CONNTYPE.Ble,
     "usb": CONNTYPE.Usb,
-}
+};
 
 // Instantiate workflows
-var workflows = {}
+var workflows = {};
 workflows[CONNTYPE.Ble] = new BLEWorkflow();
 workflows[CONNTYPE.Web] = new WebWorkflow();
 
@@ -43,14 +43,14 @@ const MODE_SERIAL = 2;
 const messageDialog = new MessageModal("message");
 const connectionType = new ButtonValueDialog("connection-type");
 
-const editorTheme = EditorView.theme({}, {dark: true})
+const editorTheme = EditorView.theme({}, {dark: true});
 const editorExtensions = [
     basicSetup,
     python(),
     editorTheme,
     syntaxHighlighting(classHighlighter),
     EditorView.updateListener.of(onTextChange)
-]
+];
 // New Buttons (Mobile and Desktop Layout)
 btnNew.forEach((element) => {
     element.addEventListener('click', async function(e) {
@@ -128,16 +128,15 @@ btnInfo.addEventListener('click', async function(e) {
 
 function setSaved(saved) {
     if (saved) {
-        mainContent.classList.remove("unsaved")
+        mainContent.classList.remove("unsaved");
     } else {
-        mainContent.classList.add("unsaved")
+        mainContent.classList.add("unsaved");
     }
 }
 
 async function checkConnected() {
     if (!workflow || !workflow.connectionStatus()) {
         let connType = await chooseConnection();
-        // For now just connect to last workflow
         if (!connType) {
             return;
         }
@@ -223,7 +222,7 @@ async function chooseConnection() {
 }
 
 // Dynamically Load a Workflow (where the magic happens)
-async function loadWorkflow(workflowType=null) {
+async function loadWorkflow(workflowType = null) {
     let currentFilename = null;
 
     if (workflow && workflowType == null) {
@@ -271,7 +270,7 @@ async function loadWorkflow(workflowType=null) {
             // Update Workflow specific UI elements
             await workflow.disconnectButtonHandler();
         }
-        // Unload whatever
+        // Unload workflow
         workflow = null;
     }
 }
@@ -444,14 +443,14 @@ editor = new EditorView({
         extensions: editorExtensions
     }),
     parent: document.querySelector('#editor')
-})
+});
 
 function setupXterm() {
     terminal = new Terminal({
         theme: {
-          background: '#333',
-          foreground: '#ddd',
-          cursor: '#ddd',
+            background: '#333',
+            foreground: '#ddd',
+            cursor: '#ddd',
         }
     });
     fitter = new FitAddon.FitAddon();
@@ -463,7 +462,7 @@ function setupXterm() {
 }
 
 function getBackend() {
-    let backend = getUrlParam(backend);
+    let backend = getUrlParam("backend");
     if (backend && (backend in validBackends)) {
         return validBackends[backend];
     } else if (isLocal()) {

@@ -30,6 +30,7 @@
 
     .step {
         display: flex;
+
         .step-number {
             width: 75px;
             height: 75px;
@@ -61,6 +62,7 @@
                 min-width: 50px;
             }
         }
+
         max-height: calc(100vh - 100px);
         padding: 20px;
     }

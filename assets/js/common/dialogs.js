@@ -1,4 +1,4 @@
-import {sleep, isIp, timeout} from './utilities.js'
+import {sleep, isIp, timeout} from './utilities.js';
 
 const SELECTOR_CLOSE_BUTTON = ".popup-modal__close";
 const SELECTOR_BLACKOUT = "#blackout";
@@ -27,7 +27,7 @@ class GenericModal {
                 element: domElement,
                 event: eventName,
                 handler: eventHandler ? eventHandler.bind(this) : null
-            }
+            };
             if (newElement.handler && newElement.event) {
                 newElement.element.addEventListener(newElement.event, newElement.handler);
             }
@@ -117,7 +117,7 @@ class GenericModal {
     }
 
     _removeTopModalLayer() {
-        const modal = modalLayers.pop()
+        const modal = modalLayers.pop();
         if (modalLayers.length < 1) {
             const bodyBlackout = document.querySelector(SELECTOR_BLACKOUT);
             if (bodyBlackout) {
@@ -133,11 +133,11 @@ class GenericModal {
                     clickBlock.classList.remove('is-blacked-out');
                 } else {
                     // Move click block just underneath topmost layer
-                    clickBlock.style.zIndex = modalLayers[modalLayers.length - 1].style.zIndex - 1
+                    clickBlock.style.zIndex = modalLayers[modalLayers.length - 1].style.zIndex - 1;
                     clickBlock.removeEventListener("click", this.close.bind(this));
                     // if the topmost modal has the closable class then:
                     if (modal.getModal().classList.contains("closable")) {
-                    // Clickblock needs to have a click event added that will close the top most dialog
+                        // Clickblock needs to have a click event added that will close the top most dialog
                         clickBlock.addEventListener("click", modal.close.bind(modal));
                     }
                 }
@@ -212,7 +212,7 @@ class GenericModal {
 
 class MessageModal extends GenericModal {
     async open(message) {
-        let p = super.open()
+        let p = super.open();
         const okButton = this._currentModal.querySelector("button.ok-button");
         this._addDialogElement('okButton', okButton, 'click', this._closeModal);
         this._currentModal.querySelector("#message").innerHTML = message;
@@ -224,7 +224,7 @@ class MessageModal extends GenericModal {
 class ProgressDialog extends GenericModal {
     async open() {
         let p = super.open();
-        while(!this.isVisible()) {
+        while (!this.isVisible()) {
             await sleep(10);
         }
         this.setPercentage(0);
@@ -252,7 +252,7 @@ class UnsavedDialog extends GenericModal {
     }
 
     async open(message) {
-        let p = super.open()
+        let p = super.open();
         const cancelButton = this._currentModal.querySelector("button.cancel-button");
         this._addDialogElement('cancelButton', cancelButton, 'click', this._closeModal);
         const saveButton = this._currentModal.querySelector("button.ok-button");
@@ -277,8 +277,8 @@ class ButtonValueDialog extends GenericModal {
     }
 
     async open(message = null) {
-        let p = super.open()
-        let buttons = this._currentModal.querySelectorAll("button")
+        let p = super.open();
+        let buttons = this._currentModal.querySelectorAll("button");
         buttons.forEach((button) => {
             if (button.classList.contains("cancel-button")) {
                 this._addDialogElement('cancelButton', button, 'click', this._closeModal);
@@ -369,4 +369,4 @@ export {
     UnsavedDialog,
     DiscoveryModal,
     ProgressDialog
-}
+};

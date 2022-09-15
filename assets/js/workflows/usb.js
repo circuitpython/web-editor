@@ -33,17 +33,17 @@ class USBWorkflow extends Workflow {
         while (device.readable) {
             reader = device.readable.getReader();
             try {
-            while (true) {
-                const { value, done } = await reader.read();
-                if (done) {
-                // |reader| has been canceled.
-                break;
+                while (true) {
+                    const {value, done} = await reader.read();
+                    if (done) {
+                        // |reader| has been canceled.
+                        break;
+                    }
+                    terminal.io.print(decoder.decode(value));
                 }
-                terminal.io.print(decoder.decode(value));
-            }
             } catch (error) {
-            // Handle |error|...
-            console.log("error", error);
+                // Handle |error|...
+                console.log("error", error);
             } finally {
                 reader.releaseLock();
             }

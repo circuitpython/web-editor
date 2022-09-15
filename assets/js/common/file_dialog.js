@@ -1,5 +1,5 @@
-import { GenericModal, ProgressDialog, ButtonValueDialog } from './dialogs.js';
-import { saveAs } from 'file-saver';
+import {GenericModal, ProgressDialog, ButtonValueDialog} from './dialogs.js';
+import {saveAs} from 'file-saver';
 
 const FILE_DIALOG_OPEN = 1;
 const FILE_DIALOG_SAVE = 2;
@@ -14,22 +14,22 @@ const HIDDEN_PREFIXES = ["._"];
 
 // This is for mapping file extensions to font awesome icons
 const extensionMap = {
-    "wav": {style:"r", icon: "file-audio", type: "bin"},
-    "mp3": {style:"r", icon: "file-audio", type: "bin"},
-    "bmp": {style:"r", icon: "file-image", type: "bin"},
-    "gif": {style:"r", icon: "file-image", type: "bin"},
-    "jpg": {style:"r", icon: "file-image", type: "bin"},
-    "jpeg": {style:"r", icon: "file-image", type: "bin"},
-    "zip": {style:"r", icon: "file-archive", type: "bin"},
-    "py": {style:"r", icon: "file-alt", type: "text"},
-    "json": {style:"r", icon: "file-code", type: "text"},
-    "mpy": {style:"r", icon: "file", type: "bin"},
-    "txt": {style:"r", icon: "file-alt", type: "text"},
-    "mov": {style:"r", icon: "file-video", type: "bin"},
-    "mp4": {style:"r", icon: "file-video", type: "bin"},
-    "avi": {style:"r", icon: "file-video", type: "bin"},
-    "wmv": {style:"r", icon: "file-video", type: "bin"},
-}
+    "wav": {style: "r", icon: "file-audio", type: "bin"},
+    "mp3": {style: "r", icon: "file-audio", type: "bin"},
+    "bmp": {style: "r", icon: "file-image", type: "bin"},
+    "gif": {style: "r", icon: "file-image", type: "bin"},
+    "jpg": {style: "r", icon: "file-image", type: "bin"},
+    "jpeg": {style: "r", icon: "file-image", type: "bin"},
+    "zip": {style: "r", icon: "file-archive", type: "bin"},
+    "py": {style: "r", icon: "file-alt", type: "text"},
+    "json": {style: "r", icon: "file-code", type: "text"},
+    "mpy": {style: "r", icon: "file", type: "bin"},
+    "txt": {style: "r", icon: "file-alt", type: "text"},
+    "mov": {style: "r", icon: "file-video", type: "bin"},
+    "mp4": {style: "r", icon: "file-video", type: "bin"},
+    "avi": {style: "r", icon: "file-video", type: "bin"},
+    "wmv": {style: "r", icon: "file-video", type: "bin"},
+};
 
 const FOLDER_ICON = ["far", "fa-folder"];
 const DEFAULT_FILE_ICON = ["far", "fa-file"];
@@ -56,7 +56,7 @@ class FileDialog extends GenericModal {
     _getExtension(filename) {
         let extension = filename.split('.').pop();
         if (extension !== null) {
-            return String(extension).toLowerCase()
+            return String(extension).toLowerCase();
         }
         return extension;
     }
@@ -82,7 +82,7 @@ class FileDialog extends GenericModal {
         return "bin";
     }
 
-    async open(fileHelper, type, hidePaths=null) {
+    async open(fileHelper, type, hidePaths = null) {
         if (![FILE_DIALOG_OPEN, FILE_DIALOG_SAVE, FILE_DIALOG_MOVE, FILE_DIALOG_COPY].includes(type)) {
             return;
         }
@@ -90,7 +90,7 @@ class FileDialog extends GenericModal {
         this._readOnlyMode = await this._showBusy(this._fileHelper.readOnly());
         this._hidePaths = hidePaths ? hidePaths : new Set();
 
-        let p = super.open()
+        let p = super.open();
         const cancelButton = this._currentModal.querySelector("button.cancel-button");
         this._addDialogElement('cancelButton', cancelButton, 'click', this._closeModal);
         const okButton = this._currentModal.querySelector("button.ok-button");
@@ -114,7 +114,7 @@ class FileDialog extends GenericModal {
         const moveButton = this._currentModal.querySelector("#move-button");
         this._addDialogElement('moveButton', moveButton, 'click', this._handleMoveButton);
         this._setElementEnabled('moveButton', false);
-        const fileNameField= this._currentModal.querySelector("#filename");
+        const fileNameField = this._currentModal.querySelector("#filename");
 
         if (type == FILE_DIALOG_OPEN) {
             this._currentModal.setAttribute("data-type", "open");
@@ -170,7 +170,7 @@ class FileDialog extends GenericModal {
                 if (this._hidePaths.has(this._currentPath + fileObj.path)) continue;
                 this._addFile(fileObj);
             }
-        } catch(e) {
+        } catch (e) {
             console.log(e);
         }
         this._setElementValue('fileNameField', "");
@@ -271,7 +271,7 @@ class FileDialog extends GenericModal {
         return false;
     }
 
-    _canPerformWritableFileOperation(includeFolder=true) {
+    _canPerformWritableFileOperation(includeFolder = true) {
         if (this._readOnlyMode) {
             return false;
         }
@@ -341,7 +341,7 @@ class FileDialog extends GenericModal {
         return Math.round(number * (decimalPlaces * 10)) / (decimalPlaces * 10);
     }
 
-    prettySize(filesize, decimals=1, units=FILESIZE_UNITS) {
+    prettySize(filesize, decimals = 1, units = FILESIZE_UNITS) {
         let [size, unit] = this._getUnit(filesize, units);
         return `${this.round(size, decimals)} ${unit}`;
     }
@@ -355,7 +355,7 @@ class FileDialog extends GenericModal {
         return [size, units[unitIndex]];
     }
 
-    async _upload(onlyFolders=false) {
+    async _upload(onlyFolders = false) {
         if (this._readOnlyMode) return;
 
         let input = document.createElement('input');
@@ -368,27 +368,27 @@ class FileDialog extends GenericModal {
                     const reader = new FileReader();
 
                     return new Promise((resolve, reject) => {
-                    reader.onerror = () => {
-                        reader.abort();
-                        reject(new DOMException("Problem parsing input file."));
-                    };
+                        reader.onerror = () => {
+                            reader.abort();
+                            reject(new DOMException("Problem parsing input file."));
+                        };
 
-                    reader.onload = () => {
-                        resolve(reader.result);
-                    };
-                    reader.readAsArrayBuffer(inputFile);
+                        reader.onload = () => {
+                            resolve(reader.result);
+                        };
+                        reader.readAsArrayBuffer(inputFile);
                     });
                 };
                 let files = Array.from(input.files);
                 let totalBytes = 0;
                 let bytesCompleted = 0;
-                for(let file of files) {
+                for (let file of files) {
                     totalBytes += file.size;
                 }
 
                 let madeDirs = new Set();
                 this._progressDialog.open();
-                for(let [index, file] of files.entries()) {
+                for (let [index, file] of files.entries()) {
                     let filename = file.name;
                     if (file.webkitRelativePath) {
                         filename = file.webkitRelativePath;
@@ -421,7 +421,7 @@ class FileDialog extends GenericModal {
 
                 // Refresh the file list
                 await this._openFolder();
-            } catch(error) {
+            } catch (error) {
                 this._progressDialog.close();
                 await this._showMessage(`Error: ${error.message}`);
                 console.error(error);
@@ -443,7 +443,7 @@ class FileDialog extends GenericModal {
         let getBlob = async (path) => {
             let response = await this._fileHelper.readFile(path, true);
             return response.blob();
-        }
+        };
 
         if (filename) {
             type = this._getSelectedFileType();
@@ -468,7 +468,7 @@ class FileDialog extends GenericModal {
                 let contents = await this._showBusy(getBlob(folder + location));
                 zip.file(location, contents);
             }
-            blob = await zip.generateAsync({type:"blob"});
+            blob = await zip.generateAsync({type: "blob"});
         } else {
             blob = await this._showBusy(getBlob(this._currentPath + filename));
         }
@@ -568,7 +568,7 @@ class FileDialog extends GenericModal {
     _getSelectedFilename() {
         let file = this._getSelectedFile();
         if (file) {
-            return file.querySelector("span").innerHTML
+            return file.querySelector("span").innerHTML;
         }
         return null;
     }
@@ -592,7 +592,7 @@ class FileDialog extends GenericModal {
         return this._currentPath + filename;
     }
 
-    async _openItem(item, forceNavigate=false) {
+    async _openItem(item, forceNavigate = false) {
         const fileNameField = this._getElement('fileNameField');
         let filetype, filename;
         let selectedItem = this._getSelectedFile();
@@ -662,7 +662,7 @@ class FileDialog extends GenericModal {
         });
     }
 
-    _addFile(fileObj, iconClass, iconStyle="far") {
+    _addFile(fileObj, iconClass, iconStyle = "far") {
         const fileList = this._getElement('fileList');
         let styles = [];
         let fileItem = document.createElement("a");
@@ -733,4 +733,4 @@ export {
     FILE_DIALOG_SAVE,
     FILE_DIALOG_MOVE,
     FILE_DIALOG_COPY
-}
+};

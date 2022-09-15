@@ -1,5 +1,5 @@
 // Boot strap load everything from code.circuitpython.org
-let SITE = "https://code.circuitpython.org"
+let SITE = "https://code.circuitpython.org";
 if (location.hostname == "localhost" || location.hostname == "127.0.0.1") {
     // For development purposes
     SITE = `${location.protocol}//${location.host}`;
@@ -8,7 +8,7 @@ if (location.hostname == "localhost" || location.hostname == "127.0.0.1") {
 async function fetchLocation(location, options = {}) {
     let fetchOptions = {
         ...options
-    }
+    };
 
     const response = await fetch(new URL(location, SITE), fetchOptions);
 
@@ -21,10 +21,10 @@ async function fetchLocation(location, options = {}) {
 
 function replaceAssetLinks(code) {
     code = code.replace(/(href|src)="(assets\/.*?)"/gmi, (all, a, b) => {
-        return `${a}="${SITE}/${b}"`
+        return `${a}="${SITE}/${b}"`;
     });
     code = code.replace(/srcset="(.*? 1x)(,\n?\s*)(.*? 2x)(,\n?\s*)(.*? 3x)"/gmi, (all, a, b, c, d, e) => {
-        return `srcset="${SITE}/${a}${b}${SITE}/${c}${d}${SITE}/${e}"`
+        return `srcset="${SITE}/${a}${b}${SITE}/${c}${d}${SITE}/${e}"`;
     });
 
     return code;
@@ -70,7 +70,7 @@ function loadNextScript() {
     newScript.src = script.src;
     newScript.onload = () => {
         loadNextScript();
-    }
+    };
     if (script.type) {
         newScript.type = script.type;
     }

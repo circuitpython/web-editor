@@ -19,14 +19,14 @@ function buildHash(hashParams) {
         return '';
     }
 
-    return '#'+segments.join('&');
+    return '#' + segments.join('&');
 }
 
 function makeUrl(url, extraParams = {}) {
     let urlParams = {
         ...getUrlParams(),
         ...extraParams
-    }
+    };
     let oldUrl = new URL(url);
     if (isTestHost()) {
         urlParams.host = oldUrl.hostname;
@@ -53,7 +53,7 @@ function getUrlParams() {
     // This should look for and validate very specific values
     var hashParams = {};
     if (location.hash) {
-        location.hash.substr(1).split("&").forEach(function(item) {hashParams[item.split("=")[0]] = item.split("=")[1]});
+        location.hash.substr(1).split("&").forEach(function(item) {hashParams[item.split("=")[0]] = item.split("=")[1];});
     }
     return hashParams;
 }

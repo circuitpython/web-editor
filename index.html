@@ -1,46 +1,30 @@
 <!doctype html>
 <html lang="en">
-    <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1">
-        <link rel="icon" href="assets/images/favicon.ico" type="image/x-icon" />
-        <title>CircuitPython Code Editor</title>
-        <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.15.4/css/all.css"
-            integrity="sha384-DyZ88mC6Up2uqS4h/KRgHuoeGwBcD4Ng9SiP4dIRy0EXTlnuz47vAwmeGwVChigm" crossorigin="anonymous">
-        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@4.19.0/css/xterm.css"></link>
-        <link rel="stylesheet" href="assets/css/style.css">
-    </head>
 
-    <body>
-        <div id="blackout" class="body-blackout"></div>
-        <div id="clickblock" class="body-blackout no-overlay"></div>
-        <header id="site-header">
-            <div class="wrapper">
-                <div class="content">
-                    <nav class="site-brand">
-                        <div class="site-logo">
-                            <a href="https://code.circuitpython.org/">
-                                <img src="assets/images/logo.png" srcset="assets/images/logo.png 1x,
-                                    assets/images/logo@2x.png 2x,
-                                    assets/images/logo@3x.png 3x" alt="CircuitPython Logo" height="60" width="136">
-                            </a>
-                        </div>
-                        <div class="get-started">
-                            <button class="btn-connect">Connect</button>
-                        </div>
-                    </nav>
-                </div>
-            </div>
-            <div class="bottom-bar"></div>
-        </header>
-        <header id="mobile-header">
-            <div class="header-contents">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="icon" href="assets/images/favicon.ico" type="image/x-icon" />
+    <title>CircuitPython Code Editor</title>
+    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.15.4/css/all.css"
+        integrity="sha384-DyZ88mC6Up2uqS4h/KRgHuoeGwBcD4Ng9SiP4dIRy0EXTlnuz47vAwmeGwVChigm" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@4.19.0/css/xterm.css">
+    </link>
+    <link rel="stylesheet" href="assets/css/style.css">
+</head>
+
+<body>
+    <div id="blackout" class="body-blackout"></div>
+    <div id="clickblock" class="body-blackout no-overlay"></div>
+    <header id="site-header">
+        <div class="wrapper">
+            <div class="content">
                 <nav class="site-brand">
                     <div class="site-logo">
                         <a href="https://code.circuitpython.org/">
                             <img src="assets/images/logo.png" srcset="assets/images/logo.png 1x,
                                     assets/images/logo@2x.png 2x,
-                                    assets/images/logo@3x.png 3x" alt="CircuitPython Logo" height="40" width="91">
+                                    assets/images/logo@3x.png 3x" alt="CircuitPython Logo" height="60" width="136">
                         </a>
                     </div>
                     <div class="get-started">
@@ -48,270 +32,275 @@
                     </div>
                 </nav>
             </div>
-            <div class="bottom-bar"></div>
-        </header>
-        <div class="mode-editor" id="main-content">
-            <div id="editor-page" class="wrapper">
-                <div class="container">
-                    <div id="mobile-editor-bar">
-                        <div id="mobile-menu">
-                            <div class="menu-toggle">
-                                <button id="mobile-menu-button">
-                                    <span class="sr-only">Open Mobile Menu</span>
-                                    <i class="fa fa-bars" aria-hidden="true"></i>
-                                </button>
-                            </div>
-                        </div>
-                        <div class="file-path"></div>
-                        <a class="purple-button btn-save-run">Save + Run<i class="fas fa-play"></i></a>
-                        <div class="clear"></div>
-                        <nav id="mobile-menu-contents" role="navigation" class="hidden" aria-expanded="false"
-                            aria-label="Mobile Menu">
-                            <ul>
-                                <li><a class="btn-new">New<i class="fas fa-plus"></i></a></li>
-                                <li><a class="btn-open">Open<i class="fas fa-folder-open"></i></a></li>
-                                <li><a class="btn-save-as">Save As<i class="fas fa-download"></i></a></li>
-                            </ul>
-                        </nav>
-                    </div>
-                    <div id="editor-bar">
-                        <button class="purple-button btn-new">New<i class="fas fa-plus"></i></button>
-                        <button class="purple-button btn-open">Open<i class="fas fa-folder-open"></i></button>
-                        <button class="purple-button btn-save-as">Save As<i class="fas fa-download"></i></button>
-                        <div class="file-path"></div>
-                        <button class="purple-button btn-save-run">Save + Run<i class="fas fa-play"></i></button>
-                    </div>
+        </div>
+        <div class="bottom-bar"></div>
+    </header>
+    <header id="mobile-header">
+        <div class="header-contents">
+            <nav class="site-brand">
+                <div class="site-logo">
+                    <a href="https://code.circuitpython.org/">
+                        <img src="assets/images/logo.png" srcset="assets/images/logo.png 1x,
+                                    assets/images/logo@2x.png 2x,
+                                    assets/images/logo@3x.png 3x" alt="CircuitPython Logo" height="40" width="91">
+                    </a>
                 </div>
-                <div>
-                    <div class="editor-container">
-                        <div class="container">
-                            <div id="editor"></div>
+                <div class="get-started">
+                    <button class="btn-connect">Connect</button>
+                </div>
+            </nav>
+        </div>
+        <div class="bottom-bar"></div>
+    </header>
+    <div class="mode-editor" id="main-content">
+        <div id="editor-page" class="wrapper">
+            <div class="container">
+                <div id="mobile-editor-bar">
+                    <div id="mobile-menu">
+                        <div class="menu-toggle">
+                            <button id="mobile-menu-button">
+                                <span class="sr-only">Open Mobile Menu</span>
+                                <i class="fa fa-bars" aria-hidden="true"></i>
+                            </button>
                         </div>
                     </div>
+                    <div class="file-path"></div>
+                    <a class="purple-button btn-save-run">Save + Run<i class="fas fa-play"></i></a>
+                    <div class="clear"></div>
+                    <nav id="mobile-menu-contents" role="navigation" class="hidden" aria-expanded="false" aria-label="Mobile Menu">
+                        <ul>
+                            <li><a class="btn-new">New<i class="fas fa-plus"></i></a></li>
+                            <li><a class="btn-open">Open<i class="fas fa-folder-open"></i></a></li>
+                            <li><a class="btn-save-as">Save As<i class="fas fa-download"></i></a></li>
+                        </ul>
+                    </nav>
+                </div>
+                <div id="editor-bar">
+                    <button class="purple-button btn-new">New<i class="fas fa-plus"></i></button>
+                    <button class="purple-button btn-open">Open<i class="fas fa-folder-open"></i></button>
+                    <button class="purple-button btn-save-as">Save As<i class="fas fa-download"></i></button>
+                    <div class="file-path"></div>
+                    <button class="purple-button btn-save-run">Save + Run<i class="fas fa-play"></i></button>
                 </div>
             </div>
-            <div id="serial-page" class="wrapper">
-                <div class="container" id="serial-bar">
-                    <button class="purple-button" id="btn-restart">Restart<i class="fas fa-redo"></i></button>
-                    <div id="terminal-title"></div>
-                </div>
-                <div class="terminal-container">
+            <div>
+                <div class="editor-container">
                     <div class="container">
-                        <div id="terminal"></div>
+                        <div id="editor"></div>
                     </div>
                 </div>
             </div>
-            <div class="container" id="footer-bar">
-                <button class="mode-button purple-button" id="btn-mode-editor">Editor</button>
-                <button class="mode-button purple-button active" id="btn-mode-serial">Serial</button>
-                <div class="spacer"></div>
-                <button class="purple-button" id="btn-info" disabled>Info<i class="fas fa-info-circle"></i></button>
+        </div>
+        <div id="serial-page" class="wrapper">
+            <div class="container" id="serial-bar">
+                <button class="purple-button" id="btn-restart">Restart<i class="fas fa-redo"></i></button>
+                <div id="terminal-title"></div>
+            </div>
+            <div class="terminal-container">
+                <div class="container">
+                    <div id="terminal"></div>
+                </div>
             </div>
         </div>
+        <div class="container" id="footer-bar">
+            <button class="mode-button purple-button" id="btn-mode-editor">Editor</button>
+            <button class="mode-button purple-button active" id="btn-mode-serial">Serial</button>
+            <div class="spacer"></div>
+            <button class="purple-button" id="btn-info" disabled>Info<i class="fas fa-info-circle"></i></button>
+        </div>
+    </div>
 
-        <!-- Loading Animation -->
-        <div class="loader" id="loader"><div><img src="assets/images/loading-blinka.webp" alt="Loading Animation" height="100" width="100"></div></div>
+    <!-- Loading Animation -->
+    <div class="loader" id="loader">
+        <div><img src="assets/images/loading-blinka.webp" alt="Loading Animation" height="100" width="100"></div>
+    </div>
 
-        <!-- Dialog Box Templates -->
-        <div class="popup-modal shadow file-dialog closable" data-popup-modal="files">
-            <div class="buttons">
-                <button id="del-button" title="Delete Selected Folder or File" class="purple-button"><i class="fas fa-trash-alt"></i></button>
-                <button id="rename-button" title="Rename Selected Folder or File" class="purple-button"><i class="fas fa-pencil-alt"></i></button>
-                <button id="new-folder-button" title="Create New Folder in Current Folder" class="purple-button"><i class="fas fa-folder-plus"></i></button>
-                <button id="upload-button" title="Upload to Current Folder" class="purple-button"><i class="fas fa-upload"></i></button>
-                <button id="download-button" title="Download Folder or File" class="purple-button"><i class="fas fa-download"></i></button>
-                <button id="move-button" title="Move Selected Folder or File" class="purple-button"><i class="fas fa-file-export"></i></button>
-            </div>
-            <span id="current-path"></span>
-            <i class="fas fa-2x fa-times text-white bg-primary p-3 popup-modal__close"></i>
-            <div id="file-list" style="border:1px solid #888"></div>
-            <div class="buttons">
-                <input type="text" id="filename" />
-                <button class="purple-button ok-button">Ok</button>
-                <button class="purple-button cancel-button">Cancel</button>
-            </div>
+    <!-- Dialog Box Templates -->
+    <div class="popup-modal shadow file-dialog closable" data-popup-modal="files">
+        <div class="buttons">
+            <button id="del-button" title="Delete Selected Folder or File" class="purple-button"><i class="fas fa-trash-alt"></i></button>
+            <button id="rename-button" title="Rename Selected Folder or File" class="purple-button"><i class="fas fa-pencil-alt"></i></button>
+            <button id="new-folder-button" title="Create New Folder in Current Folder" class="purple-button"><i class="fas fa-folder-plus"></i></button>
+            <button id="upload-button" title="Upload to Current Folder" class="purple-button"><i class="fas fa-upload"></i></button>
+            <button id="download-button" title="Download Folder or File" class="purple-button"><i class="fas fa-download"></i></button>
+            <button id="move-button" title="Move Selected Folder or File" class="purple-button"><i class="fas fa-file-export"></i></button>
         </div>
-        <div class="popup-modal shadow file-dialog closable" data-popup-modal="folder-select">
-            <span id="current-path"></span>
-            <i class="fas fa-2x fa-times text-white bg-primary p-3 popup-modal__close"></i>
-            <div id="file-list" style="border:1px solid #888"></div>
-            <div class="buttons">
-                <input type="text" id="filename" />
-                <button class="purple-button ok-button">Ok</button>
-                <button class="purple-button cancel-button">Cancel</button>
-            </div>
+        <span id="current-path"></span>
+        <i class="fas fa-2x fa-times text-white bg-primary p-3 popup-modal__close"></i>
+        <div id="file-list" style="border:1px solid #888"></div>
+        <div class="buttons">
+            <input type="text" id="filename" />
+            <button class="purple-button ok-button">Ok</button>
+            <button class="purple-button cancel-button">Cancel</button>
         </div>
-        <div class="popup-modal shadow prompt closable" data-popup-modal="unsaved">
-            <div id="message"></div>
-            <div class="buttons">
-                <button class="purple-button ok-button">Save</button>
-                <button class="purple-button not-ok-button">Don't Save</button>
-                <button class="purple-button cancel-button">Cancel</button>
-            </div>
+    </div>
+    <div class="popup-modal shadow file-dialog closable" data-popup-modal="folder-select">
+        <span id="current-path"></span>
+        <i class="fas fa-2x fa-times text-white bg-primary p-3 popup-modal__close"></i>
+        <div id="file-list" style="border:1px solid #888"></div>
+        <div class="buttons">
+            <input type="text" id="filename" />
+            <button class="purple-button ok-button">Ok</button>
+            <button class="purple-button cancel-button">Cancel</button>
         </div>
-        <div class="popup-modal shadow prompt closable" data-popup-modal="upload-type">
-            <div id="message"></div>
-            <div class="buttons stacked">
-                <button id="upload-files" class="purple-button files-button" value="files">Upload Files <i class="fas fa-file"></i></button>
-                <button id="upload-folders" class="purple-button folders-button" value="folders">Upload Folders <i class="fas fa-folder"></i></button>
-            </div>
+    </div>
+    <div class="popup-modal shadow prompt closable" data-popup-modal="unsaved">
+        <div id="message"></div>
+        <div class="buttons">
+            <button class="purple-button ok-button">Save</button>
+            <button class="purple-button not-ok-button">Don't Save</button>
+            <button class="purple-button cancel-button">Cancel</button>
         </div>
-        <div class="popup-modal shadow prompt closable" data-popup-modal="connection-type">
-            <div id="message"></div>
-            <div class="buttons stacked">
-                <button id="web-workflow" class="purple-button files-button" value="web">WiFi <i class="fas fa-wifi"></i></button>
-                <button id="ble-workflow" class="purple-button files-button" value="ble">Bluetooth <i class="fab fa-bluetooth"></i></button>
-                <button id="usb-workflow" class="purple-button files-button" value="usb">USB <i class="fab fa-usb"></i></button>
-            </div>
+    </div>
+    <div class="popup-modal shadow prompt closable" data-popup-modal="upload-type">
+        <div id="message"></div>
+        <div class="buttons stacked">
+            <button id="upload-files" class="purple-button files-button" value="files">Upload Files <i class="fas fa-file"></i></button>
+            <button id="upload-folders" class="purple-button folders-button" value="folders">Upload Folders <i class="fas fa-folder"></i></button>
         </div>
-        <div class="popup-modal shadow prompt closable" data-popup-modal="message">
-            <div id="message"></div>
-            <div class="buttons centered">
-                <button class="purple-button ok-button">Ok</button>
-            </div>
+    </div>
+    <div class="popup-modal shadow prompt closable" data-popup-modal="connection-type">
+        <div id="message"></div>
+        <div class="buttons stacked">
+            <button id="web-workflow" class="purple-button files-button" value="web">WiFi <i class="fas fa-wifi"></i></button>
+            <button id="ble-workflow" class="purple-button files-button" value="ble">Bluetooth <i class="fab fa-bluetooth"></i></button>
+            <button id="usb-workflow" class="purple-button files-button" value="usb">USB <i class="fab fa-usb"></i></button>
         </div>
-        <div class="popup-modal shadow prompt" data-popup-modal="progress">
-            <div class="label centered" id="status"></div>
-            <div class="label centered" id="percentage"></div>
-            <progress value="0"></progress>
+    </div>
+    <div class="popup-modal shadow prompt closable" data-popup-modal="message">
+        <div id="message"></div>
+        <div class="buttons centered">
+            <button class="purple-button ok-button">Ok</button>
         </div>
-        <div class="popup-modal shadow connect-dialog closable" data-popup-modal="ble-connect">
-            <i class="fas fa-2x fa-times text-white bg-primary p-3 popup-modal__close"></i>
-            <div id="ble-instructions" class="connection-layout content">
-                <p>If you are connecting to a new device, follow the steps below. Otherwise click the Reconnect button.</p>
-                <p><button class="purple-button" id="bleReconnect">Reconnect</button></p>
-                <section class="step">
-                    <div class="step-number">1</div>
-                    <div class="step-content">
-                        <h1>Set Up Web Bluetooth</h1>
-                        <p>
-                            Web Bluetooth is currently only supported in Chromium-based browsers.
-                        </p>
-                        <p>
-                            To get the best experience, enable the experimental <a
-                                href="about://flags/#enable-web-bluetooth-new-permissions-backend">about://flags/#enable-web-bluetooth-new-permissions-backend</a> flag.
-                        </p>
-                        <p>
-                            On Linux only, enable the experimental <a
-                                href="about://flags/#enable-experimental-web-platform-features">about://flags/#enable-experimental-web-platform-features</a>
-                            flag. However be careful as it would be risky to browse the web whith this flag turned
-                            on as it enables many other experimental web platform features. Starting with Chromium
-                            version 100, enable the <a
-                                href="about://flags/#enable-web-bluetooth">about://flags/#enable-web-bluetooth</a>
-                            safer flag instead.
-                        </p>
-                    </div>
-                </section>
-                <section class="step">
-                    <div class="step-number">2</div>
-                    <div class="step-content">
-                        <h1>Request Bluetooth Device</h1>
-                        <p>
-                            CircuitPython boards with <a
-                                href="https://circuitpython.org/downloads?features=Bluetooth%2FBTLE">nrf chips need
-                                CircuitPython 7.0.0 or newer</a>. The first time a device is connected to your host,
-                            you'll need to enable public broadcasting by pressing reset when the faster, blue blink
-                            is happening on start up. The device will reset and the second, blue blink will be solid
-                            when done successfully.
-                        </p>
-                        <p>
-                            <button class="purple-button" id="requestBluetoothDevice">Request Bluetooth
-                                Device</button>
-                        </p>
-                    </div>
-                </section>
-                <section class="step">
-                    <div class="step-number">3</div>
-                    <div class="step-content">
-                        <h1>Bond Device</h1>
-                        <p>
-                            Once you are connected, we need to prompt a bond. Without this CircuitPython boards with
-                            USB won't continue to advertise after a hard reset or powerloss. This button also loads
-                            code.py from the device so click it even if the device has been connected before.
-                        </p>
-                        <p>
-                            <button class="purple-button" id="promptBond">Bond Bluetooth Device</button>
-                        </p>
-                    </div>
-                </section>
-            </div>
+    </div>
+    <div class="popup-modal shadow prompt" data-popup-modal="progress">
+        <div class="label centered" id="status"></div>
+        <div class="label centered" id="percentage"></div>
+        <progress value="0"></progress>
+    </div>
+    <div class="popup-modal shadow connect-dialog closable" data-popup-modal="ble-connect">
+        <i class="fas fa-2x fa-times text-white bg-primary p-3 popup-modal__close"></i>
+        <div id="ble-instructions" class="connection-layout content">
+            <p>If you are connecting to a new device, follow the steps below. Otherwise click the Reconnect button.</p>
+            <p><button class="purple-button" id="bleReconnect">Reconnect</button></p>
+            <section class="step">
+                <div class="step-number">1</div>
+                <div class="step-content">
+                    <h1>Set Up Web Bluetooth</h1>
+                    <p>Web Bluetooth is currently only supported in Chromium-based browsers.</p>
+                    <p>To get the best experience, enable the experimental <a
+                            href="about://flags/#enable-web-bluetooth-new-permissions-backend">about://flags/#enable-web-bluetooth-new-permissions-backend</a>
+                        flag.</p>
+                    <p>On Linux only, enable the experimental <a
+                            href="about://flags/#enable-experimental-web-platform-features">about://flags/#enable-experimental-web-platform-features</a>
+                        flag. However be careful as it would be risky to browse the web whith this flag turned
+                        on as it enables many other experimental web platform features. Starting with Chromium
+                        version 100, enable the <a href="about://flags/#enable-web-bluetooth">about://flags/#enable-web-bluetooth</a>
+                        safer flag instead.</p>
+                </div>
+            </section>
+            <section class="step">
+                <div class="step-number">2</div>
+                <div class="step-content">
+                    <h1>Request Bluetooth Device</h1>
+                    <p>CircuitPython boards with <a href="https://circuitpython.org/downloads?features=Bluetooth%2FBTLE">nrf chips need
+                        CircuitPython 7.0.0 or newer</a>. The first time a device is connected to your host,
+                        you'll need to enable public broadcasting by pressing reset when the faster, blue blink
+                        is happening on start up. The device will reset and the second, blue blink will be solid
+                        when done successfully.</p>
+                    <p>
+                        <button class="purple-button" id="requestBluetoothDevice">Request Bluetooth Device</button>
+                    </p>
+                </div>
+            </section>
+            <section class="step">
+                <div class="step-number">3</div>
+                <div class="step-content">
+                    <h1>Bond Device</h1>
+                    <p>Once you are connected, we need to prompt a bond. Without this CircuitPython boards with
+                        USB won't continue to advertise after a hard reset or powerloss. This button also loads
+                        code.py from the device so click it even if the device has been connected before.</p>
+                    <p>
+                        <button class="purple-button" id="promptBond">Bond Bluetooth Device</button>
+                    </p>
+                </div>
+            </section>
         </div>
-        <div class="popup-modal shadow connect-dialog closable" data-popup-modal="web-connect">
-            <i class="fas fa-2x fa-times text-white bg-primary p-3 popup-modal__close"></i>
-            <div id="web-instructions" class="connection-layout content">
-                <section class="step">
-                    <div class="step-number">1</div>
-                    <div class="step-content">
-                        <h1>Update CircuitPython</h1>
-                        <p>
-                            Web Workflow is only available on CircuitPython boards with <a
+    </div>
+    <div class="popup-modal shadow connect-dialog closable" data-popup-modal="web-connect">
+        <i class="fas fa-2x fa-times text-white bg-primary p-3 popup-modal__close"></i>
+        <div id="web-instructions" class="connection-layout content">
+            <section class="step">
+                <div class="step-number">1</div>
+                <div class="step-content">
+                    <h1>Update CircuitPython</h1>
+                    <p>Web Workflow is only available on CircuitPython boards with <a
                             href="https://circuitpython.org/downloads?mcufamilies=esp32&mcufamilies=esp32c3&mcufamilies=esp32s2&mcufamilies=esp32s3"
-                            target="_blank">ESP chips running CircuitPython 8.0.0-beta.0 or newer</a>.
-                        </p>
-                    </div>
-                </section>
-                <section class="step">
-                    <div class="step-number">2</div>
-                    <div class="step-content">
-                        <h1>Connect Device to the Internet</h1>
-                        <p>
-                            To connect the device to your network, you will need to set up the .env file on your device
-                            and add your WiFi credentials. The <a href="https://docs.circuitpython.org/en/latest/docs/workflows.html#web"
-                            target="_blank">CircuitPython Web Workflow Documentation</a> has more details how to create this file.
-                        </p>
-                    </div>
-                </section>
-                <section class="step">
-                    <div class="step-number">3</div>
-                    <div class="step-content">
-                        <h1>Navigate to your Device</h1>
-                        <p>
-                            Once your device is connected to your Local Area Network, you can navigate to
-                            <a id="device-link" href="http://circuitpython.local/code/">http://circuitpython.local/code/</a>. This opens
-                            a page on your device that loads this website onto the device and to avoid any cross
-                            domain security issues.
-                        </p>
-                    </div>
-                </section>
-            </div>
+                            target="_blank">ESP chips running CircuitPython 8.0.0-beta.0 or newer</a>.</p>
+                </div>
+            </section>
+            <section class="step">
+                <div class="step-number">2</div>
+                <div class="step-content">
+                    <h1>Connect Device to the Internet</h1>
+                    <p>To connect the device to your network, you will need to set up the .env file on your device
+                        and add your WiFi credentials. The <a href="https://docs.circuitpython.org/en/latest/docs/workflows.html#web"
+                            target="_blank">CircuitPython Web Workflow
+                            Documentation</a> has more details how to create
+                        this file.</p>
+                </div>
+            </section>
+            <section class="step">
+                <div class="step-number">3</div>
+                <div class="step-content">
+                    <h1>Navigate to your Device</h1>
+                    <p>Once your device is connected to your Local Area Network, you can navigate to
+                        <a id="device-link" href="http://circuitpython.local/code/">http://circuitpython.local/code/</a>. This opens
+                        a page on your device that loads this website onto the device and to avoid any cross domain security issues.</p>
+                </div>
+            </section>
         </div>
-        <div class="popup-modal shadow closable" data-popup-modal="device-discovery">
-            <i class="fas fa-2x fa-times text-white bg-primary p-3 popup-modal__close"></i>
-            <table class="device-info">
-                <thead>
-                    <tr>
-                        <th colspan="2">Current Device Info</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td>Board:</td>
-                        <td><a id="board"></a></td>
-                    </tr>
-                    <tr>
-                        <td>Version:</td>
-                        <td><span id="version"></span></td>
-                    </tr>
-                    <tr>
-                        <td>Hostname:</td>
-                        <td><a id="hostname"></a></td>
-                    </tr>
-                    <tr>
-                        <td>IP Address:</td>
-                        <td><a id="ip"></a></td>
-                    </tr>
-                </tbody>
-            </table>
-            <h3>More network devices<i class="refresh fas fa-sync-alt" title="Refresh Device List"></i></h3>
-            <div id="devices"></div>
-            <div class="buttons centered">
-                <button class="purple-button ok-button">Close</button>
-            </div>
+    </div>
+    <div class="popup-modal shadow closable" data-popup-modal="device-discovery">
+        <i class="fas fa-2x fa-times text-white bg-primary p-3 popup-modal__close"></i>
+        <table class="device-info">
+            <thead>
+                <tr>
+                    <th colspan="2">Current Device Info</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Board:</td>
+                    <td><a id="board"></a></td>
+                </tr>
+                <tr>
+                    <td>Version:</td>
+                    <td><span id="version"></span></td>
+                </tr>
+                <tr>
+                    <td>Hostname:</td>
+                    <td><a id="hostname"></a></td>
+                </tr>
+                <tr>
+                    <td>IP Address:</td>
+                    <td><a id="ip"></a></td>
+                </tr>
+            </tbody>
+        </table>
+        <h3>More network devices<i class="refresh fas fa-sync-alt" title="Refresh Device List"></i></h3>
+        <div id="devices"></div>
+        <div class="buttons centered">
+            <button class="purple-button ok-button">Close</button>
         </div>
-        <script src="https://cdn.jsdelivr.net/npm/xterm@4.19.0/lib/xterm.min.js"></script>
-        <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.5.0/lib/xterm-addon-fit.min.js"></script>
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" integrity="sha512-XMVd28F1oH/O71fzwBnV7HucLxVwtxf26XV8P4wPk26EDxuGZ91N8bsOttmnomcCD3CS5ZMRL50H0GgOHvegtg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-        <script src="assets/js/header_mobile.js"></script>
-        <script type="module" src="assets/js/script.js"></script>
-    </body>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/xterm@4.19.0/lib/xterm.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.5.0/lib/xterm-addon-fit.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"
+        integrity="sha512-XMVd28F1oH/O71fzwBnV7HucLxVwtxf26XV8P4wPk26EDxuGZ91N8bsOttmnomcCD3CS5ZMRL50H0GgOHvegtg==" crossorigin="anonymous"
+        referrerpolicy="no-referrer"></script>
+    <script src="assets/js/header_mobile.js"></script>
+    <script type="module" src="assets/js/script.js"></script>
+</body>
+
 </html>

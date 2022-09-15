@@ -3,16 +3,16 @@
  */
 
 import {FileTransferClient} from '../common/web-file-transfer.js';
-import {Workflow, CONNTYPE} from './workflow.js'
+import {Workflow, CONNTYPE} from './workflow.js';
 import {GenericModal, DiscoveryModal} from '../common/dialogs.js';
 import {isTestHost, isMdns, isIp, makeUrl, getUrlParams} from '../common/utilities.js';
 
 const CHAR_TITLE_START = "\x1b]0;";
 const CHAR_TITLE_END = "\x1b\\";
 
-const CONNECT_TIMEOUT_MS = 30000
-const PING_INTERVAL_MS = 5000
-const PING_TIMEOUT_MS = 2000
+const CONNECT_TIMEOUT_MS = 30000;
+const PING_INTERVAL_MS = 5000;
+const PING_TIMEOUT_MS = 2000;
 
 class WebWorkflow extends Workflow {
     constructor() {
@@ -74,7 +74,7 @@ class WebWorkflow extends Workflow {
             this.websocket.onmessage = this.onSerialReceive.bind(this);
             this.websocket.onclose = this.onDisconnected.bind(this);
             return true;
-        } catch(e) {
+        } catch (e) {
             //console.log(e, e.stack);
             return new Error("Error initializing Web Socket.");
         }
@@ -86,7 +86,7 @@ class WebWorkflow extends Workflow {
         this.initFileClient(new FileTransferClient(host, this.connectionStatus.bind(this)));
         try {
             await this.fileHelper.listDir('/');
-        } catch(error) {
+        } catch (error) {
             return new Error(`The device ${host} was not found. Be sure it is plugged in and set up properly.`);
         }
         returnVal = await this.initSerial(host);
@@ -98,12 +98,12 @@ class WebWorkflow extends Workflow {
         try {
             await this.timeout(
                 async () => {
-                    while(!this.connectionStatus()) {
+                    while (!this.connectionStatus()) {
                         await this.sleep(100);
                     }
                 }, CONNECT_TIMEOUT_MS
             );
-        } catch(error) {
+        } catch (error) {
             return new Error("Connection timed out. Make sure you don't have more than one browser tab open.");
         }
 
@@ -143,7 +143,7 @@ class WebWorkflow extends Workflow {
             try {
                 this.host = await FileTransferClient.getRedirectedHost(this.host);
                 console.log("New Host", this.host);
-            } catch(e) {
+            } catch (e) {
                 console.error("Unable to forward to device. Ensure they are set up and connected to the same local network.");
                 return false;
             }
@@ -157,7 +157,7 @@ class WebWorkflow extends Workflow {
         //this.connIntervalId = setInterval(this.checkConnection.bind(this), PING_INTERVAL_MS);
     }
 
-    async onDisconnected(e, reconnect=true) {
+    async onDisconnected(e, reconnect = true) {
         if (this.connIntervalId) {
             clearInterval(this.connIntervalId);
             this.connIntervalId = null;
@@ -230,7 +230,7 @@ class WebWorkflow extends Workflow {
         try {
             await this.timeout(
                 async () => {
-                    await this.activeConnection()
+                    await this.activeConnection();
                 }, PING_TIMEOUT_MS
             );
         } catch (error) {

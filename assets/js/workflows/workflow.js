@@ -1,5 +1,5 @@
 import {sleep, timeout} from '../common/utilities.js';
-import {FileHelper} from '../common/file.js'
+import {FileHelper} from '../common/file.js';
 import {UnsavedDialog} from '../common/dialogs.js';
 import {FileDialog, FILE_DIALOG_OPEN, FILE_DIALOG_SAVE} from '../common/file_dialog.js';
 
@@ -12,7 +12,7 @@ const CONNTYPE = {
     Ble: 2,
     Usb: 3,
     Web: 4
-}
+};
 
 const CHAR_CTRL_C = '\x03';
 const CHAR_CTRL_D = '\x04';
@@ -73,7 +73,7 @@ class Workflow {
 
     }
 
-    async onDisconnected(e, reconnect=true) {
+    async onDisconnected(e, reconnect = true) {
         this.debugLog("disconnected");
         this.updateConnected(false);
         // Update Common UI Elements
@@ -106,7 +106,7 @@ class Workflow {
         this._connected = isConnected;
     }
 
-    async showBusy(functionPromise, darkBackground=true) {
+    async showBusy(functionPromise, darkBackground = true) {
         if (this.loader) {
             if (darkBackground) {
                 this.loader.classList.add("overlay");
@@ -139,7 +139,7 @@ class Workflow {
         let path = this.currentFilename;
 
         if (!path) {
-            console.log("File has not been saved")
+            console.log("File has not been saved");
             return;
         }
 
@@ -226,14 +226,14 @@ class Workflow {
         return false;
     }
 
-    async writeFile(contents, offset=0) {
+    async writeFile(contents, offset = 0) {
         return await this.showBusy(
             this.fileHelper.writeFile(this.currentFilename, offset, contents)
         );
     }
 
     async readOnly() {
-        return await this.fileHelper.readOnly()
+        return await this.fileHelper.readOnly();
     }
 }
 

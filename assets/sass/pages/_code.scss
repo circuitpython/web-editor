@@ -1,4 +1,6 @@
-#ble-instructions, #web-instructions, #usb-instructions {
+#ble-instructions,
+#web-instructions,
+#usb-instructions {
     h1 {
         font-weight: 400;
     }
@@ -16,17 +18,20 @@
 
     ul {
         margin-bottom: 16px;
+
         li {
             margin-top: .25em;
         }
     }
+
     a {
         color: #0062c7;
         text-decoration: underline;
     }
 }
 
-#editor-bar, #serial-bar {
+#editor-bar,
+#serial-bar {
     height: 59px;
 }
 
@@ -48,6 +53,7 @@
     .terminal-container {
         background: #333;
     }
+
     #terminal {
         position: relative;
         width: 100%;
@@ -100,6 +106,7 @@
 @media (max-width: 767px) {
     .popup-modal.file-dialog {
         #file-list a {
+
             span:nth-child(3),
             span:nth-child(4) {
                 visibility: hidden;
@@ -209,7 +216,7 @@
     }
 
     &.shadow {
-        filter: drop-shadow(0px 0px 6px rgba(0,0,0,.6));
+        filter: drop-shadow(0px 0px 6px rgba(0, 0, 0, .6));
     }
 
     &.is--visible {
@@ -228,12 +235,14 @@
         line-height: 25px;
     }
 
-    &.no-padding, &.connect-dialog {
+    &.no-padding,
+    &.connect-dialog {
         padding: 0;
     }
 
     .label {
         margin-bottom: 5px;
+
         &.centered {
             text-align: center;
         }
@@ -243,18 +252,23 @@
         display: flex;
         text-align: right;
         margin-top: 10px;
+
         button {
             margin-left: 10px;
+
             i {
                 padding-left: 0;
             }
+
             &:first-child {
                 margin-left: 0;
             }
+
             &.purple-button-link {
                 min-width: 250px;
             }
         }
+
         input {
             margin: 10px 0;
             flex-grow: 1;
@@ -269,6 +283,7 @@
 
         &.stacked {
             flex-direction: column;
+
             button {
                 margin: 5px 0;
                 width: 250px;
@@ -293,23 +308,30 @@
             overflow: auto;
             height: 200px;
             padding: 5px 0;
+
             a {
                 &.hidden-file {
-                    i, span {
+
+                    i,
+                    span {
                         opacity: 0.65;
                     }
                 }
+
                 padding-left: 5px;
                 display: grid;
                 grid-template-columns: 30px minmax(60px, 1fr) 60px 1fr;
                 grid-gap: 10px;
                 cursor: default;
+
                 &.selected {
                     background-color: $light-purple;
                 }
+
                 i {
                     text-align: center;
                 }
+
                 span {
                     text-overflow: ellipsis;
                     overflow: hidden;
@@ -330,7 +352,7 @@
             margin-top: 5px;
             width: 100%;
             border-collapse: collapse;
-            filter: drop-shadow(0px 0px 2px rgba(0,0,0,.5));
+            filter: drop-shadow(0px 0px 2px rgba(0, 0, 0, .5));
 
             thead tr {
                 background-color: $light-purple;
@@ -343,19 +365,23 @@
                 }
             }
 
-            th, td {
+            th,
+            td {
                 padding: 5px 10px;
             }
 
             tbody {
                 tr {
                     border-bottom: 1px solid #ddd;
+
                     &:nth-of-type(even) {
                         background-color: #f3f3f3;
                     }
+
                     &:nth-of-type(odd) {
                         background-color: #fff;
                     }
+
                     &:last-of-type {
                         border-bottom: 2px solid #aaa;
                     }
@@ -364,6 +390,7 @@
                         white-space: nowrap;
                         overflow: hidden;
                         text-overflow: ellipsis;
+
                         &:first-child {
                             text-align: right;
                         }
@@ -374,6 +401,7 @@
 
         h3 {
             margin: 10px auto 5px;
+
             i {
                 margin-left: 10px;
                 cursor: pointer;
