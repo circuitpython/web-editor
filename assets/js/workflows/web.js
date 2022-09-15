@@ -216,6 +216,7 @@ class WebWorkflow extends Workflow {
         });
         let oldHost = window.location.host;
         let oldPath = window.location.pathname;
+        window.onbeforeunload = () => {};
         window.location.href = server;
         let serverUrl = new URL(server);
         if (serverUrl.host == oldHost && serverUrl.pathname == oldPath) {

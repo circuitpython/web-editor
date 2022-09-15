@@ -356,10 +356,10 @@ window.addEventListener("resize", fixViewportHeight);
 async function loadEditor() {
     let documentState = loadParameterizedContent();
     if (documentState) {
-        setFilename(documentState.path);
-        unchanged = docuemntState.pos;
-        setSaved(!isDirty());
         loadEditorContents(documentState.contents);
+        setFilename(documentState.path);
+        unchanged = documentState.pos;
+        setSaved(!isDirty());
     }
 
     updateUIConnected(true);
