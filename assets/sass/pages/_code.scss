@@ -110,7 +110,7 @@
 
 @media (min-width: 768px) {
     .popup-modal.connect-dialog {
-        width: 768px;    
+        width: 768px;
     }
 }
 
@@ -211,13 +211,13 @@
     &.shadow {
         filter: drop-shadow(0px 0px 6px rgba(0,0,0,.6));
     }
-    
+
     &.is--visible {
         opacity: 1;
         pointer-events: auto;
         display: block;
     }
-    
+
     &__close {
         position: absolute;
         font-size: 1.2rem;
@@ -346,7 +346,7 @@
             th, td {
                 padding: 5px 10px;
             }
-    
+
             tbody {
                 tr {
                     border-bottom: 1px solid #ddd;
@@ -369,7 +369,7 @@
                         }
                     }
                 }
-            }       
+            }
         }
 
         h3 {

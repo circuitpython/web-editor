@@ -14,10 +14,10 @@ class FileTransferClient {
         if (!this.connectionStatus() && this._allowedMethods !== null) {
             throw new Error("Unable to perform file operation. Not Connected.");
         }
-        
+
         if (this._allowedMethods === null) {
             const status = await this._fetch("/fs/", {method: "OPTIONS"});
-            this._allowedMethods = status.headers.get("Access-Control-Allow-Methods").split(/,/).map(method => {return method.trim().toUpperCase();}); 
+            this._allowedMethods = status.headers.get("Access-Control-Allow-Methods").split(/,/).map(method => {return method.trim().toUpperCase();});
         }
     }
 
@@ -72,7 +72,7 @@ class FileTransferClient {
                 "X-Timestamp": modificationTime
             }
         }
-        
+
         const response = await this._fetch(`/fs${path}`, options);
         return response.ok;
     }
@@ -135,7 +135,7 @@ class FileTransferClient {
                 fileDate: Number(result.modified_ns / 1000000),
             });
         }
-        
+
         return paths;
     }
 
@@ -159,7 +159,7 @@ class FileTransferClient {
                 "X-Destination": `/fs${newPath}`
             }
         }
-        
+
         const response = await this._fetch(`/fs${oldPath}`, options);
         return response.ok;
     }

@@ -169,7 +169,7 @@ class FileDialog extends GenericModal {
                 if (this._currentModal.getAttribute("data-type") == "folder-select" && !fileObj.isDir) continue;
                 if (this._hidePaths.has(this._currentPath + fileObj.path)) continue;
                 this._addFile(fileObj);
-            }    
+            }
         } catch(e) {
             console.log(e);
         }
@@ -218,7 +218,7 @@ class FileDialog extends GenericModal {
 
     _validFilename(filename) {
         const fileList = this._getElement('fileList');
-        
+
         // Check for invalid characters
         if (!this._validName(filename)) {
             return false;
@@ -257,7 +257,7 @@ class FileDialog extends GenericModal {
     _hiddenFile(fileObj) {
         return fileObj.path[0] == "." && fileObj.path != "." && fileObj.path != "..";
     }
-    
+
     _nameExists(fileName) {
         const fileList = this._getElement('fileList');
 
@@ -372,7 +372,7 @@ class FileDialog extends GenericModal {
                         reader.abort();
                         reject(new DOMException("Problem parsing input file."));
                     };
-                
+
                     reader.onload = () => {
                         resolve(reader.result);
                     };
@@ -382,7 +382,7 @@ class FileDialog extends GenericModal {
                 let files = Array.from(input.files);
                 let totalBytes = 0;
                 let bytesCompleted = 0;
-                for(let file of files) {             
+                for(let file of files) {
                     totalBytes += file.size;
                 }
 
@@ -497,7 +497,7 @@ class FileDialog extends GenericModal {
             }
         }
     }
-    
+
     async _handleRenameButton() {
         if (!this._canPerformWritableFileOperation()) return;
 
@@ -580,7 +580,7 @@ class FileDialog extends GenericModal {
         }
         return null;
     }
-    
+
     _getSelectedFilePath() {
         let filename = this._getSelectedFilename();
         if (!filename) return null;
@@ -661,7 +661,7 @@ class FileDialog extends GenericModal {
             return keyA.localeCompare(keyB);
         });
     }
-    
+
     _addFile(fileObj, iconClass, iconStyle="far") {
         const fileList = this._getElement('fileList');
         let styles = [];
@@ -688,7 +688,7 @@ class FileDialog extends GenericModal {
         });
 
         // Icon
-        let iconElement = document.createElement("i");       
+        let iconElement = document.createElement("i");
         if (iconClass !== undefined) {
             styles = [iconStyle, iconClass];
         } else {

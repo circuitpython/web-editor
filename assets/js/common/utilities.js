@@ -26,7 +26,7 @@ function makeUrl(url, extraParams = {}) {
     let urlParams = {
         ...getUrlParams(),
         ...extraParams
-    }        
+    }
     let oldUrl = new URL(url);
     if (isTestHost()) {
         urlParams.host = oldUrl.hostname;

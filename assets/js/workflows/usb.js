@@ -1,6 +1,6 @@
 /*
  * This class will encapsulate all of the workflow functions specific to USB.
- * 
+ *
  * Note: This class isn't currently functional and only serves as a placeholder
  * for USB-related code.
  */
@@ -62,7 +62,7 @@ class USBWorkflow extends Workflow {
     async onSerialConnected(e) {
         console.log(e, "connected!");
     }
-    
+
     async onSerialDisconnected(e) {
         console.log(e, "disconnected");
     }

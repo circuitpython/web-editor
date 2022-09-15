@@ -1,5 +1,5 @@
 /*
- * This class will encapsulate all of the workflow functions specific to Web 
+ * This class will encapsulate all of the workflow functions specific to Web
  */
 
 import {FileTransferClient} from '../common/web-file-transfer.js';
@@ -184,7 +184,7 @@ class WebWorkflow extends Workflow {
         } catch (error) {
             return false;
         }
-        
+
         return true;
     }
 
@@ -232,7 +232,7 @@ class WebWorkflow extends Workflow {
                 async () => {
                     await this.activeConnection()
                 }, PING_TIMEOUT_MS
-            );                
+            );
         } catch (error) {
             console.log("Ping timed out. Closing connection.");
             await this.onDisconnected(null, false);

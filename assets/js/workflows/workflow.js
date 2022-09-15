@@ -4,7 +4,7 @@ import {UnsavedDialog} from '../common/dialogs.js';
 import {FileDialog, FILE_DIALOG_OPEN, FILE_DIALOG_SAVE} from '../common/file_dialog.js';
 
 /*
- * This class will encapsulate all of the common workflow-related functions 
+ * This class will encapsulate all of the common workflow-related functions
  */
 
 const CONNTYPE = {
@@ -146,7 +146,7 @@ class Workflow {
         if (path == "/code.py") {
             await this.serialTransmit(CHAR_CTRL_D);
         }
-    
+
         let extension = path.split('.').pop();
         if (extension === null) {
             console.log("Extension not found");
@@ -158,7 +158,7 @@ class Workflow {
         }
         path = path.substr(1, path.length - 4);
         path = path.replace(/\//g, ".");
-    
+
         await changeMode(MODE_SERIAL);
         await this.serialTransmit(CHAR_CTRL_C + "import " + path + CHAR_CRLF);
     }
@@ -194,7 +194,7 @@ class Workflow {
         this.currentFilename = previousFile;
         return false;
     }
-    
+
     async saveAs() {
         let path = await this._fileDialog.open(this.fileHelper, FILE_DIALOG_SAVE);
         if (path !== null) {

@@ -43,10 +43,10 @@ class FileHelper {
         let pathParts = path.split("/");
         const filename = pathParts.pop();
         const folder = pathParts.join("/");
-    
+
         // Get a list of files in current path
         const files = await this.listDir(folder);
-    
+
         // See if the file is in the list of files
         for (let fileObj of files) {
             if (fileObj.path[0] == ".") continue;

@@ -1,5 +1,5 @@
 /*
- * This class will encapsulate all of the workflow functions specific to BLE 
+ * This class will encapsulate all of the workflow functions specific to BLE
  */
 
 import {FileTransferClient} from 'https://cdn.jsdelivr.net/gh/adafruit/ble-file-transfer-js@1.0.1/adafruit-ble-file-transfer.js';
@@ -36,13 +36,13 @@ class BLEWorkflow extends Workflow {
         if (navigator.bluetooth) {
             btnRequestBluetoothDevice.addEventListener('click', async function(e) {
                 e.preventDefault();
-                e.stopPropagation();    
+                e.stopPropagation();
                 await this.onRequestBluetoothDeviceButtonClick();
             }.bind(this));
             btnBond.addEventListener('click', async function(e) {
                 await this.onBond();
                 e.preventDefault();
-                e.stopPropagation();    
+                e.stopPropagation();
             }.bind(this));
             btnReconnect.addEventListener('click', async function(e) {
                 e.preventDefault();
@@ -97,7 +97,7 @@ class BLEWorkflow extends Workflow {
             // TODO: create a terminal for each serial service (maybe?)
             this.txCharacteristic = await this.serialService.getCharacteristic(bleNusCharTXUUID);
             this.rxCharacteristic = await this.serialService.getCharacteristic(bleNusCharRXUUID);
-        
+
             this.txCharacteristic.addEventListener('characteristicvaluechanged', this.onSerialReceive.bind(this));
             await this.txCharacteristic.startNotifications();
             return true;
@@ -109,7 +109,7 @@ class BLEWorkflow extends Workflow {
 
     async connectToBluetoothDevice(device) {
         const abortController = new AbortController();
-    
+
         device.addEventListener('advertisementreceived', async (event) => {
             console.log('> Received advertisement from "' + device.name + '"...');
             // Stop watching advertisements to conserve battery life.
@@ -118,7 +118,7 @@ class BLEWorkflow extends Workflow {
             try {
                 await device.gatt.connect()
                 console.log('> Bluetooth device "' +  device.name + ' connected.');
-    
+
                 await this.switchToDevice(device);
             }
             catch(error) {
@@ -145,19 +145,19 @@ class BLEWorkflow extends Workflow {
         this.bleServer = this.bleDevice.gatt;
         console.log("connected", this.bleServer);
         let services;
-    
+
         try {
             services = await this.bleServer.getPrimaryServices();
         } catch(e) {
             console.log(e, e.stack);
         }
         console.log(services);
-    
+
         console.log('Initializing File Transfer Client...');
         this.initFileClient(new FileTransferClient(this.bleDevice, 65536));
         this.debugLog("connected");
         await this.connectToSerial();
-    
+
         // Enable/Disable UI buttons
         btnBond.disabled = false;
         btnRequestBluetoothDevice.disabled = true;
@@ -213,7 +213,7 @@ class BLEWorkflow extends Workflow {
                 // acceptAllDevices: true,,
                 optionalServices: [0xfebb, bleNusServiceUUID]
             });
-    
+
             console.log('> Requested ' + this.bleDevice.name);
             await this.bleDevice.gatt.connect();
             await this.switchToDevice(this.bleDevice);

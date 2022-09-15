@@ -160,7 +160,7 @@ async function checkConnected() {
     }
 }
 
-async function workflowConnect() {    
+async function workflowConnect() {
     let returnVal;
     if (!workflow) return false;
 
@@ -320,8 +320,8 @@ async function debugLog(msg) {
 function updateUIConnected(isConnected) {
     if (isConnected) {
         // Set to Connected State
-        btnConnect.forEach((element) => { 
-            element.innerHTML = "Disconnect"; 
+        btnConnect.forEach((element) => {
+            element.innerHTML = "Disconnect";
             element.disabled = false;
         });
         if (workflow.showInfo !== undefined) {
@@ -329,9 +329,9 @@ function updateUIConnected(isConnected) {
         }
     } else {
         // Set to Disconnected State
-        btnConnect.forEach((element) => { 
+        btnConnect.forEach((element) => {
             element.innerHTML = "Connect";
-            element.disabled = false; 
+            element.disabled = false;
         });
         btnInfo.disabled = true;
     }
@@ -520,7 +520,7 @@ document.addEventListener('DOMContentLoaded', async (event) => {
                 await checkReadOnly();
                 // We're connected, local, and using Web Workflow
                 await workflow.showInfo(editor.state.doc.sliceString(0));
-            }            
+            }
         }
     } else {
         await checkConnected();
