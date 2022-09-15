@@ -7,7 +7,7 @@ import {BLEWorkflow} from './workflows/ble.js'
 import {WebWorkflow} from './workflows/web.js'
 import {CONNTYPE, CHAR_CTRL_D} from './workflows/workflow.js'
 import {ButtonValueDialog, MessageModal} from './common/dialogs.js';
-import {sleep, buildHash, isLocal, getUrlParams} from './common/utilities.js'
+import {sleep, buildHash, isLocal, getUrlParams, getUrlParam} from './common/utilities.js'
 
 var terminal;
 var fitter;
@@ -462,9 +462,11 @@ function setupXterm() {
     });
 }
 
-// TODO: Check parameters if on code.circuitpython.org for #backend
 function getBackend() {
-    if (isLocal()) {
+    let backend = getUrlParam(backend);
+    if (backend && (backend in validBackends)) {
+        return validBackends[backend];
+    } else if (isLocal()) {
         return validBackends["web"];
     }
 
