@@ -188,7 +188,7 @@ class WebWorkflow extends Workflow {
         return true;
     }
 
-    async showConnect(document) {
+    async showConnect(document, docChangePos) {
         let p = this.connectDialog.open();
         let modal = this.connectDialog.getModal();
         let deviceLink = modal.querySelector("#device-link");
@@ -199,15 +199,16 @@ class WebWorkflow extends Workflow {
             if (clickedItem.tagName.toLowerCase() != "a") {
                 clickedItem = clickedItem.parentNode;
             }
-            this.switchDevice(new URL(clickedItem.href).host, document);
+            this.switchDevice(new URL(clickedItem.href).host, document, docChangePos);
         });
         return await p;
     }
 
-    switchDevice(deviceHost, document) {
+    switchDevice(deviceHost, document, docChangePos) {
         let documentState = {
             path: this.currentFilename,
             contents: document,
+            pos: docChangePos,
         };
         let url = `http://${deviceHost}/code/`;
         let server = makeUrl(url, {
@@ -222,8 +223,8 @@ class WebWorkflow extends Workflow {
         }
     }
 
-    async showInfo(document) {
-        return await this.deviceDiscoveryDialog.open(this, document);
+    async showInfo(document, docChangePos) {
+        return await this.deviceDiscoveryDialog.open(this, document, docChangePos);
     }
 
     async checkConnection() {

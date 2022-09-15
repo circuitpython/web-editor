@@ -123,7 +123,7 @@ btnModeSerial.addEventListener('click', async function(e) {
 
 btnInfo.addEventListener('click', async function(e) {
     await checkConnected();
-    await workflow.showInfo(editor.state.doc.sliceString(0));
+    await workflow.showInfo(editor.state.doc.sliceString(0), unchanged);
 });
 
 function setSaved(saved) {
@@ -151,10 +151,10 @@ async function checkConnected() {
 
         if (!workflow.connectionStatus()) {
             // Display the appropriate connection dialog
-            await workflow.showConnect(editor.state.doc.sliceString(0));
+            await workflow.showConnect(editor.state.doc.sliceString(0), unchanged);
         } else if (workflow.type === CONNTYPE.Web) {
             // We're connected, local, and using Web Workflow
-            await workflow.showInfo(editor.state.doc.sliceString(0));
+            await workflow.showInfo(editor.state.doc.sliceString(0), unchanged);
         }
     }
 }
@@ -344,11 +344,11 @@ function fixViewportHeight() {
     }
 }
 
-/*window.onbeforeunload = () => {
+window.onbeforeunload = () => {
     if (isDirty()) {
-        return "You have unsaved changed, exit anyways?"
+        return "You have unsaved changed, exit anyways?";
     }
-};*/
+};
 
 fixViewportHeight();
 window.addEventListener("resize", fixViewportHeight);
@@ -357,6 +357,8 @@ async function loadEditor() {
     let documentState = loadParameterizedContent();
     if (documentState) {
         setFilename(documentState.path);
+        unchanged = docuemntState.pos;
+        setSaved(!isDirty());
         loadEditorContents(documentState.contents);
     }
 
@@ -512,13 +514,13 @@ document.addEventListener('DOMContentLoaded', async (event) => {
             if (workflow.type === CONNTYPE.Web) {
                 await showMessage("You are connected with localhost, but didn't supply the device hostname.");
             } else {
-                await workflow.showConnect(editor.state.doc.sliceString(0));
+                await workflow.showConnect(editor.state.doc.sliceString(0), unchanged);
             }
         } else {
             if (await workflowConnect() && workflow.type === CONNTYPE.Web) {
                 await checkReadOnly();
                 // We're connected, local, and using Web Workflow
-                await workflow.showInfo(editor.state.doc.sliceString(0));
+                await workflow.showInfo(editor.state.doc.sliceString(0), unchanged);
             }
         }
     } else {

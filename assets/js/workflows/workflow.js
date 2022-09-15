@@ -123,7 +123,7 @@ class Workflow {
     }
 
     async parseParams(urlParams) {
-        // Connection specific params check
+        // Workflow specific params check
         return false;
     }
 

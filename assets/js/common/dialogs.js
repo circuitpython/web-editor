@@ -334,7 +334,7 @@ class DiscoveryModal extends GenericModal {
                         clickedItem = clickedItem.parentNode;
                     }
                     let deviceHost = clickedItem.getAttribute("device-host");
-                    this._workflow.switchDevice(deviceHost, this._document);
+                    this._workflow.switchDevice(deviceHost, this._document, this._docChangePos);
                 });
                 a.textContent = `${device.instance_name} (${device.hostname})`;
                 newDevices.push(a);
@@ -343,11 +343,12 @@ class DiscoveryModal extends GenericModal {
         this._currentModal.querySelector("#devices").replaceChildren(...newDevices);
     }
 
-    async open(workflow, document) {
+    async open(workflow, document, docChangePos) {
         this._workflow = workflow;
         this._fileHelper = workflow.fileHelper;
         this._showBusy = workflow.showBusy.bind(workflow);
         this._document = document;
+        this._docChangePos = docChangePos;
 
         let p = super.open();
         const okButton = this._currentModal.querySelector("button.ok-button");
