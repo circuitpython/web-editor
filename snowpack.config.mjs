@@ -16,7 +16,7 @@ export default {
     [
       '@snowpack/plugin-run-script',
       {
-        cmd: 'sass assets/sass/main.scss assets/css/style.css --style compressed', 
+        cmd: 'sass assets/sass/main.scss assets/css/style.css --style compressed',
         watch: '$1 --watch',
         output: 'stream',
       },
@@ -32,9 +32,9 @@ export default {
     /* ... */
   },
   optimize: {
-    //bundle: true,
-    //minify: true,
-    //target: 'es2018',
+    bundle: true,
+    minify: true,
+    target: 'es2018',
   },
 };
 
