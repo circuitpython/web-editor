@@ -51,6 +51,7 @@ const editorExtensions = [
     syntaxHighlighting(classHighlighter),
     EditorView.updateListener.of(onTextChange)
 ];
+
 // New Buttons (Mobile and Desktop Layout)
 btnNew.forEach((element) => {
     element.addEventListener('click', async function(e) {
@@ -384,7 +385,6 @@ async function writeText(writeFrom = null) {
     if (workflow.partialWrites) {
         offset = encoder.encode(same).byteLength;
         contents = encoder.encode(different);
-        console.log(offset, different);
     }
     let oldUnchanged = unchanged;
     unchanged = doc.length;

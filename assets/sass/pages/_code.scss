@@ -273,8 +273,12 @@
             margin: 10px 0;
             flex-grow: 1;
             font-size: 1.2em;
-            padding: 5px;
-            overflow-x: auto;
+            padding: 0 5px;
+            border: 1px solid #888;
+
+            &:disabled {
+                background-color: #eee;
+            }
         }
 
         &.centered {
@@ -308,6 +312,7 @@
             overflow: auto;
             height: 200px;
             padding: 5px 0;
+            border: 1px solid #888;
 
             a {
                 &.hidden-file {
