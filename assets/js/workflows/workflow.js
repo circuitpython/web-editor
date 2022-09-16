@@ -27,6 +27,7 @@ class Workflow {
         this.type = CONNTYPE.None;
         this.partialWrites = false;
         this.disconnectCallback = null;
+        this.loadEditor = null;
         this.timeout = timeout;
         this.sleep = sleep;
         this.connectDialog = null;
@@ -70,7 +71,7 @@ class Workflow {
     }
 
     async connect() {
-
+        return await this.available();
     }
 
     async onDisconnected(e, reconnect = true) {
@@ -131,7 +132,7 @@ class Workflow {
         this.terminal.write(data);
     }
 
-    async showConnect() {
+    async showConnect(document, docChangePos) {
         return await this.connectDialog.open();
     }
 
@@ -234,6 +235,10 @@ class Workflow {
 
     async readOnly() {
         return await this.fileHelper.readOnly();
+    }
+
+    async available() {
+        return Error("This work flow is not available.");
     }
 }
 

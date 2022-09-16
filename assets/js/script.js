@@ -206,11 +206,13 @@ async function chooseConnection() {
     // Disable any buttons in validBackends, but not in workflows
     let modal = connectionType.getModal();
     let buttons = modal.querySelectorAll("button");
-    buttons.forEach((button) => {
-        if (button.value in validBackends && !(validBackends[button.value] in workflows)) {
+    for (let button of buttons) {
+        if (!(button.value in validBackends) ||
+            !(validBackends[button.value] in workflows)
+        ) {
             button.disabled = true;
         }
-    });
+    };
 
     // Wait for the user to click a button
     let connType = await p;

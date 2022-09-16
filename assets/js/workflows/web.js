@@ -21,7 +21,6 @@ class WebWorkflow extends Workflow {
         this.titleMode = false;
         this.websocket = null;
         this.serialService = null;
-        this.loadEditor = null;
         this.connectDialog = new GenericModal("web-connect");
         this.deviceDiscoveryDialog = new DiscoveryModal("device-discovery");
         this.connIntervalId = null;
@@ -128,7 +127,10 @@ class WebWorkflow extends Workflow {
     }
 
     async connect() {
-        await super.connect();
+        let result;
+        if (result = await super.connect() instanceof Error) {
+            return result;
+        }
         if (!await this.checkHost()) {
             return false;
         }
@@ -189,9 +191,9 @@ class WebWorkflow extends Workflow {
     }
 
     async showConnect(document, docChangePos) {
-        let p = this.connectDialog.open();
-        let modal = this.connectDialog.getModal();
-        let deviceLink = modal.querySelector("#device-link");
+        const p = this.connectDialog.open();
+        const modal = this.connectDialog.getModal();
+        const deviceLink = modal.querySelector("#device-link");
         deviceLink.addEventListener("click", (event) => {
             event.preventDefault();
             event.stopImmediatePropagation();
@@ -256,6 +258,13 @@ class WebWorkflow extends Workflow {
         }
 
         return false;
+    }
+
+    async available() {
+        if (!window.WebSocket) {
+            return Error("WebSockets are not supported in this browser");
+        }
+        return true;
     }
 }
 
