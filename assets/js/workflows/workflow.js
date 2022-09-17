@@ -237,6 +237,10 @@ class Workflow {
         return await this.fileHelper.readOnly();
     }
 
+    async parseParams() {
+        return false;
+    }
+
     async available() {
         return Error("This work flow is not available.");
     }

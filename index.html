@@ -244,9 +244,8 @@
                 <div class="step-content">
                     <h1>Connect Device to the Internet</h1>
                     <p>To connect the device to your network, you will need to set up the .env file on your device
-                        and add your WiFi credentials. The <a href="https://docs.circuitpython.org/en/latest/docs/workflows.html#web"
-                            target="_blank">CircuitPython Web Workflow
-                            Documentation</a> has more details how to create
+                        and add your WiFi credentials. The <a href="https://learn.adafruit.com/getting-started-with-web-workflow-using-the-code-editor/device-setup"
+                            target="_blank">CircuitPython Web Workflow Code Editor Quick Start Guide</a> has more details how to create
                         this file.</p>
                 </div>
             </section>
@@ -257,6 +256,38 @@
                     <p>Once your device is connected to your Local Area Network, you can navigate to
                         <a id="device-link" href="http://circuitpython.local/code/">http://circuitpython.local/code/</a>. This opens
                         a page on your device that loads this website onto the device and to avoid any cross domain security issues.</p>
+                </div>
+            </section>
+        </div>
+    </div>
+    <div class="popup-modal shadow connect-dialog closable" data-popup-modal="usb-connect">
+        <i class="fas fa-2x fa-times text-white bg-primary p-3 popup-modal__close"></i>
+        <div id="usb-instructions" class="connection-layout content">
+            <section class="step">
+                <div class="step-number">1</div>
+                <div class="step-content">
+                    <h1>Set Up Web Serial</h1>
+                    <p>Web Serial is currently only supported in Chromium-based browsers.</p>
+                    <p>Starting with Chromium version 89, Web Serial is enabled by default. If you are on an older version of the browser,
+                        you may be able to enable Web Serial with the
+                        <a href="about://flags/#enable-experimental-web-platform-features">about://flags/#enable-experimental-web-platform-features</a>
+                        flag.</p>
+                </div>
+            </section>
+            <section class="step">
+                <div class="step-number">2</div>
+                <div class="step-content">
+                    <h1>Connect to Your Device</h1>
+                    <p>Something here about connecting with Web Serial to the Device. A connection speed selection dropdown should be here too
+                        with either 9600 or 115200 as the default.
+                    </p>
+                </div>
+            </section>
+            <section class="step">
+                <div class="step-number">3</div>
+                <div class="step-content">
+                    <h1>Select Your Working Folder</h1>
+                    <p>Something here about selecting a working folder</p>
                 </div>
             </section>
         </div>

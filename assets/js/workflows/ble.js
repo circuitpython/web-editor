@@ -2,7 +2,8 @@
  * This class will encapsulate all of the workflow functions specific to BLE
  */
 
-import {FileTransferClient} from 'https://cdn.jsdelivr.net/gh/adafruit/ble-file-transfer-js@1.0.1/adafruit-ble-file-transfer.js';
+//import {FileTransferClient} from 'https://cdn.jsdelivr.net/gh/adafruit/ble-file-transfer-js@1.0.1/adafruit-ble-file-transfer.js';
+import {FileTransferClient} from '../common/adafruit-ble-file-transfer.js';
 import {Workflow, CONNTYPE} from './workflow.js';
 import {GenericModal} from '../common/dialogs.js';
 
@@ -241,10 +242,6 @@ class BLEWorkflow extends Workflow {
             btnRequestBluetoothDevice.disabled = false;
             btnReconnect.disabled = false;
         }
-    }
-
-    async parseParams() {
-        return false;
     }
 
     async available() {

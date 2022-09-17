@@ -27,11 +27,6 @@ class WebWorkflow extends Workflow {
         this.type = CONNTYPE.Web;
     }
 
-    async init(params) {
-        await super.init(params);
-        document.getElementById('terminal-title');
-    }
-
     // This is called when a user clicks the main disconnect button
     async disconnectButtonHandler(e) {
         await super.disconnectButtonHandler(e);
@@ -54,6 +49,93 @@ class WebWorkflow extends Workflow {
         }
     }
 
+    async serialTransmit(msg) {
+        // Use an open web socket to transmit serial data
+        if (this.websocket) {
+            let value = decodeURIComponent(escape(msg));
+            try {
+                this.websocket.send(value);
+            } catch (e) {
+                console.log("caught write error", e, e.stack);
+            }
+        }
+    }
+
+    async connect() {
+        let result;
+        if (result = await super.connect() instanceof Error) {
+            return result;
+        }
+        if (!await this.checkHost()) {
+            return false;
+        }
+        return await this.connectToHost(this.host);
+    }
+
+    async onConnected(e) {
+        await super.onConnected(e);
+        //this.connIntervalId = setInterval(this._checkConnection.bind(this), PING_INTERVAL_MS);
+    }
+
+    async onDisconnected(e, reconnect = true) {
+        if (this.connIntervalId) {
+            clearInterval(this.connIntervalId);
+            this.connIntervalId = null;
+        }
+
+        if (this.websocket) {
+            if (!reconnect) {
+                // Prevent this function from called again when WebSocket is closed
+                this.websocket.onclose = () => {};
+                this.websocket.close();
+            }
+            this.websocket = null;
+        }
+
+        await super.onDisconnected(e, reconnect);
+    }
+
+    async showConnect(document, docChangePos) {
+        const p = this.connectDialog.open();
+        const modal = this.connectDialog.getModal();
+        const deviceLink = modal.querySelector("#device-link");
+        deviceLink.addEventListener("click", (event) => {
+            event.preventDefault();
+            event.stopImmediatePropagation();
+            let clickedItem = event.target;
+            if (clickedItem.tagName.toLowerCase() != "a") {
+                clickedItem = clickedItem.parentNode;
+            }
+            this.switchDevice(new URL(clickedItem.href).host, document, docChangePos);
+        });
+        return await p;
+    }
+
+    parseParams() {
+        let urlParams = getUrlParams();
+        if (isTestHost() && "host" in urlParams) {
+            this.host = urlParams.host.toLowerCase();
+        } else if (isMdns()) {
+            this.host = location.hostname;
+        } else if (isIp()) {
+            this.host = location.hostname;
+        }
+
+        if (this.host != null) {
+            return true;
+        }
+
+        return false;
+    }
+
+    async available() {
+        if (!window.WebSocket) {
+            return Error("WebSockets are not supported in this browser");
+        }
+        return true;
+    }
+
+    // Workflow specific functions
     setTerminalTitle(title, append = false) {
         if (this.terminalTitle == null) {
             return;
@@ -114,29 +196,6 @@ class WebWorkflow extends Workflow {
         return new Error("Unknown Error. Try resetting the device.");
     }
 
-    async serialTransmit(msg) {
-        // Use an open web socket to transmit serial data
-        if (this.websocket) {
-            let value = decodeURIComponent(escape(msg));
-            try {
-                this.websocket.send(value);
-            } catch (e) {
-                console.log("caught write error", e, e.stack);
-            }
-        }
-    }
-
-    async connect() {
-        let result;
-        if (result = await super.connect() instanceof Error) {
-            return result;
-        }
-        if (!await this.checkHost()) {
-            return false;
-        }
-        return await this.connectToHost(this.host);
-    }
-
     async checkHost() {
         if (!this.host) {
             this.parseParams();
@@ -154,29 +213,6 @@ class WebWorkflow extends Workflow {
         return true;
     }
 
-    async onConnected(e) {
-        await super.onConnected(e);
-        //this.connIntervalId = setInterval(this.checkConnection.bind(this), PING_INTERVAL_MS);
-    }
-
-    async onDisconnected(e, reconnect = true) {
-        if (this.connIntervalId) {
-            clearInterval(this.connIntervalId);
-            this.connIntervalId = null;
-        }
-
-        if (this.websocket) {
-            if (!reconnect) {
-                // Prevent this function from called again when WebSocket is closed
-                this.websocket.onclose = () => {};
-                this.websocket.close();
-            }
-            this.websocket = null;
-        }
-
-        await super.onDisconnected(e, reconnect);
-    }
-
     async activeConnection() {
         try {
             let version = await this.fileHelper.versionInfo();
@@ -188,22 +224,6 @@ class WebWorkflow extends Workflow {
         }
 
         return true;
-    }
-
-    async showConnect(document, docChangePos) {
-        const p = this.connectDialog.open();
-        const modal = this.connectDialog.getModal();
-        const deviceLink = modal.querySelector("#device-link");
-        deviceLink.addEventListener("click", (event) => {
-            event.preventDefault();
-            event.stopImmediatePropagation();
-            let clickedItem = event.target;
-            if (clickedItem.tagName.toLowerCase() != "a") {
-                clickedItem = clickedItem.parentNode;
-            }
-            this.switchDevice(new URL(clickedItem.href).host, document, docChangePos);
-        });
-        return await p;
     }
 
     switchDevice(deviceHost, document, docChangePos) {
@@ -230,7 +250,7 @@ class WebWorkflow extends Workflow {
         return await this.deviceDiscoveryDialog.open(this, document, docChangePos);
     }
 
-    async checkConnection() {
+    async _checkConnection() {
         try {
             await this.timeout(
                 async () => {
@@ -241,30 +261,6 @@ class WebWorkflow extends Workflow {
             console.log("Ping timed out. Closing connection.");
             await this.onDisconnected(null, false);
         }
-    }
-
-    parseParams() {
-        let urlParams = getUrlParams();
-        if (isTestHost() && "host" in urlParams) {
-            this.host = urlParams.host.toLowerCase();
-        } else if (isMdns()) {
-            this.host = location.hostname;
-        } else if (isIp()) {
-            this.host = location.hostname;
-        }
-
-        if (this.host != null) {
-            return true;
-        }
-
-        return false;
-    }
-
-    async available() {
-        if (!window.WebSocket) {
-            return Error("WebSockets are not supported in this browser");
-        }
-        return true;
     }
 }
 

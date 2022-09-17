@@ -5,6 +5,7 @@ import {classHighlighter} from "@lezer/highlight";
 import {syntaxHighlighting} from "@codemirror/language";
 import {BLEWorkflow} from './workflows/ble.js';
 import {WebWorkflow} from './workflows/web.js';
+import {USBWorkflow} from './workflows/usb.js';
 import {CONNTYPE, CHAR_CTRL_D} from './workflows/workflow.js';
 import {ButtonValueDialog, MessageModal} from './common/dialogs.js';
 import {sleep, buildHash, isLocal, getUrlParams, getUrlParam} from './common/utilities.js';
@@ -24,6 +25,7 @@ var validBackends = {
 var workflows = {};
 workflows[CONNTYPE.Ble] = new BLEWorkflow();
 workflows[CONNTYPE.Web] = new WebWorkflow();
+workflows[CONNTYPE.Usb] = new USBWorkflow();
 
 const btnModeEditor = document.getElementById('btn-mode-editor');
 const btnModeSerial = document.getElementById('btn-mode-serial');
@@ -372,21 +374,15 @@ async function loadEditor() {
 var editor;
 var currentTimeout = null;
 async function writeText(writeFrom = null) {
-    if (workflow.partialWrites) {
-        console.log("sync starting at", unchanged, "to", editor.state.doc.length);
-    }
     if (writeFrom !== null) {
         unchanged = writeFrom;
     }
-    let encoder = new TextEncoder();
     let doc = editor.state.doc;
-    let same = doc.sliceString(0, unchanged);
     let offset = 0;
-    let different = doc.sliceString(unchanged);
     let contents = doc.sliceString(0);
     if (workflow.partialWrites) {
-        offset = encoder.encode(same).byteLength;
-        contents = encoder.encode(different);
+        offset = unchanged;
+        console.log("sync starting at", unchanged, "to", editor.state.doc.length);
     }
     let oldUnchanged = unchanged;
     unchanged = doc.length;
