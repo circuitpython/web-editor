@@ -358,7 +358,7 @@ class FileDialog extends GenericModal {
     async _upload(onlyFolders = false) {
         if (this._readOnlyMode) return;
 
-        let input = document.createElement('input');
+        let input = document.createElement("input");
         input.type = 'file';
         input.multiple = true;
         input.webkitdirectory = onlyFolders;

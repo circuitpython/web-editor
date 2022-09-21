@@ -17,6 +17,8 @@ const CONNTYPE = {
 const CHAR_CTRL_C = '\x03';
 const CHAR_CTRL_D = '\x04';
 const CHAR_CRLF = '\x0a\x0d';
+const CHAR_TITLE_START = "\x1b]0;";
+const CHAR_TITLE_END = "\x1b\\";
 
 class Workflow {
     constructor() {
@@ -95,6 +97,19 @@ class Workflow {
         }
     }
 
+    async onSerialReceive(e) {
+        if (e.data == CHAR_TITLE_START) {
+            this.titleMode = true;
+            this.setTerminalTitle("");
+        } else if (e.data == CHAR_TITLE_END) {
+            this.titleMode = false;
+        } else if (this.titleMode) {
+            this.setTerminalTitle(e.data, true);
+        } else {
+            this.writeToTerminal(e.data);
+        }
+    }
+
     connectionStatus() {
         return this._connected;
     }
@@ -132,7 +147,19 @@ class Workflow {
         this.terminal.write(data);
     }
 
-    async showConnect(document, docChangePos) {
+    setTerminalTitle(title, append = false) {
+        if (this.terminalTitle == null) {
+            return;
+        }
+
+        if (append) {
+            title = this.terminalTitle.textContent + title;
+        }
+
+        this.terminalTitle.textContent = title;
+    }
+
+    async showConnect(docContents, docChangePos) {
         return await this.connectDialog.open();
     }
 
@@ -246,4 +273,4 @@ class Workflow {
     }
 }
 
-export {Workflow, CHAR_CTRL_C, CHAR_CTRL_D, CHAR_CRLF, CONNTYPE};
+export {Workflow, CHAR_CTRL_C, CHAR_CTRL_D, CHAR_CRLF, CHAR_TITLE_START, CHAR_TITLE_END, CONNTYPE};

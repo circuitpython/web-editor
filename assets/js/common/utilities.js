@@ -37,7 +37,7 @@ function makeUrl(url, extraParams = {}) {
 }
 
 function isMdns() {
-    // Check for cpy-XXXXXX.local and optionally cpy-XXXXXX-###.local for mDNS name resolution
+    // Check for cpy-XXXXXX.local (and optionally cpy-XXXXXX-###.local for mDNS name resolution)
     return location.hostname.search(/cpy-[0-9a-f]{6}(?:-[0-9]+)?.local/gi) == 0;
 }
 
@@ -67,6 +67,10 @@ function getUrlParam(name) {
     return null;
 }
 
+function regexEscape(regexString) {
+    return regexString.replace(/\\/, "\\\\");
+}
+
 export {
     isTestHost,
     buildHash,
@@ -77,5 +81,6 @@ export {
     getUrlParams,
     getUrlParam,
     timeout,
-    sleep
+    sleep,
+    regexEscape
 };

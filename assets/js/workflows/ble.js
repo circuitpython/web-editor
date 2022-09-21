@@ -6,6 +6,7 @@
 import {FileTransferClient} from '../common/adafruit-ble-file-transfer.js';
 import {Workflow, CONNTYPE} from './workflow.js';
 import {GenericModal} from '../common/dialogs.js';
+import {sleep} from '../common/utilities.js';
 
 const bleNusServiceUUID = 'adaf0001-4369-7263-7569-74507974686e';
 const bleNusCharRXUUID = 'adaf0002-4369-7263-7569-74507974686e';
@@ -60,7 +61,7 @@ class BLEWorkflow extends Workflow {
         }
     }
 
-    async showConnect(document, docChangePos) {
+    async showConnect(docContents, docChangePos) {
         let p = this.connectDialog.open();
         let modal = this.connectDialog.getModal();
         btnRequestBluetoothDevice = modal.querySelector('#requestBluetoothDevice');
@@ -77,17 +78,21 @@ class BLEWorkflow extends Workflow {
             await this.reconnectButtonHandler(event);
         });
 
-        if (await this.available() instanceof Error) {
-            btnRequestBluetoothDevice.disabled = true;
-            btnReconnect.disabled = true;
+        if (!(await this.available() instanceof Error)) {
+            let stepOne;
+            if (stepOne = modal.querySelector('.step:first-of-type')) {
+                stepOne.classList.add("hidden");
+            }
+            this.connectionStep(1);
+        } else {
+            this.connectionStep(0);
         }
-        btnBond.disabled = true;
 
         return await p;
     }
 
-    async onSerialReceive(e) {
-        // console.log("rcv", e.target.value.buffer);
+    async onSerialReceive(e) {;
+        // TODO: Make use of super.onSerialReceive() so that title can be extracted
         this.writeToTerminal(this.decoder.decode(e.target.value.buffer, {stream: true}));
     }
 
@@ -160,9 +165,7 @@ class BLEWorkflow extends Workflow {
         await this.connectToSerial();
 
         // Enable/Disable UI buttons
-        btnBond.disabled = false;
-        btnRequestBluetoothDevice.disabled = true;
-        btnReconnect.disabled = true;
+        this.connectionStep(2);
 
         await this.onConnected();
         this.connectDialog.close();
@@ -195,7 +198,7 @@ class BLEWorkflow extends Workflow {
                     let chunk_contents = value.slice(offset, offset + len);
                     console.log("write subarray", offset, chunk_contents);
                     // Delay to ensure the last value was written to the device.
-                    await workflow.sleep(100);
+                    await sleep(100);
                     await this.rxCharacteristic.writeValueWithoutResponse(chunk_contents);
                     offset += len;
                 }
@@ -252,6 +255,22 @@ class BLEWorkflow extends Workflow {
         }
 
         return true;
+    }
+
+    connectionStep(step) {
+        btnRequestBluetoothDevice, btnBond, btnReconnect
+        const buttonStates = [
+            {reconnect: false, request: false, bond: false},
+            {reconnect: true, request: true, bond: false},
+            {reconnect: false, request: false, bond: true},
+        ];
+
+        if (step < 0) step = 0;
+        if (step > buttonStates.length - 1) step = buttonStates.length - 1;
+
+        btnReconnect.disabled = !buttonStates[step].reconnect;
+        btnRequestBluetoothDevice.disabled = !buttonStates[step].request;
+        btnBond.disabled = !buttonStates[step].bond;
     }
 }
 

@@ -27,11 +27,16 @@
     margin-top: 40px;
     overflow-y: auto;
     max-height: calc(100vh - 140px);
+    counter-reset: step 0;
 
     .step {
         display: flex;
+        counter-increment: step;
 
         .step-number {
+            &::before {
+                content: counter(step);
+            }
             width: 75px;
             height: 75px;
             color: #333;
@@ -44,6 +49,10 @@
             border-radius: 100%;
             min-width: 75px;
         }
+
+        &.hidden {
+            display: none;
+        }
     }
 }
 
@@ -53,12 +62,8 @@
             .step-number {
                 width: 50px;
                 height: 50px;
-                color: #333;
                 font-size: 36px;
-                font-weight: 600;
                 line-height: 36px;
-                margin: 20px 20px 0 0;
-                border: solid 5px #333;
                 min-width: 50px;
             }
         }

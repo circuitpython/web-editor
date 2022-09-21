@@ -3,12 +3,9 @@
  */
 
 import {FileTransferClient} from '../common/web-file-transfer.js';
-import {Workflow, CONNTYPE} from './workflow.js';
+import {Workflow, CONNTYPE, CHAR_TITLE_START, CHAR_TITLE_END} from './workflow.js';
 import {GenericModal, DiscoveryModal} from '../common/dialogs.js';
 import {isTestHost, isMdns, isIp, makeUrl, getUrlParams} from '../common/utilities.js';
-
-const CHAR_TITLE_START = "\x1b]0;";
-const CHAR_TITLE_END = "\x1b\\";
 
 const CONNECT_TIMEOUT_MS = 30000;
 const PING_INTERVAL_MS = 5000;
@@ -32,20 +29,6 @@ class WebWorkflow extends Workflow {
         await super.disconnectButtonHandler(e);
         if (this.connectionStatus()) {
             await this.onDisconnected(null, false);
-        }
-    }
-
-    async onSerialReceive(e) {
-        // Use an open web socket to display received serial data
-        if (e.data == CHAR_TITLE_START) {
-            this.titleMode = true;
-            this.setTerminalTitle("");
-        } else if (e.data == CHAR_TITLE_END) {
-            this.titleMode = false;
-        } else if (this.titleMode) {
-            this.setTerminalTitle(e.data, true);
-        } else {
-            this.writeToTerminal(e.data);
         }
     }
 
@@ -95,7 +78,7 @@ class WebWorkflow extends Workflow {
         await super.onDisconnected(e, reconnect);
     }
 
-    async showConnect(document, docChangePos) {
+    async showConnect(docContents, docChangePos) {
         const p = this.connectDialog.open();
         const modal = this.connectDialog.getModal();
         const deviceLink = modal.querySelector("#device-link");
@@ -106,7 +89,7 @@ class WebWorkflow extends Workflow {
             if (clickedItem.tagName.toLowerCase() != "a") {
                 clickedItem = clickedItem.parentNode;
             }
-            this.switchDevice(new URL(clickedItem.href).host, document, docChangePos);
+            this.switchDevice(new URL(clickedItem.href).host, docContents, docChangePos);
         });
         return await p;
     }
@@ -136,18 +119,6 @@ class WebWorkflow extends Workflow {
     }
 
     // Workflow specific functions
-    setTerminalTitle(title, append = false) {
-        if (this.terminalTitle == null) {
-            return;
-        }
-
-        if (append) {
-            title = this.terminalTitle.textContent + title;
-        }
-
-        this.terminalTitle.textContent = title;
-    }
-
     async initSerial(host) {
         try {
             this.websocket = new WebSocket("ws://" + host + "/cp/serial/");

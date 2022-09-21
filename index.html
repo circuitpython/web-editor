@@ -112,7 +112,12 @@
 
     <!-- Loading Animation -->
     <div class="loader" id="loader">
-        <div><img src="assets/images/loading-blinka.webp" alt="Loading Animation" height="100" width="100"></div>
+        <div>
+            <picture>
+                <source srcset="assets/images/loading-blinka.webp" type="image/webp">
+                <img src="assets/images/loading-blinka.gif" alt="Loading Animation" height="100" width="100">
+            </picture>
+        </div>
     </div>
 
     <!-- Dialog Box Templates -->
@@ -184,7 +189,7 @@
             <p>If you are connecting to a new device, follow the steps below. Otherwise click the Reconnect button.</p>
             <p><button class="purple-button" id="bleReconnect">Reconnect</button></p>
             <section class="step">
-                <div class="step-number">1</div>
+                <div class="step-number"></div>
                 <div class="step-content">
                     <h1>Set Up Web Bluetooth</h1>
                     <p>Web Bluetooth is currently only supported in Chromium-based browsers.</p>
@@ -200,7 +205,7 @@
                 </div>
             </section>
             <section class="step">
-                <div class="step-number">2</div>
+                <div class="step-number"></div>
                 <div class="step-content">
                     <h1>Request Bluetooth Device</h1>
                     <p>CircuitPython boards with <a href="https://circuitpython.org/downloads?features=Bluetooth%2FBTLE">nrf chips need
@@ -214,7 +219,7 @@
                 </div>
             </section>
             <section class="step">
-                <div class="step-number">3</div>
+                <div class="step-number"></div>
                 <div class="step-content">
                     <h1>Bond Device</h1>
                     <p>Once you are connected, we need to prompt a bond. Without this CircuitPython boards with
@@ -231,7 +236,7 @@
         <i class="fas fa-2x fa-times text-white bg-primary p-3 popup-modal__close"></i>
         <div id="web-instructions" class="connection-layout content">
             <section class="step">
-                <div class="step-number">1</div>
+                <div class="step-number"></div>
                 <div class="step-content">
                     <h1>Update CircuitPython</h1>
                     <p>Web Workflow is only available on CircuitPython boards with <a
@@ -240,7 +245,7 @@
                 </div>
             </section>
             <section class="step">
-                <div class="step-number">2</div>
+                <div class="step-number"></div>
                 <div class="step-content">
                     <h1>Connect Device to the Internet</h1>
                     <p>To connect the device to your network, you will need to set up the .env file on your device
@@ -250,7 +255,7 @@
                 </div>
             </section>
             <section class="step">
-                <div class="step-number">3</div>
+                <div class="step-number"></div>
                 <div class="step-content">
                     <h1>Navigate to your Device</h1>
                     <p>Once your device is connected to your Local Area Network, you can navigate to
@@ -264,30 +269,24 @@
         <i class="fas fa-2x fa-times text-white bg-primary p-3 popup-modal__close"></i>
         <div id="usb-instructions" class="connection-layout content">
             <section class="step">
-                <div class="step-number">1</div>
+                <div class="step-number"></div>
                 <div class="step-content">
                     <h1>Set Up Web Serial</h1>
                     <p>Web Serial is currently only supported in Chromium-based browsers.</p>
-                    <p>Starting with Chromium version 89, Web Serial is enabled by default. If you are on an older version of the browser,
+                    <p>For versions of Google Chrome between versions 78-89, Web Serial needs to manually be enabled. On recent browsers, this feature is enabled by default. If you are on an older version of the browser,
                         you may be able to enable Web Serial with the
                         <a href="about://flags/#enable-experimental-web-platform-features">about://flags/#enable-experimental-web-platform-features</a>
                         flag.</p>
-                </div>
+                    </div>
             </section>
             <section class="step">
-                <div class="step-number">2</div>
+                <div class="step-number"></div>
                 <div class="step-content">
-                    <h1>Connect to Your Device</h1>
-                    <p>Something here about connecting with Web Serial to the Device. A connection speed selection dropdown should be here too
-                        with either 9600 or 115200 as the default.
+                    <h1>Select Your Serial Device</h1>
+                    <p>Connect to the Serial Port of your device. At this time, it will need to be enabled to continue.</p>
+                    <p>
+                        <button class="purple-button" id="requestSerialDevice">Connect to Device</button>
                     </p>
-                </div>
-            </section>
-            <section class="step">
-                <div class="step-number">3</div>
-                <div class="step-content">
-                    <h1>Select Your Working Folder</h1>
-                    <p>Something here about selecting a working folder</p>
                 </div>
             </section>
         </div>

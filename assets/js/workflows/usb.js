@@ -1,27 +1,21 @@
-/*
- * This class will encapsulate all of the workflow functions specific to USB.
- */
-
-import {Workflow, CONNTYPE} from './workflow.js';
+import {Workflow, CONNTYPE, CHAR_TITLE_START, CHAR_TITLE_END} from './workflow.js';
 import {GenericModal} from '../common/dialogs.js';
+import {regexEscape} from '../common/utilities.js';
+
+let btnRequestSerialDevice;
 
 class USBWorkflow extends Workflow {
     constructor() {
         super();
         this.serialDevice = null;
         this.titleMode = false;
-        this.websocket = null;
-        this.serialService = null;
+        this.readSerialPromise = null;
         this.connectDialog = new GenericModal("usb-connect");
         this.type = CONNTYPE.Usb;
     }
 
     async init(params) {
         await super.init(params);
-    }
-
-    async connectButtonHandler(e) {
-        // Empty for now. Eventually this will handle Web Serial connection
     }
 
     // This is called when a user clicks the main disconnect button
@@ -33,71 +27,48 @@ class USBWorkflow extends Workflow {
     }
 
     async onSerialReceive(e) {
-        // Use an open web socket to display received serial data
-        if (e.data == CHAR_TITLE_START) {
-            this.titleMode = true;
-            this.setTerminalTitle("");
-        } else if (e.data == CHAR_TITLE_END) {
-            this.titleMode = false;
-        } else if (this.titleMode) {
-            this.setTerminalTitle(e.data, true);
-        } else {
-            this.writeToTerminal(e.data);
+        // Tokenize the larger string and send to the parent
+        const chunks = this.tokenize(e.data);
+        for (let chunk of chunks) {
+            e.data = chunk;
+            super.onSerialReceive(e);
         }
     }
 
+    tokenize(string) {
+        const tokenRegex = new RegExp("(" + regexEscape(CHAR_TITLE_START) + "|" + regexEscape(CHAR_TITLE_END) + ")", "gi");
+        return string.split(tokenRegex);
+    }
+
     async serialTransmit(msg) {
-        if (serialDevice && serialDevice.writable) {
+        if (this.serialDevice && this.serialDevice.writable) {
             const encoder = new TextEncoder();
-            const writer = serialDevice.writable.getWriter();
-            await writer.write(encoder.encode(s));
+            const writer = this.serialDevice.writable.getWriter();
+            await writer.write(encoder.encode(msg));
             writer.releaseLock();
         }
     }
 
-    async onConnected(e) {
-        await super.onConnected(e);
-
-    }
-
-    async onDisconnected(e, reconnect = true) {
-
-        await super.onDisconnected(e, reconnect);
-    }
-
-    async showConnect(document, docChangePos) {
+    async showConnect(docContents, docChangePos) {
         let p = this.connectDialog.open();
         let modal = this.connectDialog.getModal();
-        /*
-        btnRequestBluetoothDevice = modal.querySelector('#requestBluetoothDevice');
-        btnBond = modal.querySelector('#promptBond');
-        btnReconnect = modal.querySelector('#bleReconnect');
 
-        btnRequestBluetoothDevice.addEventListener('click', async (event) => {
-            await this.onRequestBluetoothDeviceButtonClick();
-        });
-        btnBond.addEventListener('click', async (event) =>  {
-            await this.onBond();
-        });
-        btnReconnect.addEventListener('click', async (event) =>  {
-            await this.reconnectButtonHandler(event);
-        });
+        btnRequestSerialDevice = modal.querySelector('#requestSerialDevice');
+        btnRequestSerialDevice.disabled = true;
 
-        if (await this.available() instanceof Error) {
-            btnRequestBluetoothDevice.disabled = true;
-            btnReconnect.disabled = true;
+        if (!(await this.available() instanceof Error)) {
+            let stepOne;
+            if (stepOne = modal.querySelector('.step:first-of-type')) {
+                stepOne.classList.add("hidden");
+            }
+            btnRequestSerialDevice.disabled = false;
         }
-        btnBond.disabled = true;*/
+
+        btnRequestSerialDevice.addEventListener('click', async (event) => {
+            await this.onRequestSerialDeviceButtonClick();
+        });
 
         return await p;
-    }
-
-    async onConnected(e) {
-        console.log(e, "connected!");
-    }
-
-    async onDisconnected(e) {
-        console.log(e, "disconnected");
     }
 
     async available() {
@@ -109,18 +80,33 @@ class USBWorkflow extends Workflow {
 
     // Workflow specific functions
     async switchToDevice(device) {
-        if (serialDevice) {
-            await serialDevice.close();
+        if (this.serialDevice) {
+            await this.serialDevice.close();
         }
         this.serialDevice = device;
-        device.addEventListener("connect", this.onSerialConnected);
-        device.addEventListener("disconnect", this.onSerialDisconnected);
-        console.log("switch to", device);
-        await device.open({baudRate: 115200});
+        this.serialDevice.addEventListener("connect", this.onConnected.bind(this));
+        this.serialDevice.addEventListener("disconnect", this.onDisconnected.bind(this));
+        this.serialDevice.addEventListener("message", this.onSerialReceive.bind(this));
+        console.log("switch to", this.serialDevice);
+        await this.serialDevice.open({baudRate: 115200});
         console.log("opened");
+
+        this.readSerialPromise = this.readSerialLoop();
+        this.connectDialog.close();
+        await this.loadEditor();
+    }
+
+    async readSerialLoop() {
+        if (!this.serialDevice) {
+            return;
+        }
+
         let reader;
-        while (device.readable) {
-            reader = device.readable.getReader();
+        const messageEvent = new Event("message");
+        const decoder = new TextDecoder();
+
+        while (this.serialDevice.readable) {
+            reader = this.serialDevice.readable.getReader();
             try {
                 while (true) {
                     const {value, done} = await reader.read();
@@ -128,14 +114,40 @@ class USBWorkflow extends Workflow {
                         // |reader| has been canceled.
                         break;
                     }
-                    terminal.io.print(decoder.decode(value));
+                    messageEvent.data = decoder.decode(value);
+                    this.serialDevice.dispatchEvent(messageEvent);
                 }
             } catch (error) {
                 // Handle |error|...
+                // TODO: A hard reset ends up here. It should dispatch a disconnect event.
                 console.log("error", error);
             } finally {
                 reader.releaseLock();
             }
+        }
+
+        this.serialDevice = null;
+        this.readSerialPromise = null;
+    }
+
+    async onRequestSerialDeviceButtonClick() {
+        let devices = await navigator.serial.getPorts();
+        if (devices.length == 1) {
+            let device = devices[0];
+            this.switchToDevice(device);
+            return;
+        }
+        try {
+            console.log('Requesting any serial device...');
+            let device = await navigator.serial.requestPort();
+
+            console.log('> Requested ');
+            console.log(device);
+            this.switchToDevice(device);
+            return;
+        }
+        catch (error) {
+            console.log('Argh! ');
         }
     }
 }
