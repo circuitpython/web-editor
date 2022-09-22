@@ -154,7 +154,7 @@ async function checkConnected() {
 
         if (!workflow.connectionStatus()) {
             // Display the appropriate connection dialog
-            await workflow.showConnect(editor.state.doc.sliceString(0), unchanged);
+            await workflow.showConnect(workflow.makeDocState(editor.state.doc.sliceString(0), unchanged));
         } else if (workflow.type === CONNTYPE.Web) {
             // We're connected, local, and using Web Workflow
             await workflow.showInfo(editor.state.doc.sliceString(0), unchanged);
@@ -512,7 +512,7 @@ document.addEventListener('DOMContentLoaded', async (event) => {
             if (workflow.type === CONNTYPE.Web) {
                 await showMessage("You are connected with localhost, but didn't supply the device hostname.");
             } else {
-                await workflow.showConnect(editor.state.doc.sliceString(0), unchanged);
+                await workflow.showConnect(workflow.makeDocState(editor.state.doc.sliceString(0), unchanged));
             }
         } else {
             if (await workflowConnect() && workflow.type === CONNTYPE.Web) {

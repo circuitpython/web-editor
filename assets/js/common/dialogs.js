@@ -1,4 +1,4 @@
-import {sleep, isIp, timeout} from './utilities.js';
+import {sleep, isIp, switchDevice} from './utilities.js';
 
 const SELECTOR_CLOSE_BUTTON = ".popup-modal__close";
 const SELECTOR_BLACKOUT = "#blackout";
@@ -334,7 +334,8 @@ class DiscoveryModal extends GenericModal {
                         clickedItem = clickedItem.parentNode;
                     }
                     let deviceHost = clickedItem.getAttribute("device-host");
-                    this._workflow.switchDevice(deviceHost, this._document, this._docChangePos);
+                    let documentState = this._workflow.makeDocState(this._document, this._docChangePos);
+                    switchDevice(deviceHost, documentState);
                 });
                 a.textContent = `${device.instance_name} (${device.hostname})`;
                 newDevices.push(a);

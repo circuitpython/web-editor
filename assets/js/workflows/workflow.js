@@ -76,6 +76,19 @@ class Workflow {
         return await this.available();
     }
 
+    tokenize(string) {
+        const tokenRegex = new RegExp("(" + regexEscape(CHAR_TITLE_START) + "|" + regexEscape(CHAR_TITLE_END) + ")", "gi");
+        return string.split(tokenRegex);
+    }
+
+    makeDocState(document, docChangePos) {
+        return {
+            path: this.currentFilename,
+            contents: document,
+            pos: docChangePos,
+        };
+    }
+
     async onDisconnected(e, reconnect = true) {
         this.debugLog("disconnected");
         this.updateConnected(false);
@@ -159,7 +172,7 @@ class Workflow {
         this.terminalTitle.textContent = title;
     }
 
-    async showConnect(docContents, docChangePos) {
+    async showConnect(documentState) {
         return await this.connectDialog.open();
     }
 
@@ -224,7 +237,7 @@ class Workflow {
     }
 
     async saveAs() {
-        let path = await this._fileDialog.open(this.fileHelper, FILE_DIALOG_SAVE);
+        let path = await this.openFileDialog(FILE_DIALOG_SAVE);
         if (path !== null) {
             // check if filename exists
             if (path != this.currentFilename && await this.showBusy(this.fileHelper.fileExists(path))) {
@@ -242,7 +255,7 @@ class Workflow {
 
     async openFile() {
         if (await this.checkSaved()) {
-            let path = await this._fileDialog.open(this.fileHelper, FILE_DIALOG_OPEN);
+            let path = await this.openFileDialog(FILE_DIALOG_OPEN);
             if (path !== null) {
                 let contents = await this.showBusy(this.fileHelper.readFile(path));
                 this._loadEditorContents(contents);
@@ -252,6 +265,11 @@ class Workflow {
             }
         }
         return false;
+    }
+
+    // Open a file dialog and return the path or null if canceled
+    async openFileDialog(type) {
+        return await this._fileDialog.open(this.fileHelper, type);
     }
 
     async writeFile(contents, offset = 0) {

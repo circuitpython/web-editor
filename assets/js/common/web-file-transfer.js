@@ -6,11 +6,11 @@ class FileTransferClient {
     }
 
     async readOnly() {
-        await this.checkConnection();
+        await this._checkConnection();
         return !this._allowedMethods.includes('DELETE');
     }
 
-    async checkConnection() {
+    async _checkConnection() {
         if (!this.connectionStatus() && this._allowedMethods !== null) {
             throw new Error("Unable to perform file operation. Not Connected.");
         }
@@ -22,7 +22,7 @@ class FileTransferClient {
     }
 
     async readFile(path, rawResponse = false, rootDir = '/fs') {
-        await this.checkConnection();
+        await this._checkConnection();
         const response = await this._fetch(`${rootDir}${path}`);
 
         if (response.ok) {
@@ -32,15 +32,15 @@ class FileTransferClient {
         }
     }
 
-    async checkWritable() {
+    async _checkWritable() {
         if (await this.readOnly()) {
             throw new Error("File System is Read Only. Try disabling the USB Drive.");
         }
     }
 
     async writeFile(path, offset, contents, modificationTime, raw = false) {
-        await this.checkConnection();
-        await this.checkWritable();
+        await this._checkConnection();
+        await this._checkWritable();
 
         let options = {
             method: 'PUT',
@@ -59,8 +59,8 @@ class FileTransferClient {
 
     // Makes the directory and any missing parents
     async makeDir(path, modificationTime = Date.now()) {
-        await this.checkConnection();
-        await this.checkWritable();
+        await this._checkConnection();
+        await this._checkWritable();
 
         if (!path.length || path.substr(-1) != "/") {
             path += "/";
@@ -85,7 +85,7 @@ class FileTransferClient {
         };
 
         if (fetchOptions.method && fetchOptions.method.toUpperCase() != 'OPTIONS') {
-            if (!this.isMethodAllowed(fetchOptions.method)) {
+            if (!this._isMethodAllowed(fetchOptions.method)) {
                 if (fetchOptions.method.toUpperCase() == "MOVE") {
                     // This should only happen if rename is used and the user doesn't have latest version
                     console.warn("Please upgrade to the latest version of CircuitPython. Allowing MOVE for now.");
@@ -108,7 +108,7 @@ class FileTransferClient {
         return response;
     }
 
-    async isMethodAllowed(method) {
+    async _isMethodAllowed(method) {
         if (this._allowedMethods) {
             return this._allowedMethods.includes(method.toUpperCase);
         }
@@ -118,7 +118,7 @@ class FileTransferClient {
 
     // Returns a list of tuples, one tuple for each file or directory in the given path
     async listDir(path) {
-        await this.checkConnection();
+        await this._checkConnection();
 
         let paths = [];
         if (!path.length || path.substr(-1) != "/") {
@@ -141,8 +141,8 @@ class FileTransferClient {
 
     // Deletes the file or directory at the given path. Directories must be empty.
     async delete(path) {
-        await this.checkConnection();
-        await this.checkWritable();
+        await this._checkConnection();
+        await this._checkWritable();
 
         const response = await this._fetch(`/fs${path}`, {method: "DELETE"});
         return response.ok;
@@ -150,8 +150,8 @@ class FileTransferClient {
 
     // Moves the file or directory from oldPath to newPath.
     async move(oldPath, newPath) {
-        await this.checkConnection();
-        await this.checkWritable();
+        await this._checkConnection();
+        await this._checkWritable();
 
         let options = {
             method: 'MOVE',

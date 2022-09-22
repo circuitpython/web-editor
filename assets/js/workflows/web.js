@@ -5,7 +5,7 @@
 import {FileTransferClient} from '../common/web-file-transfer.js';
 import {Workflow, CONNTYPE, CHAR_TITLE_START, CHAR_TITLE_END} from './workflow.js';
 import {GenericModal, DiscoveryModal} from '../common/dialogs.js';
-import {isTestHost, isMdns, isIp, makeUrl, getUrlParams} from '../common/utilities.js';
+import {isTestHost, isMdns, isIp, makeUrl, getUrlParams, switchDevice} from '../common/utilities.js';
 
 const CONNECT_TIMEOUT_MS = 30000;
 const PING_INTERVAL_MS = 5000;
@@ -78,7 +78,7 @@ class WebWorkflow extends Workflow {
         await super.onDisconnected(e, reconnect);
     }
 
-    async showConnect(docContents, docChangePos) {
+    async showConnect(documentState) {
         const p = this.connectDialog.open();
         const modal = this.connectDialog.getModal();
         const deviceLink = modal.querySelector("#device-link");
@@ -89,7 +89,7 @@ class WebWorkflow extends Workflow {
             if (clickedItem.tagName.toLowerCase() != "a") {
                 clickedItem = clickedItem.parentNode;
             }
-            this.switchDevice(new URL(clickedItem.href).host, docContents, docChangePos);
+            switchDevice(new URL(clickedItem.href).host, documentState);
         });
         return await p;
     }
@@ -195,26 +195,6 @@ class WebWorkflow extends Workflow {
         }
 
         return true;
-    }
-
-    switchDevice(deviceHost, document, docChangePos) {
-        let documentState = {
-            path: this.currentFilename,
-            contents: document,
-            pos: docChangePos,
-        };
-        let url = `http://${deviceHost}/code/`;
-        let server = makeUrl(url, {
-            state: encodeURIComponent(JSON.stringify(documentState))
-        });
-        let oldHost = window.location.host;
-        let oldPath = window.location.pathname;
-        window.onbeforeunload = () => {};
-        window.location.href = server;
-        let serverUrl = new URL(server);
-        if (serverUrl.host == oldHost && serverUrl.pathname == oldPath) {
-            window.location.reload();
-        }
     }
 
     async showInfo(document, docChangePos) {

@@ -1,6 +1,8 @@
-import {Workflow, CONNTYPE, CHAR_TITLE_START, CHAR_TITLE_END} from './workflow.js';
+import {Workflow, CONNTYPE} from './workflow.js';
+import {FileTransferClient} from '../common/web-file-transfer.js';
 import {GenericModal} from '../common/dialogs.js';
 import {regexEscape} from '../common/utilities.js';
+import {FILE_DIALOG_OPEN, FILE_DIALOG_SAVE} from '../common/file_dialog.js';
 
 let btnRequestSerialDevice;
 
@@ -35,11 +37,6 @@ class USBWorkflow extends Workflow {
         }
     }
 
-    tokenize(string) {
-        const tokenRegex = new RegExp("(" + regexEscape(CHAR_TITLE_START) + "|" + regexEscape(CHAR_TITLE_END) + ")", "gi");
-        return string.split(tokenRegex);
-    }
-
     async serialTransmit(msg) {
         if (this.serialDevice && this.serialDevice.writable) {
             const encoder = new TextEncoder();
@@ -49,7 +46,7 @@ class USBWorkflow extends Workflow {
         }
     }
 
-    async showConnect(docContents, docChangePos) {
+    async showConnect(documentState) {
         let p = this.connectDialog.open();
         let modal = this.connectDialog.getModal();
 
@@ -72,10 +69,14 @@ class USBWorkflow extends Workflow {
     }
 
     async available() {
-        if (!window.WebSocket) {
-            return Error("WebSockets are not supported in this browser");
+        if (!('serial' in navigator)) {
+            return Error("Web Serial is not enabled in this browser");
         }
         return true;
+    }
+
+    async openFileDialog(type) {
+        // Open a file dialog and return the path or null if canceled
     }
 
     // Workflow specific functions
@@ -87,6 +88,7 @@ class USBWorkflow extends Workflow {
         this.serialDevice.addEventListener("connect", this.onConnected.bind(this));
         this.serialDevice.addEventListener("disconnect", this.onDisconnected.bind(this));
         this.serialDevice.addEventListener("message", this.onSerialReceive.bind(this));
+        this.initFileClient(new FileTransferClient());
         console.log("switch to", this.serialDevice);
         await this.serialDevice.open({baudRate: 115200});
         console.log("opened");

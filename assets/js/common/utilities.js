@@ -71,6 +71,24 @@ function regexEscape(regexString) {
     return regexString.replace(/\\/, "\\\\");
 }
 
+function switchUrl(url, documentState) {
+    let server = makeUrl(url, {
+        state: encodeURIComponent(JSON.stringify(documentState))
+    });
+    let oldHost = window.location.host;
+    let oldPath = window.location.pathname;
+    window.onbeforeunload = () => {};
+    window.location.href = server;
+    let serverUrl = new URL(server);
+    if (serverUrl.host == oldHost && serverUrl.pathname == oldPath) {
+        window.location.reload();
+    }
+}
+
+function switchDevice(deviceHost, documentState) {
+    switchUrl(`http://${deviceHost}/code/`, documentState);
+}
+
 export {
     isTestHost,
     buildHash,
@@ -82,5 +100,7 @@ export {
     getUrlParam,
     timeout,
     sleep,
-    regexEscape
+    regexEscape,
+    switchUrl,
+    switchDevice
 };
