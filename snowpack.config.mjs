@@ -8,7 +8,7 @@ import fs from 'fs';
 //const key = await fs.promises.readFile('localhost.key');
 
 export default {
-  exclude: ['**/Makefile', '**/lib/google-libapps/**'],
+  exclude: ['**/Makefile'],
   mount: {
     /* ... */
   },

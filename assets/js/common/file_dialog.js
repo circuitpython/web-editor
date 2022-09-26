@@ -1,4 +1,5 @@
 import {GenericModal, ProgressDialog, ButtonValueDialog} from './dialogs.js';
+import {readUploadedFileAsArrayBuffer} from './utilities.js';
 import {saveAs} from 'file-saver';
 
 const FILE_DIALOG_OPEN = 1;
@@ -37,6 +38,39 @@ const DEFAULT_FILE_ICON = ["far", "fa-file"];
 const FILESIZE_UNITS = ["bytes", "KB", "MB", "GB"];
 const COMPACT_UNITS = ["", "K", "M", "G"];
 
+function getFileExtension(filename) {
+    let extension = filename.split('.').pop();
+    if (extension !== null) {
+        return String(extension).toLowerCase();
+    }
+    return extension;
+}
+
+function getFileIcon(path, isDir = false) {
+    if (isDir) return FOLDER_ICON;
+    const fileExtension = getFileExtension(path);
+    if (fileExtension in extensionMap) {
+        return ["fa" + extensionMap[fileExtension].style, "fa-" + extensionMap[fileExtension].icon];
+    }
+
+    return DEFAULT_FILE_ICON;
+}
+
+function isHiddenFile(path) {
+    return path[0] == "." && path != "." && path != "..";
+}
+
+function getFileType(path, isDir = false) {
+    if (isDir) return "folder";
+    if (isHiddenFile(path)) return "text";
+    const fileExtension = getFileExtension(path);
+    if (fileExtension in extensionMap) {
+        return extensionMap[fileExtension].type;
+    }
+
+    return "bin";
+}
+
 class FileDialog extends GenericModal {
     constructor(modalId, showBusy) {
         super(modalId);
@@ -53,28 +87,10 @@ class FileDialog extends GenericModal {
         }
     }
 
-    _getExtension(filename) {
-        let extension = filename.split('.').pop();
-        if (extension !== null) {
-            return String(extension).toLowerCase();
-        }
-        return extension;
-    }
-
-    _getIcon(fileObj) {
-        if (fileObj.isDir) return FOLDER_ICON;
-        const fileExtension = this._getExtension(fileObj.path);
-        if (fileExtension in extensionMap) {
-            return ["fa" + extensionMap[fileExtension].style, "fa-" + extensionMap[fileExtension].icon];
-        }
-
-        return DEFAULT_FILE_ICON;
-    }
-
     _getType(fileObj) {
         if (fileObj.isDir) return "folder";
-        if (this._hiddenFile(fileObj)) return "text";
-        const fileExtension = this._getExtension(fileObj.path);
+        if (isHiddenFile(fileObj.path)) return "text";
+        const fileExtension = getFileExtension(fileObj.path);
         if (fileExtension in extensionMap) {
             return extensionMap[fileExtension].type;
         }
@@ -254,10 +270,6 @@ class FileDialog extends GenericModal {
         return true;
     }
 
-    _hiddenFile(fileObj) {
-        return fileObj.path[0] == "." && fileObj.path != "." && fileObj.path != "..";
-    }
-
     _nameExists(fileName) {
         const fileList = this._getElement('fileList');
 
@@ -364,21 +376,6 @@ class FileDialog extends GenericModal {
         input.webkitdirectory = onlyFolders;
         input.addEventListener('change', async (event) => {
             try {
-                const readUploadedFileAsArrayBuffer = (inputFile) => {
-                    const reader = new FileReader();
-
-                    return new Promise((resolve, reject) => {
-                        reader.onerror = () => {
-                            reader.abort();
-                            reject(new DOMException("Problem parsing input file."));
-                        };
-
-                        reader.onload = () => {
-                            resolve(reader.result);
-                        };
-                        reader.readAsArrayBuffer(inputFile);
-                    });
-                };
                 let files = Array.from(input.files);
                 let totalBytes = 0;
                 let bytesCompleted = 0;
@@ -401,7 +398,8 @@ class FileDialog extends GenericModal {
                         }
                     }
                     bytesCompleted += file.size;
-                    if (this._nameExists(filename) && !confirm(`${filename} already exists. Overwrite?`)) {
+                    // TODO: Improve performance by caching all files in each folder so we don't have to do a listDir call each time
+                    if (await this._fileHelper.fileExists(this._currentPath + filename) && !confirm(`${filename} already exists. Overwrite?`)) {
                         this._progressDialog.setPercentage(bytesCompleted / totalBytes * 100);
                         continue; // If cancelled, continue
                     }
@@ -441,8 +439,7 @@ class FileDialog extends GenericModal {
         let type, folder, blob;
 
         let getBlob = async (path) => {
-            let response = await this._fileHelper.readFile(path, true);
-            return response.blob();
+            return await this._fileHelper.readFile(path, true);
         };
 
         if (filename) {
@@ -669,7 +666,7 @@ class FileDialog extends GenericModal {
         if (this._hiddenFile(fileObj)) {
             fileItem.classList.add("hidden-file");
         }
-        fileItem.setAttribute("data-type", this._getType(fileObj));
+        fileItem.setAttribute("data-type", getFileType(fileObj.path, fileObj.isDir));
 
         // Add Events
         fileItem.addEventListener("click", (event) => {
@@ -692,7 +689,7 @@ class FileDialog extends GenericModal {
         if (iconClass !== undefined) {
             styles = [iconStyle, iconClass];
         } else {
-            styles = this._getIcon(fileObj);
+            styles = getFileIcon(fileObj.path, fileObj.isDir);
         }
         styles.forEach(iconElement.classList.add, iconElement.classList);
 
@@ -732,5 +729,9 @@ export {
     FILE_DIALOG_OPEN,
     FILE_DIALOG_SAVE,
     FILE_DIALOG_MOVE,
-    FILE_DIALOG_COPY
+    FILE_DIALOG_COPY,
+    getFileExtension,
+    getFileIcon,
+    isHiddenFile,
+    getFileType
 };

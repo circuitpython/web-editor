@@ -1,4 +1,4 @@
-import {sleep, timeout} from '../common/utilities.js';
+import {sleep, timeout, regexEscape} from '../common/utilities.js';
 import {FileHelper} from '../common/file.js';
 import {UnsavedDialog} from '../common/dialogs.js';
 import {FileDialog, FILE_DIALOG_OPEN, FILE_DIALOG_SAVE} from '../common/file_dialog.js';
@@ -46,9 +46,9 @@ class Workflow {
         this.disconnectCallback = params.disconnectFunc;
         this.loadEditor = params.loadEditorFunc;
         this._isDirty = params.isDirtyFunc;
-        this._setFilename = params.setFilenameFunc;
-        this._writeText = params.writeTextFunc;
-        this._loadEditorContents = params.loadEditorContentsFunc;
+        this._saveFileContents = params.saveFileFunc;
+        this._loadFileContents = params.loadFileFunc;
+        this._showMessage = params.showMessageFunc;
         this.loader = document.getElementById("loader");
         if ("terminalTitle" in params) {
             this.terminalTitle = params.terminalTitle;
@@ -58,14 +58,6 @@ class Workflow {
 
     async initFileClient(fileClient) {
         this.fileHelper = new FileHelper(fileClient);
-    }
-
-    async getDeviceFileContents() {
-        let filename = this.currentFilename;
-        if (!filename) {
-            return "";
-        }
-        return await this.showBusy(this.fileHelper.readFile(this.currentFilename));
     }
 
     async disconnectButtonHandler(e) {
@@ -79,6 +71,11 @@ class Workflow {
     tokenize(string) {
         const tokenRegex = new RegExp("(" + regexEscape(CHAR_TITLE_START) + "|" + regexEscape(CHAR_TITLE_END) + ")", "gi");
         return string.split(tokenRegex);
+    }
+
+    hasPartialToken(chunk) {
+        const partialToken = /\\x1b(?:\](?:0"?)?)?$/gi;
+        return partialToken.test(chunk);
     }
 
     makeDocState(document, docChangePos) {
@@ -217,30 +214,26 @@ class Workflow {
         return true;
     }
 
-    async saveFile(path) {
-        const previousFile = this.currentFilename;
-        if (path !== undefined) {
-            // All good, continue
-        } else if (this.currentFilename !== null) {
-            path = this.currentFilename;
-        } else {
-            path = await this.saveAs();
+    async saveFile(path = null) {
+        if (path === null) {
+            if (this.currentFilename !== null) {
+                path = this.currentFilename;
+            } else {
+                path = await this.saveAs();
+            }
         }
         if (path !== null) {
-            this.currentFilename = path;
-            // If this is a different file, we write everything
-            await this._writeText(path !== previousFile ? 0 : null);
+            await this._saveFileContents(path);
             return true;
         }
-        this.currentFilename = previousFile;
         return false;
     }
 
     async saveAs() {
-        let path = await this.openFileDialog(FILE_DIALOG_SAVE);
+        let path = await this.saveFileDialog();
         if (path !== null) {
             // check if filename exists
-            if (path != this.currentFilename && await this.showBusy(this.fileHelper.fileExists(path))) {
+            if (path != this.currentFilename && await this.fileExists(path)) {
                 if (window.confirm("Overwrite existing file '" + path + "'?")) {
                     await this.saveFile(path);
                 } else {
@@ -253,29 +246,42 @@ class Workflow {
         return path;
     }
 
+    async fileExists(path) {
+        return await this.showBusy(this.fileHelper.fileExists(path));
+    }
+
     async openFile() {
         if (await this.checkSaved()) {
-            let path = await this.openFileDialog(FILE_DIALOG_OPEN);
-            if (path !== null) {
-                let contents = await this.showBusy(this.fileHelper.readFile(path));
-                this._loadEditorContents(contents);
-                this._setFilename(path);
-                console.log("Current File Changed to: " + this.currentFilename);
-                return true;
-            }
+            await this.openFileDialog(this.fileLoadHandler.bind(this));
         }
-        return false;
+    }
+
+    async fileLoadHandler(path) {
+        console.log("Path:", path);
+        if (path !== null) {
+            let contents = await this.readFile(path);
+            this._loadFileContents(path, contents);
+        }
     }
 
     // Open a file dialog and return the path or null if canceled
-    async openFileDialog(type) {
-        return await this._fileDialog.open(this.fileHelper, type);
+    async saveFileDialog() {
+        return await this._fileDialog.open(this.fileHelper, FILE_DIALOG_SAVE);
     }
 
-    async writeFile(contents, offset = 0) {
+    async openFileDialog(callback) {
+        let path = await this._fileDialog.open(this.fileHelper, FILE_DIALOG_SAVE);
+        await callback(path);
+    }
+
+    async writeFile(path, contents, offset = 0) {
         return await this.showBusy(
-            this.fileHelper.writeFile(this.currentFilename, offset, contents)
+            this.fileHelper.writeFile(path, offset, contents)
         );
+    }
+
+    async readFile(path) {
+        return await this.showBusy(this.fileHelper.readFile(path));
     }
 
     async readOnly() {

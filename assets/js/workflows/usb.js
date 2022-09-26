@@ -1,8 +1,7 @@
 import {Workflow, CONNTYPE} from './workflow.js';
-import {FileTransferClient} from '../common/web-file-transfer.js';
 import {GenericModal} from '../common/dialogs.js';
-import {regexEscape} from '../common/utilities.js';
-import {FILE_DIALOG_OPEN, FILE_DIALOG_SAVE} from '../common/file_dialog.js';
+import {readUploadedFileAsArrayBuffer} from '../common/utilities.js';
+import {saveAs} from 'file-saver';
 
 let btnRequestSerialDevice;
 
@@ -11,9 +10,11 @@ class USBWorkflow extends Workflow {
         super();
         this.serialDevice = null;
         this.titleMode = false;
-        this.readSerialPromise = null;
+        this.reader = null;
         this.connectDialog = new GenericModal("usb-connect");
+        this._fileContents = null;
         this.type = CONNTYPE.Usb;
+        this._partialTokenChunk = null;
     }
 
     async init(params) {
@@ -28,9 +29,48 @@ class USBWorkflow extends Workflow {
         }
     }
 
+    async onConnected(e) {
+        this.readSerialLoop().catch(
+            async function(error) {
+                await this.onDisconnected();
+            }
+        );
+        this.connectDialog.close();
+        await this.loadEditor();
+        super.onConnected(e);
+    }
+
+    async onDisconnected(e) {
+        if (this.reader) {
+            await this.reader.cancel();
+            this.reader = null;
+        }
+
+        if (this.serialDevice) {
+            await this.serialDevice.close();
+            this.serialDevice = null;
+        }
+
+        super.onDisconnected(e);
+    }
+
     async onSerialReceive(e) {
+        console.log(e.data);
+        // Prepend any partial chunks
+        if (this._partialTokenChunk) {
+            e.data = this._partialTokenChunk + e.data;
+            this._partialTokenChunk = null;
+        }
+
         // Tokenize the larger string and send to the parent
-        const chunks = this.tokenize(e.data);
+        let chunks = this.tokenize(e.data);
+
+        // Remove any chunks containing partial tokens
+        if (chunks.length && this.hasPartialToken(chunks.slice(-1))) {
+            this._partialTokenChunk = chunks.pop();
+        }
+
+        // Send all full chunks to the parent function
         for (let chunk of chunks) {
             e.data = chunk;
             super.onSerialReceive(e);
@@ -75,65 +115,104 @@ class USBWorkflow extends Workflow {
         return true;
     }
 
-    async openFileDialog(type) {
-        // Open a file dialog and return the path or null if canceled
+    async saveFileDialog() {
+        let defaultFilename = this.currentFilename;
+        console.log(defaultFilename);
+        if (!defaultFilename) {
+            defaultFilename = "code.py";
+        }
+        return prompt("What filename would you like to save this document as?", defaultFilename);
+    }
+
+    async openFileDialog(callback) {
+        let input = document.createElement("input");
+        input.type = 'file';
+
+        input.addEventListener("change", async (event) => {
+            try {
+                await callback(input.files[0]);
+            } catch (error) {
+                await this._showMessage(`Error: ${error.message}`);
+            }
+        }, {once: true});
+
+        input.click();
+    }
+
+    async writeFile(path, contents, offset = 0) {
+        try {
+            saveAs(new Blob([contents]), path);
+        } catch(e) {
+            return false;
+        }
+        return true;
+    }
+
+    isBinaryFile(mimeType) {
+        const textType = new RegExp("^text\/.*?");
+        return mimeType !== "" && !textType.test(mimeType);
+    }
+
+    async fileLoadHandler(file) {
+        const textDecoder = new TextDecoder();
+
+        if (this.isBinaryFile(file.type)) {
+            throw new Error("You selected a binary file.");
+        }
+        let contents = textDecoder.decode(await readUploadedFileAsArrayBuffer(file));
+        this._loadFileContents(file.name, contents);
+    }
+
+    async fileExists(path) {
+        false;
+    }
+
+    async readOnly() {
+        return false;
     }
 
     // Workflow specific functions
     async switchToDevice(device) {
-        if (this.serialDevice) {
-            await this.serialDevice.close();
-        }
+        device.addEventListener("message", this.onSerialReceive.bind(this));
+
         this.serialDevice = device;
-        this.serialDevice.addEventListener("connect", this.onConnected.bind(this));
-        this.serialDevice.addEventListener("disconnect", this.onDisconnected.bind(this));
-        this.serialDevice.addEventListener("message", this.onSerialReceive.bind(this));
-        this.initFileClient(new FileTransferClient());
         console.log("switch to", this.serialDevice);
         await this.serialDevice.open({baudRate: 115200});
-        console.log("opened");
-
-        this.readSerialPromise = this.readSerialLoop();
-        this.connectDialog.close();
-        await this.loadEditor();
+        this.onConnected();
     }
 
     async readSerialLoop() {
+        console.log("Read Loop Init");
         if (!this.serialDevice) {
             return;
         }
 
-        let reader;
         const messageEvent = new Event("message");
         const decoder = new TextDecoder();
 
         while (this.serialDevice.readable) {
-            reader = this.serialDevice.readable.getReader();
-            try {
-                while (true) {
-                    const {value, done} = await reader.read();
-                    if (done) {
-                        // |reader| has been canceled.
-                        break;
-                    }
+            this.reader = this.serialDevice.readable.getReader();
+            console.log("Read Loop Started");
+            while (true) {
+                const {value, done} = await this.reader.read();
+                if (value) {
                     messageEvent.data = decoder.decode(value);
                     this.serialDevice.dispatchEvent(messageEvent);
                 }
-            } catch (error) {
-                // Handle |error|...
-                // TODO: A hard reset ends up here. It should dispatch a disconnect event.
-                console.log("error", error);
-            } finally {
-                reader.releaseLock();
+                if (done) {
+                    this.reader.releaseLock();
+                    break;
+                }
+
             }
         }
 
         this.serialDevice = null;
-        this.readSerialPromise = null;
     }
 
     async onRequestSerialDeviceButtonClick() {
         let devices = await navigator.serial.getPorts();
+
         if (devices.length == 1) {
             let device = devices[0];
             this.switchToDevice(device);
@@ -143,8 +222,7 @@ class USBWorkflow extends Workflow {
             console.log('Requesting any serial device...');
             let device = await navigator.serial.requestPort();
 
-            console.log('> Requested ');
-            console.log(device);
+            console.log('> Requested ', device);
             this.switchToDevice(device);
             return;
         }

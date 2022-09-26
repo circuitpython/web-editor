@@ -54,35 +54,29 @@ const editorExtensions = [
     EditorView.updateListener.of(onTextChange)
 ];
 
-// New Buttons (Mobile and Desktop Layout)
+// New Link/Button (Mobile and Desktop Layout)
 btnNew.forEach((element) => {
     element.addEventListener('click', async function(e) {
         e.preventDefault();
         e.stopPropagation();
         await checkConnected();
         if (await workflow.checkSaved()) {
-            loadEditorContents("");
-            setFilename(null);
-            setSaved(true);
-            console.log("Current File Changed to: " + workflow.currentFilename);
+            loadFileContents(null, "");
         }
     });
 });
 
-// Open Buttons (Mobile and Desktop Layout)
+// Open Link/Button (Mobile and Desktop Layout)
 btnOpen.forEach((element) => {
     element.addEventListener('click', async function(e) {
         e.preventDefault();
         e.stopPropagation();
         await checkConnected();
-        await workflow.openFile();
-        if (!isDirty()) {
-            setSaved(true);
-        }
+        workflow.openFile();
     });
 });
 
-// Save As Buttons (Mobile and Desktop Layout)
+// Save As Link/Button (Mobile and Desktop Layout)
 btnSaveAs.forEach((element) => {
     element.addEventListener('click', async function(e) {
         e.preventDefault();
@@ -95,7 +89,7 @@ btnSaveAs.forEach((element) => {
     });
 });
 
-// Save + Run Buttons (Mobile and Desktop Layout)
+// Save + Run Link/Button (Mobile and Desktop Layout)
 btnSaveRun.forEach((element) => {
     element.addEventListener('click', async function(e) {
         e.preventDefault();
@@ -145,7 +139,7 @@ async function checkConnected() {
         }
         await loadWorkflow(connType);
 
-        // Connect if we're local
+        // Connect if we're local (Web Workflow Only)
         if (isLocal() && workflow.host) {
             if (await workflowConnect()) {
                 await checkReadOnly();
@@ -262,8 +256,10 @@ async function loadWorkflow(workflowType = null) {
                 disconnectFunc: disconnectCallback,
                 isDirtyFunc: isDirty,
                 setFilenameFunc: setFilename,
-                writeTextFunc: writeText,
+                saveFileFunc: saveFileContents,
+                loadFileFunc: loadFileContents,
                 loadEditorContentsFunc: loadEditorContents,
+                showMessageFunc: showMessage,
                 currentFilename: currentFilename,
             });
         } else {
@@ -361,10 +357,8 @@ window.addEventListener("resize", fixViewportHeight);
 async function loadEditor() {
     let documentState = loadParameterizedContent();
     if (documentState) {
-        loadEditorContents(documentState.contents);
-        setFilename(documentState.path);
+        loadFileContents(documentState.path, documentState.contents, !isDirty());
         unchanged = documentState.pos;
-        setSaved(!isDirty());
     }
 
     updateUIConnected(true);
@@ -373,9 +367,12 @@ async function loadEditor() {
 
 var editor;
 var currentTimeout = null;
-async function writeText(writeFrom = null) {
-    if (writeFrom !== null) {
-        unchanged = writeFrom;
+
+// Save the File Contents and update the UI
+async function saveFileContents(path) {
+    // If this is a different file, we write everything
+    if (path !== workflow.currentFilename) {
+        unchanged = 0;
     }
     let doc = editor.state.doc;
     let offset = 0;
@@ -388,7 +385,7 @@ async function writeText(writeFrom = null) {
     unchanged = doc.length;
     try {
         console.log("write");
-        if (await workflow.writeFile(contents, offset)) {
+        if (await workflow.writeFile(path, contents, offset)) {
             setFilename(workflow.currentFilename);
             setSaved(true);
         } else {
@@ -400,8 +397,18 @@ async function writeText(writeFrom = null) {
         if (currentTimeout != null) {
             clearTimeout(currentTimeout);
         }
-        currentTimeout = setTimeout(writeText, 2000);
+        currentTimeout = setTimeout(saveFileContents, 2000);
     }
+}
+
+// Load the File Contents and Path into the UI
+function loadFileContents(path, contents, saved = true) {
+    setFilename(path);
+    loadEditorContents(contents);
+    if (saved !== null) {
+        setSaved(saved);
+    }
+    console.log("Current File Changed to: " + workflow.currentFilename);
 }
 
 async function onTextChange(update) {

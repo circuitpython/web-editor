@@ -89,6 +89,22 @@ function switchDevice(deviceHost, documentState) {
     switchUrl(`http://${deviceHost}/code/`, documentState);
 }
 
+function readUploadedFileAsArrayBuffer(inputFile) {
+    const reader = new FileReader();
+
+    return new Promise((resolve, reject) => {
+        reader.onerror = () => {
+            reader.abort();
+            reject(new DOMException("Problem parsing input file."));
+        };
+
+        reader.onload = () => {
+            resolve(reader.result);
+        };
+        reader.readAsArrayBuffer(inputFile);
+    });
+};
+
 export {
     isTestHost,
     buildHash,
@@ -102,5 +118,6 @@ export {
     sleep,
     regexEscape,
     switchUrl,
-    switchDevice
+    switchDevice,
+    readUploadedFileAsArrayBuffer
 };

@@ -3,10 +3,43 @@ class FileTransferClient {
         return false;
     }
 
-    async readFile(path, rawResponse = false, rootDir = '/fs') {
+    async readFile(path, raw = false) {
         console.warn(`Attempting to Read from ${path}`);
-        // TODO: File upload
-        return "";
+        const textDecoder = new TextDecoder();
+
+        let input = document.createElement("input");
+        let contents;
+        input.type = 'file';
+        input.addEventListener('change', async (event) => {
+            try {
+                const readUploadedFileAsArrayBuffer = (inputFile) => {
+                    const reader = new FileReader();
+
+                    return new Promise((resolve, reject) => {
+                        reader.onerror = () => {
+                            reader.abort();
+                            reject(new DOMException("Problem parsing input file."));
+                        };
+
+                        reader.onload = () => {
+                            resolve(reader.result);
+                        };
+                        reader.readAsArrayBuffer(inputFile);
+                    });
+                };
+                let files = Array.from(input.files);
+                for (let [index, file] of files.entries()) {
+                    contents = await readUploadedFileAsArrayBuffer(file);
+                };
+
+            } catch (error) {
+                console.error(error);
+            }
+        });
+
+        input.click();
+
+        return raw ? new Blob(contents) : textDecoder.decode(contents);
     }
 
     async checkWritable() {
@@ -15,6 +48,7 @@ class FileTransferClient {
 
     async writeFile(path, offset, contents, modificationTime, raw = false) {
         // TODO: File download
+        // Use raw to decided whether to send it through TextEncoder or not
         console.warn(`Attempting to Write at ${path}`);
     }
 

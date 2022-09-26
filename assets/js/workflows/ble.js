@@ -140,10 +140,6 @@ class BLEWorkflow extends Workflow {
         }
     }
 
-    async getDeviceFileContents(filename) {
-        return await this.fileHelper.readFile(filename);
-    }
-
     async switchToDevice(device) {
         console.log(device);
         this.bleDevice = device;

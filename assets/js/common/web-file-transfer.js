@@ -21,14 +21,18 @@ class FileTransferClient {
         }
     }
 
-    async readFile(path, rawResponse = false, rootDir = '/fs') {
+    async readFile(path, raw = false) {
+        return await this._readFile(path, raw, '/fs');
+    }
+
+    async _readFile(path, raw, rootDir) {
         await this._checkConnection();
         const response = await this._fetch(`${rootDir}${path}`);
 
         if (response.ok) {
-            return rawResponse ? response : await response.text();
+            return raw ? await response.blob() : await response.text();
         } else {
-            return rawResponse ? null : "";
+            return raw ? null : "";
         }
     }
 
@@ -165,7 +169,7 @@ class FileTransferClient {
     }
 
     async versionInfo() {
-        let response = await this.readFile('/version.json', true, '/cp');
+        let response = await this._readFile('/version.json', true, '/cp');
         if (!response) {
             return null;
         }
@@ -173,7 +177,7 @@ class FileTransferClient {
     }
 
     async otherDevices() {
-        let response = await this.readFile('/devices.json', true, '/cp');
+        let response = await this._readFile('/devices.json', true, '/cp');
         if (!response) {
             return null;
         }
