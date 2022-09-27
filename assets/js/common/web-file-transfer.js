@@ -169,19 +169,20 @@ class FileTransferClient {
     }
 
     async versionInfo() {
-        let response = await this._readFile('/version.json', true, '/cp');
+        let response = await this._readFile('/version.json', false, '/cp');
         if (!response) {
             return null;
         }
-        return await response.json();
+
+        return JSON.parse(response);
     }
 
     async otherDevices() {
-        let response = await this._readFile('/devices.json', true, '/cp');
+        let response = await this._readFile('/devices.json', false, '/cp');
         if (!response) {
             return null;
         }
-        return await response.json();
+        return JSON.parse(response);
     }
 
     static async getRedirectedHost(host) {

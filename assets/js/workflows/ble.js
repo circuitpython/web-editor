@@ -2,8 +2,7 @@
  * This class will encapsulate all of the workflow functions specific to BLE
  */
 
-//import {FileTransferClient} from 'https://cdn.jsdelivr.net/gh/adafruit/ble-file-transfer-js@1.0.1/adafruit-ble-file-transfer.js';
-import {FileTransferClient} from '../common/adafruit-ble-file-transfer.js';
+import {FileTransferClient} from 'https://cdn.jsdelivr.net/gh/adafruit/ble-file-transfer-js@1.0.2/adafruit-ble-file-transfer.js';
 import {Workflow, CONNTYPE} from './workflow.js';
 import {GenericModal} from '../common/dialogs.js';
 import {sleep} from '../common/utilities.js';
@@ -28,25 +27,6 @@ class BLEWorkflow extends Workflow {
         this.connectDialog = new GenericModal("ble-connect");
         this.partialWrites = true;
         this.type = CONNTYPE.Ble;
-    }
-
-    async reconnectButtonHandler(e) {
-        if (!this.connectionStatus()) {
-            try {
-                console.log('Getting existing permitted Bluetooth devices...');
-                const devices = await navigator.bluetooth.getDevices();
-
-                console.log('> Got ' + devices.length + ' Bluetooth devices.');
-                // These devices may not be powered on or in range, so scan for
-                // advertisement packets from them before connecting.
-                for (const device of devices) {
-                    await this.connectToBluetoothDevice(device);
-                }
-            }
-            catch (error) {
-                console.log('Argh! ' + error);
-            }
-        }
     }
 
     // This is called when a user clicks the main disconnect button
@@ -83,7 +63,8 @@ class BLEWorkflow extends Workflow {
             if (stepOne = modal.querySelector('.step:first-of-type')) {
                 stepOne.classList.add("hidden");
             }
-            this.connectionStep(1);
+            const devices = await navigator.bluetooth.getDevices();
+            this.connectionStep(devices.length > 0 ? 2 : 1);
         } else {
             this.connectionStep(0);
         }
@@ -112,6 +93,26 @@ class BLEWorkflow extends Workflow {
         }
     }
 
+    // Reconnect
+    async reconnectButtonHandler(e) {
+        if (!this.connectionStatus()) {
+            try {
+                console.log('Getting existing permitted Bluetooth devices...');
+                const devices = await navigator.bluetooth.getDevices();
+
+                console.log('> Got ' + devices.length + ' Bluetooth devices.');
+                // These devices may not be powered on or in range, so scan for
+                // advertisement packets from them before connecting.
+                for (const device of devices) {
+                    await this.connectToBluetoothDevice(device);
+                }
+            }
+            catch (error) {
+                console.log('Argh! ' + error);
+            }
+        }
+    }
+
     async connectToBluetoothDevice(device) {
         const abortController = new AbortController();
 
@@ -130,13 +131,36 @@ class BLEWorkflow extends Workflow {
             }
         }, {once: true});
 
+        //await this.showBusy(device.gatt.connect());
+
         this.debugLog("connecting to " + device.name);
         try {
             console.log('Watching advertisements from "' + device.name + '"...');
-            device.watchAdvertisements({signal: abortController.signal});
+            await device.watchAdvertisements({signal: abortController.signal});
         }
         catch (error) {
             console.log('Argh! ' + error);
+        }
+    }
+
+    // Request Bluetooth Device
+    async onRequestBluetoothDeviceButtonClick(e) {
+        try {
+            console.log('Requesting any Bluetooth device...');
+            this.debugLog("Requesting device. Cancel if empty and try existing");
+            let device = await navigator.bluetooth.requestDevice({
+                filters: [{services: [0xfebb]},], // <- Prefer filters to save energy & show relevant devices.
+                optionalServices: [0xfebb, bleNusServiceUUID]
+            });
+
+            await this.showBusy(device.gatt.connect());
+            console.log('> Requested ' + device.name);
+
+            await this.switchToDevice(device);
+        }
+        catch (error) {
+            console.log('Argh: ' + error);
+            this.debugLog('No device selected. Try to connect to existing.');
         }
     }
 
@@ -161,13 +185,14 @@ class BLEWorkflow extends Workflow {
         await this.connectToSerial();
 
         // Enable/Disable UI buttons
-        this.connectionStep(2);
+        this.connectionStep(3);
 
         await this.onConnected();
         this.connectDialog.close();
         await this.loadEditor();
     }
 
+    // Bond
     async onBond(e) {
         try {
             console.log("bond");
@@ -201,26 +226,6 @@ class BLEWorkflow extends Workflow {
             } catch (e) {
                 console.log("caught write error", e, e.stack);
             }
-        }
-    }
-
-    async onRequestBluetoothDeviceButtonClick(e) {
-        try {
-            console.log('Requesting any Bluetooth device...');
-            this.debugLog("Requesting device. Cancel if empty and try existing");
-            let device = await navigator.bluetooth.requestDevice({
-                filters: [{services: [0xfebb]},], // <- Prefer filters to save energy & show relevant devices.
-                optionalServices: [0xfebb, bleNusServiceUUID]
-            });
-
-            await this.showBusy(device.gatt.connect());
-            console.log('> Requested ' + device.name);
-
-            await this.switchToDevice(device);
-        }
-        catch (error) {
-            console.log('Argh: ' + error);
-            this.debugLog('No device selected. Try to connect to existing.');
         }
     }
 
@@ -258,6 +263,7 @@ class BLEWorkflow extends Workflow {
         btnRequestBluetoothDevice, btnBond, btnReconnect
         const buttonStates = [
             {reconnect: false, request: false, bond: false},
+            {reconnect: false, request: true, bond: false},
             {reconnect: true, request: true, bond: false},
             {reconnect: false, request: false, bond: true},
         ];

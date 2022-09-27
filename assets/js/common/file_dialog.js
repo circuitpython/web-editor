@@ -664,11 +664,11 @@ class FileDialog extends GenericModal {
         });
     }
 
-    _addFile(fileObj, iconClass, iconStyle = "far") {
+    _addFile(fileObj, iconClass, iconStyle = FA_STYLE_REGULAR) {
         const fileList = this._getElement('fileList');
         let styles = [];
         let fileItem = document.createElement("a");
-        if (this._hiddenFile(fileObj)) {
+        if (isHiddenFile(fileObj.path)) {
             fileItem.classList.add("hidden-file");
         }
         fileItem.setAttribute("data-type", getFileType(fileObj.path, fileObj.isDir));

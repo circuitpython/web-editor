@@ -58,11 +58,11 @@ class FileHelper {
     }
 
     async writeFile(path, offset, contents, modificationTime = Date.now(), raw = false) {
-        try {
+        //try {
             await this._writeFile(path, offset, contents, modificationTime, raw);
-        } catch (e) {
-            return false;
-        }
+        //} catch (e) {
+            //return false;
+        //}
         return true;
     }
 
