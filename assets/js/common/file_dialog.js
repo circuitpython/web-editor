@@ -7,6 +7,11 @@ const FILE_DIALOG_SAVE = 2;
 const FILE_DIALOG_MOVE = 3;
 const FILE_DIALOG_COPY = 4;
 
+// Font Awesome Styles
+const FA_STYLE_REGULAR = "fa-regular";
+const FA_STYLE_SOLID = "fa-solid";
+const FA_STYLE_BRANDS = "fa-brands";
+
 // Hide any file or folder matching these exact names
 const HIDDEN_FILES = [".Trashes", ".metadata_never_index", ".fseventsd"];
 
@@ -15,25 +20,25 @@ const HIDDEN_PREFIXES = ["._"];
 
 // This is for mapping file extensions to font awesome icons
 const extensionMap = {
-    "wav": {style: "r", icon: "file-audio", type: "bin"},
-    "mp3": {style: "r", icon: "file-audio", type: "bin"},
-    "bmp": {style: "r", icon: "file-image", type: "bin"},
-    "gif": {style: "r", icon: "file-image", type: "bin"},
-    "jpg": {style: "r", icon: "file-image", type: "bin"},
-    "jpeg": {style: "r", icon: "file-image", type: "bin"},
-    "zip": {style: "r", icon: "file-archive", type: "bin"},
-    "py": {style: "r", icon: "file-alt", type: "text"},
-    "json": {style: "r", icon: "file-code", type: "text"},
-    "mpy": {style: "r", icon: "file", type: "bin"},
-    "txt": {style: "r", icon: "file-alt", type: "text"},
-    "mov": {style: "r", icon: "file-video", type: "bin"},
-    "mp4": {style: "r", icon: "file-video", type: "bin"},
-    "avi": {style: "r", icon: "file-video", type: "bin"},
-    "wmv": {style: "r", icon: "file-video", type: "bin"},
+    "wav":  {style: FA_STYLE_REGULAR, icon: "file-audio", type: "bin"},
+    "mp3":  {style: FA_STYLE_REGULAR, icon: "file-audio", type: "bin"},
+    "bmp":  {style: FA_STYLE_REGULAR, icon: "file-image", type: "bin"},
+    "gif":  {style: FA_STYLE_REGULAR, icon: "file-image", type: "bin"},
+    "jpg":  {style: FA_STYLE_REGULAR, icon: "file-image", type: "bin"},
+    "jpeg": {style: FA_STYLE_REGULAR, icon: "file-image", type: "bin"},
+    "zip":  {style: FA_STYLE_REGULAR, icon: "file-archive", type: "bin"},
+    "py":   {style: FA_STYLE_REGULAR, icon: "file-alt", type: "text"},
+    "json": {style: FA_STYLE_REGULAR, icon: "file-code", type: "text"},
+    "mpy":  {style: FA_STYLE_REGULAR, icon: "file", type: "bin"},
+    "txt":  {style: FA_STYLE_REGULAR, icon: "file-alt", type: "text"},
+    "mov":  {style: FA_STYLE_REGULAR, icon: "file-video", type: "bin"},
+    "mp4":  {style: FA_STYLE_REGULAR, icon: "file-video", type: "bin"},
+    "avi":  {style: FA_STYLE_REGULAR, icon: "file-video", type: "bin"},
+    "wmv":  {style: FA_STYLE_REGULAR, icon: "file-video", type: "bin"},
 };
 
-const FOLDER_ICON = ["far", "fa-folder"];
-const DEFAULT_FILE_ICON = ["far", "fa-file"];
+const FOLDER_ICON = [FA_STYLE_REGULAR, "fa-folder"];
+const DEFAULT_FILE_ICON = [FA_STYLE_REGULAR, "fa-file"];
 
 const FILESIZE_UNITS = ["bytes", "KB", "MB", "GB"];
 const COMPACT_UNITS = ["", "K", "M", "G"];
@@ -50,7 +55,7 @@ function getFileIcon(path, isDir = false) {
     if (isDir) return FOLDER_ICON;
     const fileExtension = getFileExtension(path);
     if (fileExtension in extensionMap) {
-        return ["fa" + extensionMap[fileExtension].style, "fa-" + extensionMap[fileExtension].icon];
+        return [extensionMap[fileExtension].style, "fa-" + extensionMap[fileExtension].icon];
     }
 
     return DEFAULT_FILE_ICON;

@@ -270,7 +270,7 @@ class Workflow {
     }
 
     async openFileDialog(callback) {
-        let path = await this._fileDialog.open(this.fileHelper, FILE_DIALOG_SAVE);
+        let path = await this._fileDialog.open(this.fileHelper, FILE_DIALOG_OPEN);
         await callback(path);
     }
 
