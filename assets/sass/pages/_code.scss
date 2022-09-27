@@ -256,10 +256,6 @@
         button {
             margin-left: 10px;
 
-            i {
-                padding-left: 0;
-            }
-
             &:first-child {
                 margin-left: 0;
             }
@@ -341,6 +337,14 @@
                     text-overflow: ellipsis;
                     overflow: hidden;
                     white-space: nowrap;
+                }
+            }
+        }
+
+        .buttons {
+            button {
+                i {
+                    padding-left: 0;
                 }
             }
         }
