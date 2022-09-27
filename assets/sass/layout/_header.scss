@@ -3,17 +3,6 @@
     grid-template-rows: 1fr 3px;
     grid-column: full;
 
-    & > * {
-        display: grid;
-
-        grid-template-columns:
-            [full-start] minmax(1em, 1fr) [main-start] minmax(0, 80em) [main-end] minmax(1em, 1fr) [full-end];
-
-        & > * {
-            grid-column: main;
-        }
-    }
-
     .wrapper {
         background-color: #333333;
         height: 100px;
@@ -136,11 +125,6 @@
 
     .spacer {
         flex: auto;
-    }
-
-    button:last-child {
-        margin-right: 10px;
-        ;
     }
 }
 

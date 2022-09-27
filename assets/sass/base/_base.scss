@@ -44,9 +44,7 @@ h5 {
     height: auto;
 }
 
-.purple-button,
-.mode-editor #btn-mode-editor,
-.mode-serial #btn-mode-serial {
+.purple-button {
     display: inline-block;
     font-size: 1.1em;
     width: auto;
@@ -63,6 +61,13 @@ h5 {
 
     cursor: pointer;
     white-space: nowrap;
+
+    &:first-of-type {
+        margin-left: 0;
+    }
+    &:last-of-type {
+        margin-right: 0;
+    }
 }
 
 .purple-button.inverted,
