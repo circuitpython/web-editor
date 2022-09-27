@@ -3,9 +3,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="icon" href="assets/images/favicon.ico" type="image/x-icon">
     <title>CircuitPython Code Editor</title>
-    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.15.4/css/all.css" integrity="sha384-DyZ88mC6Up2uqS4h/KRgHuoeGwBcD4Ng9SiP4dIRy0EXTlnuz47vAwmeGwVChigm" crossorigin="anonymous">
+    <link rel="stylesheet" href="assets/css/fontawesome.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@4.19.0/css/xterm.css">
-    
     <link rel="stylesheet" href="assets/css/style.css">
 </head>
 
@@ -61,22 +60,22 @@
                         </div>
                     </div>
                     <div class="file-path"></div>
-                    <a class="purple-button btn-save-run">Save + Run<i class="fas fa-play"></i></a>
+                    <a class="purple-button btn-save-run">Save + Run<i class="fa-solid fa-play"></i></a>
                     <div class="clear"></div>
                     <nav id="mobile-menu-contents" role="navigation" class="hidden" aria-expanded="false" aria-label="Mobile Menu">
                         <ul>
-                            <li><a class="btn-new">New<i class="fas fa-plus"></i></a></li>
-                            <li><a class="btn-open">Open<i class="fas fa-folder-open"></i></a></li>
-                            <li><a class="btn-save-as">Save As<i class="fas fa-download"></i></a></li>
+                            <li><a class="btn-new">New<i class="fa-solid fa-plus"></i></a></li>
+                            <li><a class="btn-open">Open<i class="fa-solid fa-folder-open"></i></a></li>
+                            <li><a class="btn-save-as">Save As<i class="fa-solid fa-download"></i></a></li>
                         </ul>
                     </nav>
                 </div>
                 <div id="editor-bar">
-                    <button class="purple-button btn-new">New<i class="fas fa-plus"></i></button>
-                    <button class="purple-button btn-open">Open<i class="fas fa-folder-open"></i></button>
-                    <button class="purple-button btn-save-as">Save As<i class="fas fa-download"></i></button>
+                    <button class="purple-button btn-new">New<i class="fa-solid fa-plus"></i></button>
+                    <button class="purple-button btn-open">Open<i class="fa-solid fa-folder-open"></i></button>
+                    <button class="purple-button btn-save-as">Save As<i class="fa-solid fa-download"></i></button>
                     <div class="file-path"></div>
-                    <button class="purple-button btn-save-run">Save + Run<i class="fas fa-play"></i></button>
+                    <button class="purple-button btn-save-run">Save + Run<i class="fa-solid fa-play"></i></button>
                 </div>
             </div>
             <div>
@@ -89,7 +88,7 @@
         </div>
         <div id="serial-page" class="wrapper">
             <div class="container" id="serial-bar">
-                <button class="purple-button" id="btn-restart">Restart<i class="fas fa-redo"></i></button>
+                <button class="purple-button" id="btn-restart">Restart<i class="fa-solid fa-redo"></i></button>
                 <div id="terminal-title"></div>
             </div>
             <div class="terminal-container">
@@ -102,27 +101,32 @@
             <button class="mode-button purple-button" id="btn-mode-editor">Editor</button>
             <button class="mode-button purple-button active" id="btn-mode-serial">Serial</button>
             <div class="spacer"></div>
-            <button class="purple-button" id="btn-info" disabled="">Info<i class="fas fa-info-circle"></i></button>
+            <button class="purple-button" id="btn-info" disabled="">Info<i class="fa-solid fa-info-circle"></i></button>
         </div>
     </div>
 
     <!-- Loading Animation -->
     <div class="loader" id="loader">
-        <div><img src="assets/images/loading-blinka.webp" alt="Loading Animation" height="100" width="100"></div>
+        <div>
+            <picture>
+                <source srcset="assets/images/loading-blinka.webp" type="image/webp">
+                <img src="assets/images/loading-blinka.gif" alt="Loading Animation" height="100" width="100">
+            </picture>
+        </div>
     </div>
 
     <!-- Dialog Box Templates -->
     <div class="popup-modal shadow file-dialog closable" data-popup-modal="files">
         <div class="buttons">
-            <button id="del-button" title="Delete Selected Folder or File" class="purple-button"><i class="fas fa-trash-alt"></i></button>
-            <button id="rename-button" title="Rename Selected Folder or File" class="purple-button"><i class="fas fa-pencil-alt"></i></button>
-            <button id="new-folder-button" title="Create New Folder in Current Folder" class="purple-button"><i class="fas fa-folder-plus"></i></button>
-            <button id="upload-button" title="Upload to Current Folder" class="purple-button"><i class="fas fa-upload"></i></button>
-            <button id="download-button" title="Download Folder or File" class="purple-button"><i class="fas fa-download"></i></button>
-            <button id="move-button" title="Move Selected Folder or File" class="purple-button"><i class="fas fa-file-export"></i></button>
+            <button id="del-button" title="Delete Selected Folder or File" class="purple-button"><i class="fa-solid fa-trash-alt"></i></button>
+            <button id="rename-button" title="Rename Selected Folder or File" class="purple-button"><i class="fa-solid fa-pencil-alt"></i></button>
+            <button id="new-folder-button" title="Create New Folder in Current Folder" class="purple-button"><i class="fa-solid fa-folder-plus"></i></button>
+            <button id="upload-button" title="Upload to Current Folder" class="purple-button"><i class="fa-solid fa-upload"></i></button>
+            <button id="download-button" title="Download Folder or File" class="purple-button"><i class="fa-solid fa-download"></i></button>
+            <button id="move-button" title="Move Selected Folder or File" class="purple-button"><i class="fa-solid fa-file-export"></i></button>
         </div>
         <span id="current-path"></span>
-        <i class="fas fa-2x fa-times text-white bg-primary p-3 popup-modal__close"></i>
+        <i class="fa-solid fa-2x fa-xmark text-white bg-primary p-3 popup-modal__close"></i>
         <div id="file-list"></div>
         <div class="buttons">
             <input type="text" id="filename">
@@ -132,7 +136,7 @@
     </div>
     <div class="popup-modal shadow file-dialog closable" data-popup-modal="folder-select">
         <span id="current-path"></span>
-        <i class="fas fa-2x fa-times text-white bg-primary p-3 popup-modal__close"></i>
+        <i class="fa-solid fa-2x fa-xmark text-white bg-primary p-3 popup-modal__close"></i>
         <div id="file-list"></div>
         <div class="buttons">
             <input type="text" id="filename">
@@ -151,16 +155,16 @@
     <div class="popup-modal shadow prompt closable" data-popup-modal="upload-type">
         <div id="message"></div>
         <div class="buttons stacked">
-            <button id="upload-files" class="purple-button files-button" value="files">Upload Files <i class="fas fa-file"></i></button>
-            <button id="upload-folders" class="purple-button folders-button" value="folders">Upload Folders <i class="fas fa-folder"></i></button>
+            <button id="upload-files" class="purple-button files-button" value="files">Upload Files <i class="fa-solid fa-file"></i></button>
+            <button id="upload-folders" class="purple-button folders-button" value="folders">Upload Folders <i class="fa-solid fa-folder"></i></button>
         </div>
     </div>
     <div class="popup-modal shadow prompt closable" data-popup-modal="connection-type">
         <div id="message"></div>
         <div class="buttons stacked">
-            <button id="web-workflow" class="purple-button files-button" value="web">WiFi <i class="fas fa-wifi"></i></button>
-            <button id="ble-workflow" class="purple-button files-button" value="ble">Bluetooth <i class="fab fa-bluetooth"></i></button>
-            <button id="usb-workflow" class="purple-button files-button" value="usb">USB <i class="fab fa-usb"></i></button>
+            <button id="web-workflow" class="purple-button files-button" value="web">WiFi <i class="fa-solid fa-wifi"></i></button>
+            <button id="ble-workflow" class="purple-button files-button" value="ble">Bluetooth <i class="fa-brands fa-bluetooth"></i></button>
+            <button id="usb-workflow" class="purple-button files-button" value="usb">USB <i class="fa-brands fa-usb"></i></button>
         </div>
     </div>
     <div class="popup-modal shadow prompt closable" data-popup-modal="message">
@@ -175,12 +179,12 @@
         <progress value="0"></progress>
     </div>
     <div class="popup-modal shadow connect-dialog closable" data-popup-modal="ble-connect">
-        <i class="fas fa-2x fa-times text-white bg-primary p-3 popup-modal__close"></i>
+        <i class="fa-solid fa-2x fa-xmark text-white bg-primary p-3 popup-modal__close"></i>
         <div id="ble-instructions" class="connection-layout content">
             <p>If you are connecting to a new device, follow the steps below. Otherwise click the Reconnect button.</p>
             <p><button class="purple-button" id="bleReconnect">Reconnect</button></p>
             <section class="step">
-                <div class="step-number">1</div>
+                <div class="step-number"></div>
                 <div class="step-content">
                     <h1>Set Up Web Bluetooth</h1>
                     <p>Web Bluetooth is currently only supported in Chromium-based browsers.</p>
@@ -194,7 +198,7 @@
                 </div>
             </section>
             <section class="step">
-                <div class="step-number">2</div>
+                <div class="step-number"></div>
                 <div class="step-content">
                     <h1>Request Bluetooth Device</h1>
                     <p>CircuitPython boards with <a href="https://circuitpython.org/downloads?features=Bluetooth%2FBTLE">nrf chips need
@@ -208,7 +212,7 @@
                 </div>
             </section>
             <section class="step">
-                <div class="step-number">3</div>
+                <div class="step-number"></div>
                 <div class="step-content">
                     <h1>Bond Device</h1>
                     <p>Once you are connected, we need to prompt a bond. Without this CircuitPython boards with
@@ -222,27 +226,26 @@
         </div>
     </div>
     <div class="popup-modal shadow connect-dialog closable" data-popup-modal="web-connect">
-        <i class="fas fa-2x fa-times text-white bg-primary p-3 popup-modal__close"></i>
+        <i class="fa-solid fa-2x fa-xmark text-white bg-primary p-3 popup-modal__close"></i>
         <div id="web-instructions" class="connection-layout content">
             <section class="step">
-                <div class="step-number">1</div>
+                <div class="step-number"></div>
                 <div class="step-content">
                     <h1>Update CircuitPython</h1>
                     <p>Web Workflow is only available on CircuitPython boards with <a href="https://circuitpython.org/downloads?mcufamilies=esp32&amp;mcufamilies=esp32c3&amp;mcufamilies=esp32s2&amp;mcufamilies=esp32s3" target="_blank">ESP chips running CircuitPython 8.0.0-beta.0 or newer</a>.</p>
                 </div>
             </section>
             <section class="step">
-                <div class="step-number">2</div>
+                <div class="step-number"></div>
                 <div class="step-content">
                     <h1>Connect Device to the Internet</h1>
                     <p>To connect the device to your network, you will need to set up the .env file on your device
-                        and add your WiFi credentials. The <a href="https://docs.circuitpython.org/en/latest/docs/workflows.html#web" target="_blank">CircuitPython Web Workflow
-                            Documentation</a> has more details how to create
+                        and add your WiFi credentials. The <a href="https://learn.adafruit.com/getting-started-with-web-workflow-using-the-code-editor/device-setup" target="_blank">CircuitPython Web Workflow Code Editor Quick Start Guide</a> has more details how to create
                         this file.</p>
                 </div>
             </section>
             <section class="step">
-                <div class="step-number">3</div>
+                <div class="step-number"></div>
                 <div class="step-content">
                     <h1>Navigate to your Device</h1>
                     <p>Once your device is connected to your Local Area Network, you can navigate to
@@ -252,8 +255,34 @@
             </section>
         </div>
     </div>
+    <div class="popup-modal shadow connect-dialog closable" data-popup-modal="usb-connect">
+        <i class="fa-solid fa-2x fa-xmark text-white bg-primary p-3 popup-modal__close"></i>
+        <div id="usb-instructions" class="connection-layout content">
+            <section class="step">
+                <div class="step-number"></div>
+                <div class="step-content">
+                    <h1>Set Up Web Serial</h1>
+                    <p>Web Serial is currently only supported in Chromium-based browsers.</p>
+                    <p>For versions of Google Chrome between versions 78-89, Web Serial needs to manually be enabled. On recent browsers, this feature is enabled by default. If you are on an older version of the browser,
+                        you may be able to enable Web Serial with the
+                        <a href="about://flags/#enable-experimental-web-platform-features">about://flags/#enable-experimental-web-platform-features</a>
+                        flag.</p>
+                    </div>
+            </section>
+            <section class="step">
+                <div class="step-number"></div>
+                <div class="step-content">
+                    <h1>Select Your Serial Device</h1>
+                    <p>Connect to the Serial Port of your device. At this time, it will need to be enabled to continue.</p>
+                    <p>
+                        <button class="purple-button" id="requestSerialDevice">Connect to Device</button>
+                    </p>
+                </div>
+            </section>
+        </div>
+    </div>
     <div class="popup-modal shadow closable" data-popup-modal="device-discovery">
-        <i class="fas fa-2x fa-times text-white bg-primary p-3 popup-modal__close"></i>
+        <i class="fa-solid fa-2x fa-xmark text-white bg-primary p-3 popup-modal__close"></i>
         <table class="device-info">
             <thead>
                 <tr>
@@ -279,7 +308,7 @@
                 </tr>
             </tbody>
         </table>
-        <h3>More network devices<i class="refresh fas fa-sync-alt" title="Refresh Device List"></i></h3>
+        <h3>More network devices<i class="refresh fa-solid fa-sync-alt" title="Refresh Device List"></i></h3>
         <div id="devices"></div>
         <div class="buttons centered">
             <button class="purple-button ok-button">Close</button>

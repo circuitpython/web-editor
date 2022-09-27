@@ -1,8 +1,19 @@
-import fs from "fs";
 export default {
-  exclude: ["**/Makefile", "**/lib/google-libapps/**"],
+  exclude: ["**/Makefile"],
   mount: {},
   plugins: [
+    [
+      "@snowpack/plugin-run-script",
+      {
+        cmd: "cp -rf node_modules/@fortawesome/fontawesome-free/webfonts assets/css"
+      }
+    ],
+    [
+      "@snowpack/plugin-run-script",
+      {
+        cmd: "sass assets/sass/fontawesome.scss assets/css/fontawesome.css --style compressed -I node_modules/@fortawesome/fontawesome-free"
+      }
+    ],
     [
       "@snowpack/plugin-run-script",
       {
