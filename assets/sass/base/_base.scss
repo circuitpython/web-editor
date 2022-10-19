@@ -67,7 +67,10 @@ h5 {
     }
     &:last-of-type {
         margin-right: 0;
+    &:hover {
+        background-color: darken($purple, 15%);
     }
+}
 }
 
 .purple-button:hover {
