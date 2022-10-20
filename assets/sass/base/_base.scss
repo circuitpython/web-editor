@@ -79,7 +79,11 @@ h5 {
 .mode-editor #btn-mode-serial,
 .mode-serial #btn-mode-editor {
     color: $purple;
-    background-color: #c8c8c8;
+    background-color: $gray;
+
+    &:hover {
+        background-color: darken($gray, 15%);
+    }
 }
 
 .purple-button:disabled {
