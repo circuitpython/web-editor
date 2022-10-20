@@ -55,23 +55,23 @@ h5 {
     background-color: $purple;
     margin: 10px 0 10px 10px;
 
-        i {
-            padding-left: 10px;
-        }
+    i {
+        padding-left: 10px;
+    }
 
-        cursor: pointer;
-        white-space: nowrap;
+    cursor: pointer;
+    white-space: nowrap;
 
-        &:first-of-type {
-            margin-left: 0;
-        }
+    &:first-of-type {
+        margin-left: 0;
+    }
 
-        &:last-of-type {
-            margin-right: 0;
-            
-        &:hover {
-            background-color: darken($purple, 15%);
-        }
+    &:last-of-type {
+        margin-right: 0;
+    }
+
+    &:hover {
+        background-color: darken($purple, 15%);
     }
 }
 
