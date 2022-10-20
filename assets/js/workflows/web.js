@@ -3,9 +3,9 @@
  */
 
 import {FileTransferClient} from '../common/web-file-transfer.js';
-import {Workflow, CONNTYPE, CHAR_TITLE_START, CHAR_TITLE_END} from './workflow.js';
+import {Workflow, CONNTYPE} from './workflow.js';
 import {GenericModal, DiscoveryModal} from '../common/dialogs.js';
-import {isTestHost, isMdns, isIp, makeUrl, getUrlParams, switchDevice} from '../common/utilities.js';
+import {isTestHost, isMdns, isIp, getUrlParam, switchDevice} from '../common/utilities.js';
 
 const CONNECT_TIMEOUT_MS = 30000;
 const PING_INTERVAL_MS = 5000;
@@ -94,10 +94,14 @@ class WebWorkflow extends Workflow {
         return await p;
     }
 
-    parseParams() {
-        let urlParams = getUrlParams();
-        if (isTestHost() && "host" in urlParams) {
-            this.host = urlParams.host.toLowerCase();
+    async parseParams() {
+        let host = getUrlParam("host", false);
+        if (isTestHost()) {
+            if (host) {
+                this.host = host.toLowerCase();
+            } else {
+                return Error("You are connected with localhost, but didn't supply the device hostname.");
+            }
         } else if (isMdns()) {
             this.host = location.hostname;
         } else if (isIp()) {
@@ -197,8 +201,8 @@ class WebWorkflow extends Workflow {
         return true;
     }
 
-    async showInfo(document, docChangePos) {
-        return await this.deviceDiscoveryDialog.open(this, document, docChangePos);
+    async showInfo(documentState) {
+        return await this.deviceDiscoveryDialog.open(this, documentState);
     }
 
     async _checkConnection() {

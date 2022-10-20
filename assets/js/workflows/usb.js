@@ -86,6 +86,25 @@ class USBWorkflow extends Workflow {
         }
     }
 
+    async connect() {
+        let result;
+        if (result = await super.connect() instanceof Error) {
+            return result;
+        }
+
+        // There's no way to reference a specific port, so we just hope the user
+        // only has a single port stored
+        let devices = await navigator.serial.getPorts();
+        if (devices.length == 1) {
+            let device = devices[0];
+            this.switchToDevice(device);
+        }
+
+        if (this.serialDevice != null) {
+            return true;
+        }
+    }
+
     async showConnect(documentState) {
         let p = this.connectDialog.open();
         let modal = this.connectDialog.getModal();
@@ -212,12 +231,7 @@ class USBWorkflow extends Workflow {
 
     async onRequestSerialDeviceButtonClick() {
         let devices = await navigator.serial.getPorts();
-
-        if (devices.length == 1) {
-            let device = devices[0];
-            this.switchToDevice(device);
-            return;
-        }
+        console.log(devices);
         try {
             console.log('Requesting any serial device...');
             let device = await navigator.serial.requestPort();

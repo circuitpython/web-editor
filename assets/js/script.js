@@ -6,20 +6,14 @@ import {syntaxHighlighting} from "@codemirror/language";
 import {BLEWorkflow} from './workflows/ble.js';
 import {WebWorkflow} from './workflows/web.js';
 import {USBWorkflow} from './workflows/usb.js';
-import {CONNTYPE, CHAR_CTRL_D} from './workflows/workflow.js';
+import {CONNTYPE, CHAR_CTRL_D, isValidBackend, getBackendWorkflow, getWorkflowBackendName} from './workflows/workflow.js';
 import {ButtonValueDialog, MessageModal} from './common/dialogs.js';
-import {sleep, buildHash, isLocal, getUrlParams, getUrlParam} from './common/utilities.js';
+import {sleep, isLocal, switchUrl, getUrlParam} from './common/utilities.js';
 
 var terminal;
 var fitter;
 var unchanged = 0;
 var workflow = null;
-
-var validBackends = {
-    "web": CONNTYPE.Web,
-    "ble": CONNTYPE.Ble,
-    "usb": CONNTYPE.Usb,
-};
 
 // Instantiate workflows
 var workflows = {};
@@ -120,7 +114,7 @@ btnModeSerial.addEventListener('click', async function(e) {
 
 btnInfo.addEventListener('click', async function(e) {
     await checkConnected();
-    await workflow.showInfo(editor.state.doc.sliceString(0), unchanged);
+    await workflow.showInfo(getDocState());
 });
 
 function setSaved(saved) {
@@ -140,7 +134,7 @@ async function checkConnected() {
         await loadWorkflow(connType);
 
         // Connect if we're local (Web Workflow Only)
-        if (isLocal() && workflow.host) {
+        if ((isLocal()) && workflow.host) {
             if (await workflowConnect()) {
                 await checkReadOnly();
             }
@@ -148,12 +142,16 @@ async function checkConnected() {
 
         if (!workflow.connectionStatus()) {
             // Display the appropriate connection dialog
-            await workflow.showConnect(workflow.makeDocState(editor.state.doc.sliceString(0), unchanged));
+            await workflow.showConnect(getDocState());
         } else if (workflow.type === CONNTYPE.Web) {
             // We're connected, local, and using Web Workflow
-            await workflow.showInfo(editor.state.doc.sliceString(0), unchanged);
+            await workflow.showInfo(getDocState());
         }
     }
+}
+
+function getDocState() {
+    return workflow.makeDocState(editor.state.doc.sliceString(0), unchanged);
 }
 
 async function workflowConnect() {
@@ -164,6 +162,7 @@ async function workflowConnect() {
         await showMessage(`Unable to connect. ${returnVal.message}`);
         return false;
     }
+
     return true;
 }
 
@@ -203,17 +202,15 @@ async function chooseConnection() {
     let modal = connectionType.getModal();
     let buttons = modal.querySelectorAll("button");
     for (let button of buttons) {
-        if (!(button.value in validBackends) ||
-            !(validBackends[button.value] in workflows)
-        ) {
+        if (!getBackendWorkflow(button.value)) {
             button.disabled = true;
         }
     };
 
     // Wait for the user to click a button
     let connType = await p;
-    if (connType in validBackends) {
-        return validBackends[connType];
+    if (isValidBackend(connType)) {
+        return getBackendWorkflow(connType);
     }
 
     // Outside of dialog was clicked
@@ -242,9 +239,17 @@ async function loadWorkflow(workflowType = null) {
     if (workflowType != CONNTYPE.None) {
         // Is the requested workflow different than the currently loaded one?
         if (workflow != workflows[workflowType]) {
-            console.log("Load workflow");
+            console.log("Load different workflow");
             if (workflow) {
                 currentFilename = workflow.currentFilename;
+
+                if (isLocal()) {
+                    let url = "https://code.circuitpython.org";
+                    if (location.hostname == "localhost" || location.hostname == "127.0.0.1") {
+                        url = `${location.protocol}//${location.host}`;
+                    }
+                    switchUrl(url, getDocState(), getWorkflowBackendName(workflowType));
+                }
             }
             workflow = workflows[workflowType];
             // Initialize the workflow
@@ -357,8 +362,9 @@ window.addEventListener("resize", fixViewportHeight);
 async function loadEditor() {
     let documentState = loadParameterizedContent();
     if (documentState) {
-        loadFileContents(documentState.path, documentState.contents, !isDirty());
+        loadFileContents(documentState.path, documentState.contents, null);
         unchanged = documentState.pos;
+        setSaved(!isDirty());
     }
 
     updateUIConnected(true);
@@ -470,26 +476,21 @@ function setupXterm() {
 
 function getBackend() {
     let backend = getUrlParam("backend");
-    if (backend && (backend in validBackends)) {
-        return validBackends[backend];
+    if (backend && isValidBackend(backend)) {
+        return getBackendWorkflow(backend);
     } else if (isLocal()) {
-        return validBackends["web"];
+        return getBackendWorkflow("web");
     }
 
     return null;
 }
 
 function loadParameterizedContent() {
-    let urlParams = getUrlParams();
-    if ("state" in urlParams) {
-        let documentState = JSON.parse(decodeURIComponent(urlParams["state"]));
-        delete urlParams["state"];
-        let currentURL = new URL(window.location);
-        currentURL.hash = buildHash(urlParams);
-        window.history.replaceState({}, '', currentURL);
-        return documentState;
+    let documentState = getUrlParam("state");
+    if (documentState) {
+        documentState = JSON.parse(decodeURIComponent(documentState));
     }
-    return null;
+    return documentState;
 }
 
 document.addEventListener('DOMContentLoaded', async (event) => {
@@ -502,7 +503,6 @@ document.addEventListener('DOMContentLoaded', async (event) => {
             if (workflow != null && workflow.connectionStatus()) {
                 // If so, unload the current workflow
                 await workflow.disconnectButtonHandler(null);
-                //await loadWorkflow(CONNTYPE.None);
             } else {
                 // If not, it should display the available connections
                 await checkConnected();
@@ -515,17 +515,17 @@ document.addEventListener('DOMContentLoaded', async (event) => {
     if (backend) {
         await loadWorkflow(backend);
         // If we don't have all the info we need to connect
-        if (!workflow.parseParams()) {
-            if (workflow.type === CONNTYPE.Web) {
-                await showMessage("You are connected with localhost, but didn't supply the device hostname.");
-            } else {
-                await workflow.showConnect(workflow.makeDocState(editor.state.doc.sliceString(0), unchanged));
-            }
+        let returnVal = await workflow.parseParams();
+        if (returnVal === true && await workflowConnect() && workflow.type === CONNTYPE.Web) {
+            await checkReadOnly();
+            // We're connected, local, and using Web Workflow
+            await workflow.showInfo(getDocState());
         } else {
-            if (await workflowConnect() && workflow.type === CONNTYPE.Web) {
-                await checkReadOnly();
-                // We're connected, local, and using Web Workflow
-                await workflow.showInfo(editor.state.doc.sliceString(0), unchanged);
+            if (returnVal instanceof Error) {
+                await showMessage(returnVal);
+            } else {
+                loadEditor();
+                await workflow.showConnect(getDocState());
             }
         }
     } else {

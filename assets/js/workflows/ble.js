@@ -5,7 +5,7 @@
 import {FileTransferClient} from 'https://cdn.jsdelivr.net/gh/adafruit/ble-file-transfer-js@1.0.2/adafruit-ble-file-transfer.js';
 import {Workflow, CONNTYPE} from './workflow.js';
 import {GenericModal} from '../common/dialogs.js';
-import {sleep} from '../common/utilities.js';
+import {sleep, getUrlParam} from '../common/utilities.js';
 
 const bleNusServiceUUID = 'adaf0001-4369-7263-7569-74507974686e';
 const bleNusCharRXUUID = 'adaf0002-4369-7263-7569-74507974686e';
@@ -132,6 +132,10 @@ class BLEWorkflow extends Workflow {
         }, {once: true});
 
         //await this.showBusy(device.gatt.connect());
+        await navigator.bluetooth.requestDevice({
+            filters: [{services: [0xfebb]},], // <- Prefer filters to save energy & show relevant devices.
+            optionalServices: [0xfebb, bleNusServiceUUID]
+        });
 
         this.debugLog("connecting to " + device.name);
         try {
@@ -234,9 +238,17 @@ class BLEWorkflow extends Workflow {
         if (result = await super.connect() instanceof Error) {
             return result;
         }
-        await this.bleServer.connect();
-        console.log(this.bleServer.connected);
-        return await this.connectToSerial();
+        if (!this.bleDevice) {
+            let devices = await navigator.bluetooth.getDevices();
+            for (const device of devices) {
+                await this.connectToBluetoothDevice(device);
+            }
+        }
+
+        if (this.bleDevice && !this.bleServer) {
+            await await this.showBusy(this.bleDevice.gatt.connect());
+            this.switchToDevice(this.bleDevice);
+        }
     }
 
     updateConnected(isConnected) {
@@ -259,6 +271,7 @@ class BLEWorkflow extends Workflow {
         return true;
     }
 
+    // Handle the different button states for various connection steps
     connectionStep(step) {
         btnRequestBluetoothDevice, btnBond, btnReconnect
         const buttonStates = [

@@ -58,23 +58,32 @@ function getUrlParams() {
     return hashParams;
 }
 
-function getUrlParam(name) {
+function getUrlParam(name, remove = true) {
     let urlParams = getUrlParams();
+    let paramValue = null;
     if (name in urlParams) {
-        return urlParams[name];
+        paramValue = urlParams[name];
+        if (remove) {
+            delete urlParams[name];
+            let currentURL = new URL(window.location);
+            currentURL.hash = buildHash(urlParams);
+            window.history.replaceState({}, '', currentURL);
+        }
     }
 
-    return null;
+    return paramValue;
 }
 
 function regexEscape(regexString) {
     return regexString.replace(/\\/, "\\\\");
 }
 
-function switchUrl(url, documentState) {
-    let server = makeUrl(url, {
-        state: encodeURIComponent(JSON.stringify(documentState))
-    });
+function switchUrl(url, documentState, backend = null) {
+    let params  ={state: encodeURIComponent(JSON.stringify(documentState))}
+    if (backend) {
+        params.backend = backend;
+    }
+    let server = makeUrl(url, params);
     let oldHost = window.location.host;
     let oldPath = window.location.pathname;
     window.onbeforeunload = () => {};

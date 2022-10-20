@@ -20,6 +20,27 @@ const CHAR_CRLF = '\x0a\x0d';
 const CHAR_TITLE_START = "\x1b]0;";
 const CHAR_TITLE_END = "\x1b\\";
 
+const validBackends = {
+    "web": CONNTYPE.Web,
+    "ble": CONNTYPE.Ble,
+    "usb": CONNTYPE.Usb,
+};
+
+function isValidBackend(backend) {
+    return backend in validBackends;
+}
+
+function getBackendWorkflow(backend) {
+    if (isValidBackend(backend)) {
+        return validBackends[backend];
+    }
+    return null;
+}
+
+function getWorkflowBackendName(workflow) {
+    return Object.keys(validBackends).find(key => validBackends[key] === workflow) || null;
+}
+
 class Workflow {
     constructor() {
         this.terminal = null;
@@ -289,7 +310,7 @@ class Workflow {
     }
 
     async parseParams() {
-        return false;
+        return true;
     }
 
     async available() {
@@ -297,4 +318,15 @@ class Workflow {
     }
 }
 
-export {Workflow, CHAR_CTRL_C, CHAR_CTRL_D, CHAR_CRLF, CHAR_TITLE_START, CHAR_TITLE_END, CONNTYPE};
+export {
+    Workflow,
+    CHAR_CTRL_C,
+    CHAR_CTRL_D,
+    CHAR_CRLF,
+    CHAR_TITLE_START,
+    CHAR_TITLE_END,
+    CONNTYPE,
+    isValidBackend,
+    getBackendWorkflow,
+    getWorkflowBackendName
+};
