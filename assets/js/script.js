@@ -532,3 +532,8 @@ document.addEventListener('DOMContentLoaded', async (event) => {
         await checkConnected();
     }
 });
+
+export {
+    MODE_SERIAL,
+    changeMode
+}

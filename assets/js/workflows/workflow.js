@@ -2,7 +2,7 @@ import {sleep, timeout, regexEscape} from '../common/utilities.js';
 import {FileHelper} from '../common/file.js';
 import {UnsavedDialog} from '../common/dialogs.js';
 import {FileDialog, FILE_DIALOG_OPEN, FILE_DIALOG_SAVE} from '../common/file_dialog.js';
-
+import {changeMode, MODE_SERIAL} from '../script.js';
 /*
  * This class will encapsulate all of the common workflow-related functions
  */
@@ -215,7 +215,7 @@ class Workflow {
             console.log("Extension not py, twas " + String(extension).toLowerCase());
             return false;
         }
-        path = path.substr(1, path.length - 4);
+        path = path.slice(0, -3);
         path = path.replace(/\//g, ".");
 
         await changeMode(MODE_SERIAL);
