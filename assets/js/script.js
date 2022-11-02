@@ -9,6 +9,7 @@ import {USBWorkflow} from './workflows/usb.js';
 import {CONNTYPE, CHAR_CTRL_D, isValidBackend, getBackendWorkflow, getWorkflowBackendName} from './workflows/workflow.js';
 import {ButtonValueDialog, MessageModal} from './common/dialogs.js';
 import {sleep, isLocal, switchUrl, getUrlParam} from './common/utilities.js';
+import {MODE_EDITOR, MODE_SERIAL} from './constants.js';
 
 var terminal;
 var fitter;
@@ -32,9 +33,6 @@ const btnSaveAs = document.querySelectorAll('.btn-save-as');
 const btnSaveRun = document.querySelectorAll('.btn-save-run');
 const btnInfo = document.getElementById('btn-info');
 const terminalTitle = document.getElementById('terminal-title');
-
-const MODE_EDITOR = 1;
-const MODE_SERIAL = 2;
 
 const messageDialog = new MessageModal("message");
 const connectionType = new ButtonValueDialog("connection-type");
@@ -266,6 +264,7 @@ async function loadWorkflow(workflowType = null) {
                 loadEditorContentsFunc: loadEditorContents,
                 showMessageFunc: showMessage,
                 currentFilename: currentFilename,
+                changeModeFunc: changeMode,
             });
         } else {
             console.log("Reload workflow");
@@ -532,8 +531,3 @@ document.addEventListener('DOMContentLoaded', async (event) => {
         await checkConnected();
     }
 });
-
-export {
-    MODE_SERIAL,
-    changeMode
-}
