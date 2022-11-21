@@ -2,7 +2,7 @@ import {sleep, timeout, regexEscape} from '../common/utilities.js';
 import {FileHelper} from '../common/file.js';
 import {UnsavedDialog} from '../common/dialogs.js';
 import {FileDialog, FILE_DIALOG_OPEN, FILE_DIALOG_SAVE} from '../common/file_dialog.js';
-
+import { MODE_SERIAL } from '../constants.js';
 /*
  * This class will encapsulate all of the common workflow-related functions
  */
@@ -75,6 +75,7 @@ class Workflow {
             this.terminalTitle = params.terminalTitle;
         }
         this.currentFilename = params.currentFilename;
+        this._changeMode = params.changeModeFunc;
     }
 
     async initFileClient(fileClient) {
@@ -215,10 +216,10 @@ class Workflow {
             console.log("Extension not py, twas " + String(extension).toLowerCase());
             return false;
         }
-        path = path.substr(1, path.length - 4);
+        path = path.slice(0, -3);
         path = path.replace(/\//g, ".");
 
-        await changeMode(MODE_SERIAL);
+        await this._changeMode(MODE_SERIAL);
         await this.serialTransmit(CHAR_CTRL_C + "import " + path + CHAR_CRLF);
     }
 
