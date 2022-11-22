@@ -205,22 +205,24 @@ class Workflow {
 
         if (path == "/code.py") {
             await this.serialTransmit(CHAR_CTRL_D);
-        }
+        } else {
 
-        let extension = path.split('.').pop();
-        if (extension === null) {
-            console.log("Extension not found");
-            return false;
-        }
-        if (String(extension).toLowerCase() != "py") {
-            console.log("Extension not py, twas " + String(extension).toLowerCase());
-            return false;
-        }
-        path = path.slice(0, -3);
-        path = path.replace(/\//g, ".");
+            let extension = path.split('.').pop();
+            if (extension === null) {
+                console.log("Extension not found");
+                return false;
+            }
+            if (String(extension).toLowerCase() != "py") {
+                console.log("Extension not py, it was " + String(extension).toLowerCase());
+                return false;
+            }
 
+            path = path.slice(1, -3);
+            path = path.replace(/\//g, ".");
+
+            await this.serialTransmit(CHAR_CTRL_C + "import " + path + CHAR_CRLF);
+        }
         await this._changeMode(MODE_SERIAL);
-        await this.serialTransmit(CHAR_CTRL_C + "import " + path + CHAR_CRLF);
     }
 
     async checkSaved() {
