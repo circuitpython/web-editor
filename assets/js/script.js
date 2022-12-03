@@ -74,7 +74,7 @@ btnSaveAs.forEach((element) => {
         e.preventDefault();
         e.stopPropagation();
         await checkConnected();
-        let path = await workflow.saveAs();
+        let path = await workflow.saveFileAs();
         if (path !== null) {
             console.log("Current File Changed to: " + workflow.currentFilename);
         }
@@ -309,10 +309,6 @@ async function changeMode(mode) {
         mainContent.classList.add("mode-editor");
     } else if (mode == MODE_SERIAL) {
         mainContent.classList.add("mode-serial");
-        // Wait for the terminal to load and then resize it
-        while (!document.querySelector('#terminal .xterm-screen').style.width) {
-            await sleep(10);
-        }
         fitter.fit();
     }
 }

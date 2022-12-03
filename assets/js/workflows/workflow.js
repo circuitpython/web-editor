@@ -59,6 +59,8 @@ class Workflow {
         this.fileHelper = null;
         this._unsavedDialog = new UnsavedDialog("unsaved");
         this._fileDialog = new FileDialog("files", this.showBusy.bind(this));
+        this._pythonCodeRunning = false;
+        this._codeOutput = '';
     }
 
     async init(params) {
@@ -88,16 +90,6 @@ class Workflow {
 
     async connect() {
         return await this.available();
-    }
-
-    tokenize(string) {
-        const tokenRegex = new RegExp("(" + regexEscape(CHAR_TITLE_START) + "|" + regexEscape(CHAR_TITLE_END) + ")", "gi");
-        return string.split(tokenRegex);
-    }
-
-    hasPartialToken(chunk) {
-        const partialToken = /\\x1b(?:\](?:0"?)?)?$/gi;
-        return partialToken.test(chunk);
     }
 
     makeDocState(document, docChangePos) {
@@ -137,9 +129,23 @@ class Workflow {
             this.titleMode = false;
         } else if (this.titleMode) {
             this.setTerminalTitle(e.data, true);
-        } else {
-            this.writeToTerminal(e.data);
         }
+
+        if (e.data.match(/\n>>> $/)) {
+            console.log("prompt detected");
+            this._pythonCodeRunning = false;
+        }
+
+        if (this._pythonCodeRunning) {
+            // We may need to ignore any lines starting with >>> or . so we don't capture the input
+            // But since e.data can be a partial line, we need to wait until we have a full line
+            console.log(">" + e.data);
+            this._codeOutput += e.data;
+        } else {
+            console.log("!" + e.data);
+        }
+
+        this.writeToTerminal(e.data);
     }
 
     connectionStatus() {
@@ -219,10 +225,37 @@ class Workflow {
 
             path = path.slice(1, -3);
             path = path.replace(/\//g, ".");
-
-            await this.serialTransmit(CHAR_CTRL_C + "import " + path + CHAR_CRLF);
+            await (this.runPythonCode("import " + path));
         }
         await this._changeMode(MODE_SERIAL);
+    }
+
+    async runPythonCode(code) {
+        // Allows for supplied python code to be run on the device via the REPL
+        // Currently this is kinda buggy, but works if no return values are expected
+        //
+        // If blindly prefixing Control+C causes issues, we may need to determine if it is
+        // at the REPL such as listening for a prompt in onSerialRecieve and also have a way
+        // to determine if the device has been reset where it's not at the REPL.
+        //
+        // We could also just look for "Code done running." in the output (which is available
+        // even on a fresh connect). If that's found, we can set a variable that indicates Ctrl+C
+        // needs to be sent. Once it's sent, we unset the variable.
+        this._pythonCodeRunning = true;
+        this._codeOutput = '';
+
+        await this.serialTransmit(CHAR_CTRL_C);
+        for (const line of code.split(/\r?\n/)) {
+            await this.serialTransmit(line + CHAR_CRLF);
+        }
+
+        // Wait for the code to finish running
+        // so we can capture the output
+        /*while (this._pythonCodeRunning) {
+            await sleep(100);
+        }*/
+
+        return this._codeOutput;
     }
 
     async checkSaved() {
@@ -243,7 +276,7 @@ class Workflow {
             if (this.currentFilename !== null) {
                 path = this.currentFilename;
             } else {
-                path = await this.saveAs();
+                path = await this.saveFileAs();
             }
         }
         if (path !== null) {
@@ -253,7 +286,7 @@ class Workflow {
         return false;
     }
 
-    async saveAs() {
+    async saveFileAs() {
         let path = await this.saveFileDialog();
         if (path !== null) {
             // check if filename exists
@@ -318,6 +351,16 @@ class Workflow {
 
     async available() {
         return Error("This work flow is not available.");
+    }
+
+    _tokenize(string) {
+        const tokenRegex = new RegExp("(" + regexEscape(CHAR_TITLE_START) + "|" + regexEscape(CHAR_TITLE_END) + ")", "gi");
+        return string.split(tokenRegex);
+    }
+
+    _hasPartialToken(chunk) {
+        const partialToken = /\\x1b(?:\](?:0"?)?)?$/gi;
+        return partialToken.test(chunk);
     }
 }
 

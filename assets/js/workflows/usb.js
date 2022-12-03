@@ -1,20 +1,21 @@
 import {Workflow, CONNTYPE} from './workflow.js';
 import {GenericModal} from '../common/dialogs.js';
-import {readUploadedFileAsArrayBuffer} from '../common/utilities.js';
-import {saveAs} from 'file-saver';
+import {FileTransferClient} from '../common/usb-file-transfer.js';
 
-let btnRequestSerialDevice;
+let btnRequestSerialDevice, btnSelectHostFolder;
 
 class USBWorkflow extends Workflow {
     constructor() {
         super();
-        this.serialDevice = null;
+        this._serialDevice = null;
         this.titleMode = false;
         this.reader = null;
         this.connectDialog = new GenericModal("usb-connect");
         this._fileContents = null;
         this.type = CONNTYPE.Usb;
-        this._partialTokenChunk = null;
+        this._partialToken = null;
+        this._uid = null;
+        this._readLoopPromise = null;
     }
 
     async init(params) {
@@ -30,57 +31,56 @@ class USBWorkflow extends Workflow {
     }
 
     async onConnected(e) {
-        this.readSerialLoop().catch(
+        this._readLoopPromise = this._readSerialLoop().catch(
             async function(error) {
                 await this.onDisconnected();
-            }
+            }.bind(this)
         );
         this.connectDialog.close();
         await this.loadEditor();
         super.onConnected(e);
     }
 
-    async onDisconnected(e) {
+    async onDisconnected(e, reconnect = true) {
         if (this.reader) {
             await this.reader.cancel();
             this.reader = null;
         }
 
-        if (this.serialDevice) {
-            await this.serialDevice.close();
-            this.serialDevice = null;
+        if (this._serialDevice) {
+            await this._serialDevice.close();
+            this._serialDevice = null;
         }
 
-        super.onDisconnected(e);
+        super.onDisconnected(e, reconnect);
     }
 
     async onSerialReceive(e) {
-        console.log(e.data);
-        // Prepend any partial chunks
-        if (this._partialTokenChunk) {
-            e.data = this._partialTokenChunk + e.data;
-            this._partialTokenChunk = null;
+        // Prepend a partial token if it exists
+        if (this._partialToken) {
+            e.data = this._partialToken + e.data;
+            this._partialToken = null;
         }
 
         // Tokenize the larger string and send to the parent
-        let chunks = this.tokenize(e.data);
+        let tokens = this._tokenize(e.data);
 
-        // Remove any chunks containing partial tokens
-        if (chunks.length && this.hasPartialToken(chunks.slice(-1))) {
-            this._partialTokenChunk = chunks.pop();
+        // Remove any partial tokens and store for the next serial data receive
+        if (tokens.length && this._hasPartialToken(tokens.slice(-1))) {
+            this._partialToken = tokens.pop();
         }
 
-        // Send all full chunks to the parent function
-        for (let chunk of chunks) {
-            e.data = chunk;
+        // Send only full tokens to the parent function
+        for (let token of tokens) {
+            e.data = token;
             super.onSerialReceive(e);
         }
     }
 
     async serialTransmit(msg) {
-        if (this.serialDevice && this.serialDevice.writable) {
+        if (this._serialDevice && this._serialDevice.writable) {
             const encoder = new TextEncoder();
-            const writer = this.serialDevice.writable.getWriter();
+            const writer = this._serialDevice.writable.getWriter();
             await writer.write(encoder.encode(msg));
             writer.releaseLock();
         }
@@ -92,17 +92,43 @@ class USBWorkflow extends Workflow {
             return result;
         }
 
+        return await this.connectToDevice();
+    }
+
+    async connectToDevice() {
+        return await this.connectToSerial();
+    }
+
+    async connectToSerial() {
+        console.log('Connecting to Serial...');
+
         // There's no way to reference a specific port, so we just hope the user
-        // only has a single port stored
+        // only has a single port stored. If not, we'll prompt the user to select
+        // a device port.
         let devices = await navigator.serial.getPorts();
+
         if (devices.length == 1) {
             let device = devices[0];
-            this.switchToDevice(device);
+            console.log(await device.getInfo());
+            await this._switchToDevice(device);
+
+            // TODO: Make it more obvious to user that something happened for smaller screens
+            // Perhaps providing checkmarks by adding a css class when a step is complete would be helpful
+            // This would help with other workflows as well
+        } else {
+            console.log('Requesting any serial device...');
+            let device = await navigator.serial.requestPort();
+
+            console.log('> Requested ', device);
+            await this._switchToDevice(device);
         }
 
-        if (this.serialDevice != null) {
+        if (this._serialDevice != null) {
+            this._connectionStep(2);
             return true;
         }
+
+        return false;
     }
 
     async showConnect(documentState) {
@@ -110,19 +136,38 @@ class USBWorkflow extends Workflow {
         let modal = this.connectDialog.getModal();
 
         btnRequestSerialDevice = modal.querySelector('#requestSerialDevice');
+        btnSelectHostFolder = modal.querySelector('#selectHostFolder');
+
         btnRequestSerialDevice.disabled = true;
+        btnSelectHostFolder.disabled = true;
+
+        btnRequestSerialDevice.addEventListener('click', async (event) => {
+            try {
+                await this.connectToSerial();
+            } catch (e) {
+                //console.log(e);
+                //alert(e.message);
+                alert("Unable to connect to device. Make sure it is not already in use.");
+                // TODO: I think this also occurs if the user cancels the requestPort dialog
+            }
+        });
+
+        btnSelectHostFolder.addEventListener('click', async (event) => {
+            await this._selectHostFolder();
+        });
 
         if (!(await this.available() instanceof Error)) {
             let stepOne;
             if (stepOne = modal.querySelector('.step:first-of-type')) {
                 stepOne.classList.add("hidden");
             }
-            btnRequestSerialDevice.disabled = false;
+            this._connectionStep(1);
+        } else {
+            this._connectionStep(0);
         }
 
-        btnRequestSerialDevice.addEventListener('click', async (event) => {
-            await this.onRequestSerialDeviceButtonClick();
-        });
+        // TODO: If this is closed before all steps are completed, we should close the serial connection
+        // probably by calling onDisconnect()
 
         return await p;
     }
@@ -134,115 +179,77 @@ class USBWorkflow extends Workflow {
         return true;
     }
 
-    async saveFileDialog() {
-        let defaultFilename = this.currentFilename;
-        console.log(defaultFilename);
-        if (!defaultFilename) {
-            defaultFilename = "code.py";
-        }
-        return prompt("What filename would you like to save this document as?", defaultFilename);
-    }
-
-    async openFileDialog(callback) {
-        let input = document.createElement("input");
-        input.type = 'file';
-
-        input.addEventListener("change", async (event) => {
-            try {
-                await callback(input.files[0]);
-            } catch (error) {
-                await this._showMessage(`Error: ${error.message}`);
-            }
-        }, {once: true});
-
-        input.click();
-    }
-
-    async writeFile(path, contents, offset = 0) {
-        try {
-            saveAs(new Blob([contents]), path);
-        } catch(e) {
-            return false;
-        }
-        return true;
-    }
-
-    isBinaryFile(mimeType) {
-        const textType = new RegExp("^text\/.*?");
-        return mimeType !== "" && !textType.test(mimeType);
-    }
-
-    async fileLoadHandler(file) {
-        const textDecoder = new TextDecoder();
-
-        if (this.isBinaryFile(file.type)) {
-            throw new Error("You selected a binary file.");
-        }
-        let contents = textDecoder.decode(await readUploadedFileAsArrayBuffer(file));
-        this._loadFileContents(file.name, contents);
-    }
-
-    async fileExists(path) {
-        false;
-    }
-
-    async readOnly() {
-        return false;
-    }
-
     // Workflow specific functions
-    async switchToDevice(device) {
-        device.addEventListener("message", this.onSerialReceive.bind(this));
-
-        this.serialDevice = device;
-        console.log("switch to", this.serialDevice);
-        await this.serialDevice.open({baudRate: 115200});
+    async _selectHostFolder() {
+        console.log('Initializing File Transfer Client...');
+        // try {
+        this.initFileClient(new FileTransferClient(this.connectionStatus.bind(this)));
+        //} catch (error) {
+        //    return new Error(`The device was not found. Be sure it is plugged in and set up properly.`);
+        //}
+        await this.fileHelper.listDir('/');
         this.onConnected();
     }
 
-    async readSerialLoop() {
+    async _switchToDevice(device) {
+        device.addEventListener("message", this.onSerialReceive.bind(this));
+
+        this._serialDevice = device;
+        console.log("switch to", this._serialDevice);
+        await this._serialDevice.open({baudRate: 115200}); // TODO: Will fail if something else is already connected, but isn't handled
+        // TODO: Get the UID from the device and store it in this._uid then pass it to the file transfer client to match up the device
+        // We could get the UID with:
+        // >>> import microcontroller
+        // >>> microcontroller.cpu.uid
+        // bytearray(b'O!\xaf\x95kJ')
+        //
+        // We would need a way to get the output from runPythonCode() first
+
+        //console.log(await this.runPythonCode("import microcontroller\nmicrocontroller.cpu.uid"));
+        this.updateConnected(true);
+    }
+
+    async _readSerialLoop() {
         console.log("Read Loop Init");
-        if (!this.serialDevice) {
+        if (!this._serialDevice) {
             return;
         }
 
         const messageEvent = new Event("message");
         const decoder = new TextDecoder();
 
-        while (this.serialDevice.readable) {
-            this.reader = this.serialDevice.readable.getReader();
+        if (this._serialDevice.readable) {
+            this.reader = this._serialDevice.readable.getReader();
             console.log("Read Loop Started");
             while (true) {
                 const {value, done} = await this.reader.read();
                 if (value) {
                     messageEvent.data = decoder.decode(value);
-                    this.serialDevice.dispatchEvent(messageEvent);
+                    this._serialDevice.dispatchEvent(messageEvent);
                 }
                 if (done) {
                     this.reader.releaseLock();
                     break;
                 }
-
             }
         }
 
-        this.serialDevice = null;
+        console.log("Read Loop Stopped. Closing Serial Port.");
     }
 
-    async onRequestSerialDeviceButtonClick() {
-        let devices = await navigator.serial.getPorts();
-        console.log(devices);
-        try {
-            console.log('Requesting any serial device...');
-            let device = await navigator.serial.requestPort();
+    // Handle the different button states for various connection steps
+    _connectionStep(step) {
+        const buttonStates = [
+            {request: false, select: false},
+            {request: true, select: false},
+            {request: true, select: true},
+        ];
 
-            console.log('> Requested ', device);
-            this.switchToDevice(device);
-            return;
-        }
-        catch (error) {
-            console.log('Argh! ');
-        }
+        if (step < 0) step = 0;
+        if (step > buttonStates.length - 1) step = buttonStates.length - 1;
+
+        btnRequestSerialDevice.disabled = !buttonStates[step].request;
+        btnSelectHostFolder.disabled = !buttonStates[step].select;
     }
 }
 
