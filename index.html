@@ -4,7 +4,7 @@
     <link rel="icon" href="assets/images/favicon.ico" type="image/x-icon">
     <title>CircuitPython Code Editor</title>
     <link rel="stylesheet" href="assets/css/fontawesome.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@4.19.0/css/xterm.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.0.0/css/xterm.css">
     <link rel="stylesheet" href="assets/css/style.css">
 </head>
 
@@ -272,10 +272,20 @@
             <section class="step">
                 <div class="step-number"></div>
                 <div class="step-content">
-                    <h1>Select Your Serial Device</h1>
+                    <h1>Select Serial Device</h1>
                     <p>Connect to the Serial Port of your device. At this time, it will need to be enabled to continue.</p>
                     <p>
                         <button class="purple-button" id="requestSerialDevice">Connect to Device</button>
+                    </p>
+                </div>
+            </section>
+            <section class="step">
+                <div class="step-number"></div>
+                <div class="step-content">
+                    <h1>Select USB Host Folder</h1>
+                    <p>Select the root folder of your device. This is typically the CIRCUITPY Drive on your computer unless you renamed it. If your device does not appear as a drive on your computer, it will need to have the USB Host functionality enabled.</p>
+                    <p>
+                        <button class="purple-button" id="selectHostFolder">Select Working Folder</button>
                     </p>
                 </div>
             </section>
@@ -314,8 +324,8 @@
             <button class="purple-button ok-button">Close</button>
         </div>
     </div>
-    <script src="https://cdn.jsdelivr.net/npm/xterm@4.19.0/lib/xterm.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.5.0/lib/xterm-addon-fit.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xterm@5.0.0/lib/xterm.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.6.0/lib/xterm-addon-fit.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" integrity="sha512-XMVd28F1oH/O71fzwBnV7HucLxVwtxf26XV8P4wPk26EDxuGZ91N8bsOttmnomcCD3CS5ZMRL50H0GgOHvegtg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
     <script src="assets/js/header_mobile.js"></script>
     <script type="module" src="assets/js/script.js"></script>
