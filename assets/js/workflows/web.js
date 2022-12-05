@@ -103,10 +103,7 @@ class WebWorkflow extends Workflow {
                 return Error("You are connected with localhost, but didn't supply the device hostname.");
             }
         } else if (isMdns() || isIp()) {
-            this.host = location.hostname;
-            if (location.port != 80) {
-                this.host += ":" + location.port;
-            }
+            this.host = location.host;
         }
 
         if (this.host != null) {

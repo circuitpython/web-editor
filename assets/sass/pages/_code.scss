@@ -54,6 +54,7 @@
         position: relative;
         width: 100%;
         @include viewport-height($terminal-height-offset-mobile);
+        overflow: hidden;
 
         .xterm .xterm-viewport {
             background-color: transparent;
@@ -63,6 +64,7 @@
             inset: 0;
             scrollbar-color: var(--highlight) var(--dark);
             scrollbar-width: thin;
+            width: initial !important;
 
             &::-webkit-scrollbar {
                 background-color: var(--dark);

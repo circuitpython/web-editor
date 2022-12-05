@@ -254,11 +254,7 @@ class BLEWorkflow extends Workflow {
     updateConnected(isConnected) {
         super.updateConnected(isConnected);
         this._connected = true;
-        if (!isConnected) {
-            btnBond.disabled = true;
-            btnRequestBluetoothDevice.disabled = false;
-            btnReconnect.disabled = false;
-        }
+        this.connectionStep(2);
     }
 
     async available() {
@@ -273,7 +269,6 @@ class BLEWorkflow extends Workflow {
 
     // Handle the different button states for various connection steps
     connectionStep(step) {
-        btnRequestBluetoothDevice, btnBond, btnReconnect
         const buttonStates = [
             {reconnect: false, request: false, bond: false},
             {reconnect: false, request: true, bond: false},

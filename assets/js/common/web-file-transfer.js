@@ -120,11 +120,11 @@ class FileTransferClient {
         return false;
     }
 
-    // Returns a list of tuples, one tuple for each file or directory in the given path
+    // Returns an array of objects, one object for each file or directory in the given path
     async listDir(path) {
         await this._checkConnection();
 
-        let paths = [];
+        let contents = [];
         if (!path.length || path.substr(-1) != "/") {
             path += "/";
         }
@@ -132,7 +132,7 @@ class FileTransferClient {
         const response = await this._fetch(`/fs${path}`, {headers: {"Accept": "application/json"}});
         const results = await response.json();
         for (let result of results) {
-            paths.push({
+            contents.push({
                 path: result.name,
                 isDir: result.directory,
                 fileSize: result.file_size,
@@ -140,7 +140,7 @@ class FileTransferClient {
             });
         }
 
-        return paths;
+        return contents;
     }
 
     // Deletes the file or directory at the given path. Directories must be empty.
