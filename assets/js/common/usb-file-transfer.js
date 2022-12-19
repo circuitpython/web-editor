@@ -1,3 +1,5 @@
+import { get, set } from 'https://unpkg.com/idb-keyval@6.2.0/dist/index.js';
+
 class FileTransferClient {
     constructor(connectionStatusCB) {
         this.connectionStatus = connectionStatusCB;
@@ -16,47 +18,76 @@ class FileTransferClient {
             folderHandle = await this._getSubfolderHandle(path);
         }
 
-        const options = {mode: 'readwrite'};
-
-        if (await folderHandle.queryPermission(options) === 'granted') {
-            return false;
-        }
-
-        if (await folderHandle.requestPermission(options) === 'granted') {
-            return false;
-        }
-
-        return true;
+        return !(await self._verifyPermission(folderHandle));
     }
 
     async _checkConnection() {
-        if (!this.connectionStatus()) {
+        if (!this.connectionStatus(true)) {
             throw new Error("Unable to perform file operation. Not Connected.");
         }
 
         if (!this._dirHandle) {
-            this._dirHandle = await window.showDirectoryPicker({mode: 'readwrite'});
+            this._dirHandle = await this._getDirHandle();
 
-            // TODO: Store the directory handle in IndexedDB storage so the user doesn't have to select it again
-            // See https://developer.chrome.com/articles/file-system-access/#storing-file-handles-or-directory-handles-in-indexeddb
+            if (this._dirHandle) {
+                const info = await this.versionInfo();
+                if (info && info.uid) {
+                    // TODO: compare the UID to the one that is to be passed into the constructor
+                }
 
-            const info = await this.versionInfo();
-            if (info && info.uid) {
-                // TODO: compare the UID to the one that is to be passed into the constructor
+                if (!info === null) {
+                    // We're likely not in the root directory of the device because
+                    // boot_out.txt probably wasn't found
+                }
+
+                // TODO: Verify this is a circuitpython drive
+                // Perhaps check boot_out.txt, Certain structural elements, etc.
+                // Not sure how to verify it's the same device that we are using webserial for
+                // Perhaps we can match something in boot_out.txt to the device name
+
+                // For now we're just going to trust the user
             }
-
-            if (!info === null) {
-                // We're likely not in the root directory of the device because
-                // boot_out.txt probably wasn't found
-            }
-
-            // TODO: Verify this is a circuitpython drive
-            // Perhaps check boot_out.txt, Certain structural elements, etc.
-            // Not sure how to verify it's the same device that we are using webserial for
-            // Perhaps we can match something in boot_out.txt to the device name
-
-            // For now we're just going to trust the user
         }
+
+        if (!this._dirHandle) {
+            throw new Error("Unable to perform file operation. No Working Folder Selected.");
+        }
+    }
+
+    async _getDirHandle(preferSaved = true) {
+        if (!this._dirHandle) {
+            try {
+                if (preferSaved) {
+                    const savedDirHandle = await get('usb-working-directory');
+                    if (savedDirHandle && await this._verifyPermission(savedDirHandle)) {
+                        return savedDirHandle;
+                    }
+                }
+
+                const dirHandle = await window.showDirectoryPicker({mode: 'readwrite'});
+                if (dirHandle) {
+                    await set('usb-working-directory', dirHandle);
+                    return dirHandle;
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+        return null;
+    }
+
+    async _verifyPermission(folderHandle) {
+        const options = {mode: 'readwrite'};
+
+        if (await folderHandle.queryPermission(options) === 'granted') {
+            return true;
+        }
+
+        if (await folderHandle.requestPermission(options) === 'granted') {
+            return true;
+        }
+
+        return false;
     }
 
     async readFile(path, raw = false) {
