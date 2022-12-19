@@ -1,4 +1,4 @@
-import {Workflow, CONNTYPE} from './workflow.js';
+import {Workflow, CONNTYPE, CONNSTATE} from './workflow.js';
 import {GenericModal} from '../common/dialogs.js';
 import {FileTransferClient} from '../common/usb-file-transfer.js';
 
@@ -31,11 +31,6 @@ class USBWorkflow extends Workflow {
     }
 
     async onConnected(e) {
-        this._readLoopPromise = this._readSerialLoop().catch(
-            async function(error) {
-                await this.onDisconnected();
-            }.bind(this)
-        );
         this.connectDialog.close();
         await this.loadEditor();
         super.onConnected(e);
@@ -106,19 +101,33 @@ class USBWorkflow extends Workflow {
         // only has a single port stored. If not, we'll prompt the user to select
         // a device port.
         let devices = await navigator.serial.getPorts();
+        let device = null;
 
         if (devices.length == 1) {
-            let device = devices[0];
+            device = devices[0];
             console.log(await device.getInfo());
-            await this._switchToDevice(device);
+            try {
+                // Attempt to connect to the saved device. If it's not found, this will fail.
+                await this._switchToDevice(device);
+            } catch (e) {
+                // TODO: We should probably remove existing devices if it fails here
+                console.log("Failed to automatically connect to saved device. Prompting user to select a device.");
+                console.log(e);
+                alert(e.message);
+                device = await navigator.serial.requestPort();
+                console.log(device);
+            }
 
             // TODO: Make it more obvious to user that something happened for smaller screens
             // Perhaps providing checkmarks by adding a css class when a step is complete would be helpful
             // This would help with other workflows as well
         } else {
             console.log('Requesting any serial device...');
-            let device = await navigator.serial.requestPort();
+            device = await navigator.serial.requestPort();
+        }
 
+        // If we didn't automatically use a saved device
+        if (!this._serialDevice) {
             console.log('> Requested ', device);
             await this._switchToDevice(device);
         }
@@ -147,7 +156,7 @@ class USBWorkflow extends Workflow {
             } catch (e) {
                 //console.log(e);
                 //alert(e.message);
-                alert("Unable to connect to device. Make sure it is not already in use.");
+                //alert("Unable to connect to device. Make sure it is not already in use.");
                 // TODO: I think this also occurs if the user cancels the requestPort dialog
             }
         });
@@ -196,17 +205,25 @@ class USBWorkflow extends Workflow {
 
         this._serialDevice = device;
         console.log("switch to", this._serialDevice);
-        await this._serialDevice.open({baudRate: 115200}); // TODO: Will fail if something else is already connected, but isn't handled
+        await this._serialDevice.open({baudRate: 115200}); // TODO: Will fail if something else is already connected or it isn't found.
+
+        // Start the read loop
+        this._readLoopPromise = this._readSerialLoop().catch(
+            async function(error) {
+                await this.onDisconnected();
+            }.bind(this)
+        );
         // TODO: Get the UID from the device and store it in this._uid then pass it to the file transfer client to match up the device
         // We could get the UID with:
         // >>> import microcontroller
         // >>> microcontroller.cpu.uid
         // bytearray(b'O!\xaf\x95kJ')
         //
-        // We would need a way to get the output from runPythonCode() first
+        // We would need a way to get the output from runPythonCodeOnDevice() first
 
-        //console.log(await this.runPythonCode("import microcontroller\nmicrocontroller.cpu.uid"));
-        this.updateConnected(true);
+        let result = await this.runPythonCodeOnDevice("import microcontroller\nmicrocontroller.cpu.uid");
+        console.log(result);
+        this.updateConnected(CONNSTATE.partial);
     }
 
     async _readSerialLoop() {
