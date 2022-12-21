@@ -192,7 +192,7 @@ class USBWorkflow extends Workflow {
     async _selectHostFolder() {
         console.log('Initializing File Transfer Client...');
         // try {
-        this.initFileClient(new FileTransferClient(this.connectionStatus.bind(this)));
+        this.initFileClient(new FileTransferClient(this.connectionStatus.bind(this), this._uid));
         //} catch (error) {
         //    return new Error(`The device was not found. Be sure it is plugged in and set up properly.`);
         //}
@@ -213,17 +213,27 @@ class USBWorkflow extends Workflow {
                 await this.onDisconnected();
             }.bind(this)
         );
-        // TODO: Get the UID from the device and store it in this._uid then pass it to the file transfer client to match up the device
-        // We could get the UID with:
-        // >>> import microcontroller
-        // >>> microcontroller.cpu.uid
-        // bytearray(b'O!\xaf\x95kJ')
-        //
-        // We would need a way to get the output from runPythonCodeOnDevice() first
 
-        let result = await this.runPythonCodeOnDevice("import microcontroller\nmicrocontroller.cpu.uid");
-        console.log(result);
+        await this._getDeviceUid();
+
         this.updateConnected(CONNSTATE.partial);
+    }
+
+    async _getDeviceUid() {
+        // TODO: Make this python code more robust for older devices
+        // For instance what if there is an import error with binascii
+        // or uid is not set due to older firmware
+        // or microcontroller is a list
+        // It might be better to take a minimal python approach and do most of
+        // the conversion in the javascript
+        let result = await this.runPythonCodeOnDevice(
+`import microcontroller
+import binascii
+binascii.hexlify(microcontroller.cpu.uid).decode('ascii').upper()`
+        );
+        // Strip out whitespace as well as start and end quotes
+        this._uid = result.trim().slice(1, -1);
+        console.log(this._uid);
     }
 
     async _readSerialLoop() {
