@@ -27,6 +27,8 @@ const CHAR_BKSP = '\x08';
 const CHAR_TITLE_START = "\x1b]0;";
 const CHAR_TITLE_END = "\x1b\\";
 
+const PROMPT_TIMEOUT = 10000;
+
 const validBackends = {
     "web": CONNTYPE.Web,
     "ble": CONNTYPE.Ble,
@@ -175,8 +177,6 @@ class Workflow {
             return;
         }
 
-        //console.log(this._currentSerialReceiveLine);
-        console.log("prompt detected");
         this._pythonCodeRunning = false;
     }
 
@@ -268,16 +268,11 @@ class Workflow {
         await this._changeMode(MODE_SERIAL);
     }
 
-    async runPythonCodeOnDevice(code, timeoutMs=15000) {
+    async runPythonCodeOnDevice(code, codeTimeoutMs=15000) {
         // Allows for supplied python code to be run on the device via the REPL
         //
-        // If blindly prefixing Control+C causes issues, we may need to determine if it is
-        // at the REPL such as listening for a prompt in onSerialRecieve and also have a way
-        // to determine if the device has been reset where it's not at the REPL.
-        //
-        // We could also just look for "Code done running." in the output (which is usually available
-        // even on a fresh connect). If that's found, we can set a variable that indicates Ctrl+C
-        // needs to be sent. Once it's sent, we unset the variable.
+        // TODO: Improve reliability. Right now, the timing is a bit tight and occasionally fails to run
+
         this._pythonCodeRunning = true;
         await this.serialTransmit(CHAR_CTRL_C);
 
@@ -288,7 +283,7 @@ class Workflow {
                     while (this._pythonCodeRunning) {
                         await sleep(100);
                     }
-                }, 1000
+                }, PROMPT_TIMEOUT
             );
         } catch (error) {
             console.log("Awaiting prompt timed out.");
@@ -313,14 +308,14 @@ class Workflow {
         }
 
         // Wait for the code to finish running, so we can capture the output
-        if (timeoutMs) {
+        if (codeTimeoutMs) {
             try {
                 await this.timeout(
                     async () => {
                         while (this._pythonCodeRunning) {
                             await sleep(100);
                         }
-                    }, timeoutMs
+                    }, codeTimeoutMs
                 );
             } catch (error) {
                 console.log("Code timed out.");

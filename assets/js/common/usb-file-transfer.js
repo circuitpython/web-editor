@@ -1,9 +1,10 @@
 import { get, set } from 'https://unpkg.com/idb-keyval@6.2.0/dist/index.js';
 
 class FileTransferClient {
-    constructor(connectionStatusCB) {
+    constructor(connectionStatusCB, uid) {
         this.connectionStatus = connectionStatusCB;
         this._dirHandle = null;
+        this._uid = uid;
     }
 
     async readOnly() {
@@ -31,8 +32,15 @@ class FileTransferClient {
 
             if (this._dirHandle) {
                 const info = await this.versionInfo();
-                if (info && info.uid) {
-                    // TODO: compare the UID to the one that is to be passed into the constructor
+                console.log(info);
+                console.log("Found via REPL: " + this._uid);
+                console.log("Found via boot_out.txt: " + info.uid);
+
+                // TODO: This needs to be more reliable before we stop the user from continuing
+                if (info && info.uid && this._uid) {
+                    if (this._uid == info.uid) {
+                        console.log("UIDs frond in REPL and boot_out.txt match!");
+                    }
                 }
 
                 if (!info === null) {
