@@ -89,7 +89,7 @@ btnSaveRun.forEach((element) => {
         await checkConnected();
         if (await workflow.saveFile()) {
             setSaved(true);
-            await workflow.runCode();
+            await workflow.runCurrentCode();
         }
     });
 });
