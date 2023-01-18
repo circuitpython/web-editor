@@ -14,20 +14,11 @@ const CONNTYPE = {
     Web: 4
 };
 
-const CONNSTATE = {
-    "disconnected": 1,
-    "partial": 2,
-    "connected": 3,
-};
-
 const CHAR_CTRL_C = '\x03';
 const CHAR_CTRL_D = '\x04';
 const CHAR_CRLF = '\x0a\x0d';
-const CHAR_BKSP = '\x08';
 const CHAR_TITLE_START = "\x1b]0;";
 const CHAR_TITLE_END = "\x1b\\";
-
-const PROMPT_TIMEOUT = 10000;
 
 const validBackends = {
     "web": CONNTYPE.Web,
@@ -70,8 +61,6 @@ class Workflow {
         this._fileDialog = new FileDialog("files", this.showBusy.bind(this));
         this._pythonCodeRunning = false;
         this._codeOutput = '';
-        this._currentSerialReceiveLine = '';
-        this._checkingPrompt = false;
     }
 
     async init(params) {
@@ -113,7 +102,7 @@ class Workflow {
 
     async onDisconnected(e, reconnect = true) {
         this.debugLog("disconnected");
-        this.updateConnected(CONNSTATE.disconnected);
+        this.updateConnected(false);
         // Update Common UI Elements
         if (this.disconnectCallback) {
             this.disconnectCallback();
@@ -126,7 +115,7 @@ class Workflow {
     async onConnected(e) {
         this.debugLog("connected");
         console.log("Connected!");
-        this.updateConnected(CONNSTATE.connected);
+        this.updateConnected(true);
         if (this.connectDialog) {
             this.connectDialog.close();
         }
@@ -142,60 +131,33 @@ class Workflow {
             this.setTerminalTitle(e.data, true);
         }
 
-        //console.log("received: " + e.data);
-        let codeline = '';
-        this._currentSerialReceiveLine += e.data;
-
-        // Run asynchronously to avoid blocking the serial receive
-        this.checkPrompt();
-
-        if (this._currentSerialReceiveLine.includes("\r\n")) {
-            [codeline, this._currentSerialReceiveLine] = this._currentSerialReceiveLine.split("\r\n", 2);
+        if (e.data.match(/\n>>> $/)) {
+            console.log("prompt detected");
+            this._pythonCodeRunning = false;
         }
 
-        // Is it still running? Then we add to code output
-        if (this._pythonCodeRunning && codeline.length > 0) {
-            if (!codeline.match(/^\... /) && !codeline.match(/^>>> /)) {
-                this._codeOutput += codeline + "\r\n";
-            }
+        if (this._pythonCodeRunning) {
+            // We may need to ignore any lines starting with >>> or . so we don't capture the input
+            // But since e.data can be a partial line, we need to wait until we have a full line
+            console.log(">" + e.data);
+            this._codeOutput += e.data;
+        } else {
+            console.log("!" + e.data);
         }
 
         this.writeToTerminal(e.data);
     }
 
-    // This should help detect lines like ">>> ", but not ">>> 1+1"
-    async checkPrompt() {
-        // Only allow one instance of this function to run at a time (unless this could cause it to miss a prompt)
-        if (!this._currentSerialReceiveLine.match(/>>> $/)) {
-            return;
-        }
-
-        // Check again after a short delay to see if it's still a prompt
-        await this.sleep(50);
-
-        if (!this._currentSerialReceiveLine.match(/>>> $/)) {
-            return;
-        }
-
-        this._pythonCodeRunning = false;
-    }
-
-    connectionStatus(partialConnectionsAllowed = false) {
-        if (partialConnectionsAllowed) {
-            return this._connected != CONNSTATE.disconnected;
-        }
-
-        return this._connected == CONNSTATE.connected;
+    connectionStatus() {
+        return this._connected;
     }
 
     async deinit() {
 
     }
 
-    updateConnected(connectionState) {
-        if (connectionState in CONNSTATE) {
-            this._connected = connectionState;
-        }
+    updateConnected(isConnected) {
+        this._connected = isConnected;
     }
 
     async showBusy(functionPromise, darkBackground = true) {
@@ -239,7 +201,7 @@ class Workflow {
         return await this.connectDialog.open();
     }
 
-    async runCurrentCode() {
+    async runCode() {
         let path = this.currentFilename;
 
         if (!path) {
@@ -263,69 +225,35 @@ class Workflow {
 
             path = path.slice(1, -3);
             path = path.replace(/\//g, ".");
-            await (this.runPythonCodeOnDevice("import " + path));
+            await (this.runPythonCode("import " + path));
         }
         await this._changeMode(MODE_SERIAL);
     }
 
-    async runPythonCodeOnDevice(code, codeTimeoutMs=15000) {
+    async runPythonCode(code) {
         // Allows for supplied python code to be run on the device via the REPL
+        // Currently this is kinda buggy, but works if no return values are expected
         //
-        // TODO: Improve reliability. Right now, the timing is a bit tight and occasionally fails to run
-
-        this._pythonCodeRunning = true;
-        await this.serialTransmit(CHAR_CTRL_C);
-
-        // Wait for a prompt
-        try {
-            await this.timeout(
-                async () => {
-                    while (this._pythonCodeRunning) {
-                        await sleep(100);
-                    }
-                }, PROMPT_TIMEOUT
-            );
-        } catch (error) {
-            console.log("Awaiting prompt timed out.");
-            return null;
-        }
-
-        // Slice the code up into block and lines and run it
+        // If blindly prefixing Control+C causes issues, we may need to determine if it is
+        // at the REPL such as listening for a prompt in onSerialRecieve and also have a way
+        // to determine if the device has been reset where it's not at the REPL.
+        //
+        // We could also just look for "Code done running." in the output (which is available
+        // even on a fresh connect). If that's found, we can set a variable that indicates Ctrl+C
+        // needs to be sent. Once it's sent, we unset the variable.
         this._pythonCodeRunning = true;
         this._codeOutput = '';
-        const codeBlocks = code.split(/(?:\r?\n)+(?!\s)/);
 
-        let indentCount = 0;
-        for (const block of codeBlocks) {
-            for (const line of block.split(/\r?\n/)) {
-                const indents = Math.floor(line.match(/^\s*/)[0].length / 4);
-                await this.serialTransmit(line.slice(indents * 4) + CHAR_CRLF);
-                if (indents < indentCount) {
-                    await this.serialTransmit(CHAR_BKSP.repeat(indentCount - indents) + CHAR_CRLF);
-                }
-                indentCount = indents;
-            }
+        await this.serialTransmit(CHAR_CTRL_C);
+        for (const line of code.split(/\r?\n/)) {
+            await this.serialTransmit(line + CHAR_CRLF);
         }
 
-        // Wait for the code to finish running, so we can capture the output
-        if (codeTimeoutMs) {
-            try {
-                await this.timeout(
-                    async () => {
-                        while (this._pythonCodeRunning) {
-                            await sleep(100);
-                        }
-                    }, codeTimeoutMs
-                );
-            } catch (error) {
-                console.log("Code timed out.");
-            }
-        } else {
-            // Run without timeout
-            while (this._pythonCodeRunning) {
-                await sleep(100);
-            }
-        }
+        // Wait for the code to finish running
+        // so we can capture the output
+        /*while (this._pythonCodeRunning) {
+            await sleep(100);
+        }*/
 
         return this._codeOutput;
     }
@@ -425,13 +353,11 @@ class Workflow {
         return Error("This work flow is not available.");
     }
 
-    // Split a string up by full title start and end character sequences
     _tokenize(string) {
         const tokenRegex = new RegExp("(" + regexEscape(CHAR_TITLE_START) + "|" + regexEscape(CHAR_TITLE_END) + ")", "gi");
         return string.split(tokenRegex);
     }
 
-    // Check if a chunk of data has a partial title start/end character sequence at the end
     _hasPartialToken(chunk) {
         const partialToken = /\\x1b(?:\](?:0"?)?)?$/gi;
         return partialToken.test(chunk);
@@ -443,11 +369,9 @@ export {
     CHAR_CTRL_C,
     CHAR_CTRL_D,
     CHAR_CRLF,
-    CHAR_BKSP,
     CHAR_TITLE_START,
     CHAR_TITLE_END,
     CONNTYPE,
-    CONNSTATE,
     isValidBackend,
     getBackendWorkflow,
     getWorkflowBackendName

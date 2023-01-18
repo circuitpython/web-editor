@@ -1,10 +1,7 @@
-import { get, set } from 'https://unpkg.com/idb-keyval@6.2.0/dist/index.js';
-
 class FileTransferClient {
-    constructor(connectionStatusCB, uid) {
+    constructor(connectionStatusCB) {
         this.connectionStatus = connectionStatusCB;
         this._dirHandle = null;
-        this._uid = uid;
     }
 
     async readOnly() {
@@ -19,83 +16,47 @@ class FileTransferClient {
             folderHandle = await this._getSubfolderHandle(path);
         }
 
-        return !(await self._verifyPermission(folderHandle));
+        const options = {mode: 'readwrite'};
+
+        if (await folderHandle.queryPermission(options) === 'granted') {
+            return false;
+        }
+
+        if (await folderHandle.requestPermission(options) === 'granted') {
+            return false;
+        }
+
+        return true;
     }
 
     async _checkConnection() {
-        if (!this.connectionStatus(true)) {
+        if (!this.connectionStatus()) {
             throw new Error("Unable to perform file operation. Not Connected.");
         }
 
         if (!this._dirHandle) {
-            this._dirHandle = await this._getDirHandle();
+            this._dirHandle = await window.showDirectoryPicker({mode: 'readwrite'});
 
-            if (this._dirHandle) {
-                const info = await this.versionInfo();
-                console.log(info);
-                console.log("Found via REPL: " + this._uid);
-                console.log("Found via boot_out.txt: " + info.uid);
+            // TODO: Store the directory handle in IndexedDB storage so the user doesn't have to select it again
+            // See https://developer.chrome.com/articles/file-system-access/#storing-file-handles-or-directory-handles-in-indexeddb
 
-                // TODO: This needs to be more reliable before we stop the user from continuing
-                if (info && info.uid && this._uid) {
-                    if (this._uid == info.uid) {
-                        console.log("UIDs frond in REPL and boot_out.txt match!");
-                    }
-                }
-
-                if (!info === null) {
-                    // We're likely not in the root directory of the device because
-                    // boot_out.txt probably wasn't found
-                }
-
-                // TODO: Verify this is a circuitpython drive
-                // Perhaps check boot_out.txt, Certain structural elements, etc.
-                // Not sure how to verify it's the same device that we are using webserial for
-                // Perhaps we can match something in boot_out.txt to the device name
-
-                // For now we're just going to trust the user
+            const info = await this.versionInfo();
+            if (info && info.uid) {
+                // TODO: compare the UID to the one that is to be passed into the constructor
             }
-        }
 
-        if (!this._dirHandle) {
-            throw new Error("Unable to perform file operation. No Working Folder Selected.");
-        }
-    }
-
-    async _getDirHandle(preferSaved = true) {
-        if (!this._dirHandle) {
-            try {
-                if (preferSaved) {
-                    const savedDirHandle = await get('usb-working-directory');
-                    if (savedDirHandle && await this._verifyPermission(savedDirHandle)) {
-                        return savedDirHandle;
-                    }
-                }
-
-                const dirHandle = await window.showDirectoryPicker({mode: 'readwrite'});
-                if (dirHandle) {
-                    await set('usb-working-directory', dirHandle);
-                    return dirHandle;
-                }
-            } catch (e) {
-                console.error(e);
+            if (!info === null) {
+                // We're likely not in the root directory of the device because
+                // boot_out.txt probably wasn't found
             }
+
+            // TODO: Verify this is a circuitpython drive
+            // Perhaps check boot_out.txt, Certain structural elements, etc.
+            // Not sure how to verify it's the same device that we are using webserial for
+            // Perhaps we can match something in boot_out.txt to the device name
+
+            // For now we're just going to trust the user
         }
-        return null;
-    }
-
-    async _verifyPermission(folderHandle) {
-        const options = {mode: 'readwrite'};
-
-        if (await folderHandle.queryPermission(options) === 'granted') {
-            return true;
-        }
-
-        if (await folderHandle.requestPermission(options) === 'granted') {
-            return true;
-        }
-
-        return false;
     }
 
     async readFile(path, raw = false) {
