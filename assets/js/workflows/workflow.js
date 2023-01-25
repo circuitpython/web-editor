@@ -1,33 +1,12 @@
-import {sleep, timeout, regexEscape} from '../common/utilities.js';
 import {FileHelper} from '../common/file.js';
+import {REPLRunner} from '../common/replrunner.js';
 import {UnsavedDialog} from '../common/dialogs.js';
 import {FileDialog, FILE_DIALOG_OPEN, FILE_DIALOG_SAVE} from '../common/file_dialog.js';
-import { MODE_SERIAL } from '../constants.js';
+import {MODE_SERIAL, CONNTYPE, CONNSTATE} from '../constants.js';
+
 /*
  * This class will encapsulate all of the common workflow-related functions
  */
-
-const CONNTYPE = {
-    None: 1,
-    Ble: 2,
-    Usb: 3,
-    Web: 4
-};
-
-const CONNSTATE = {
-    "disconnected": 1,
-    "partial": 2,
-    "connected": 3,
-};
-
-const CHAR_CTRL_C = '\x03';
-const CHAR_CTRL_D = '\x04';
-const CHAR_CRLF = '\x0a\x0d';
-const CHAR_BKSP = '\x08';
-const CHAR_TITLE_START = "\x1b]0;";
-const CHAR_TITLE_END = "\x1b\\";
-
-const PROMPT_TIMEOUT = 10000;
 
 const validBackends = {
     "web": CONNTYPE.Web,
@@ -60,18 +39,13 @@ class Workflow {
         this.partialWrites = false;
         this.disconnectCallback = null;
         this.loadEditor = null;
-        this.timeout = timeout;
-        this.sleep = sleep;
         this.connectDialog = null;
         this._connected = false;
         this.currentFilename = null;
         this.fileHelper = null;
         this._unsavedDialog = new UnsavedDialog("unsaved");
         this._fileDialog = new FileDialog("files", this.showBusy.bind(this));
-        this._pythonCodeRunning = false;
-        this._codeOutput = '';
-        this._currentSerialReceiveLine = '';
-        this._checkingPrompt = false;
+        this.repl = new REPLRunner();
     }
 
     async init(params) {
@@ -89,6 +63,9 @@ class Workflow {
         }
         this.currentFilename = params.currentFilename;
         this._changeMode = params.changeModeFunc;
+
+        this.repl.setTitle = this.setTerminalTitle.bind(this);
+        this.repl.serialTransmit = this.serialTransmit.bind(this);
     }
 
     async initFileClient(fileClient) {
@@ -101,6 +78,10 @@ class Workflow {
 
     async connect() {
         return await this.available();
+    }
+
+    async restartDevice() {
+        this.repl.softRestart();
     }
 
     makeDocState(document, docChangePos) {
@@ -133,51 +114,9 @@ class Workflow {
     }
 
     async onSerialReceive(e) {
-        if (e.data == CHAR_TITLE_START) {
-            this.titleMode = true;
-            this.setTerminalTitle("");
-        } else if (e.data == CHAR_TITLE_END) {
-            this.titleMode = false;
-        } else if (this.titleMode) {
-            this.setTerminalTitle(e.data, true);
-        }
-
-        //console.log("received: " + e.data);
-        let codeline = '';
-        this._currentSerialReceiveLine += e.data;
-
-        // Run asynchronously to avoid blocking the serial receive
-        this.checkPrompt();
-
-        if (this._currentSerialReceiveLine.includes("\r\n")) {
-            [codeline, this._currentSerialReceiveLine] = this._currentSerialReceiveLine.split("\r\n", 2);
-        }
-
-        // Is it still running? Then we add to code output
-        if (this._pythonCodeRunning && codeline.length > 0) {
-            if (!codeline.match(/^\... /) && !codeline.match(/^>>> /)) {
-                this._codeOutput += codeline + "\r\n";
-            }
-        }
+        //await this.repl.onSerialReceive(e);
 
         this.writeToTerminal(e.data);
-    }
-
-    // This should help detect lines like ">>> ", but not ">>> 1+1"
-    async checkPrompt() {
-        // Only allow one instance of this function to run at a time (unless this could cause it to miss a prompt)
-        if (!this._currentSerialReceiveLine.match(/>>> $/)) {
-            return;
-        }
-
-        // Check again after a short delay to see if it's still a prompt
-        await this.sleep(50);
-
-        if (!this._currentSerialReceiveLine.match(/>>> $/)) {
-            return;
-        }
-
-        this._pythonCodeRunning = false;
     }
 
     connectionStatus(partialConnectionsAllowed = false) {
@@ -248,7 +187,7 @@ class Workflow {
         }
 
         if (path == "/code.py") {
-            await this.serialTransmit(CHAR_CTRL_D);
+            await this.repl.softRestart();
         } else {
 
             let extension = path.split('.').pop();
@@ -263,71 +202,9 @@ class Workflow {
 
             path = path.slice(1, -3);
             path = path.replace(/\//g, ".");
-            await (this.runPythonCodeOnDevice("import " + path));
+            await (this.repl.runCode("import " + path));
         }
         await this._changeMode(MODE_SERIAL);
-    }
-
-    async runPythonCodeOnDevice(code, codeTimeoutMs=15000) {
-        // Allows for supplied python code to be run on the device via the REPL
-        //
-        // TODO: Improve reliability. Right now, the timing is a bit tight and occasionally fails to run
-
-        this._pythonCodeRunning = true;
-        await this.serialTransmit(CHAR_CTRL_C);
-
-        // Wait for a prompt
-        try {
-            await this.timeout(
-                async () => {
-                    while (this._pythonCodeRunning) {
-                        await sleep(100);
-                    }
-                }, PROMPT_TIMEOUT
-            );
-        } catch (error) {
-            console.log("Awaiting prompt timed out.");
-            return null;
-        }
-
-        // Slice the code up into block and lines and run it
-        this._pythonCodeRunning = true;
-        this._codeOutput = '';
-        const codeBlocks = code.split(/(?:\r?\n)+(?!\s)/);
-
-        let indentCount = 0;
-        for (const block of codeBlocks) {
-            for (const line of block.split(/\r?\n/)) {
-                const indents = Math.floor(line.match(/^\s*/)[0].length / 4);
-                await this.serialTransmit(line.slice(indents * 4) + CHAR_CRLF);
-                if (indents < indentCount) {
-                    await this.serialTransmit(CHAR_BKSP.repeat(indentCount - indents) + CHAR_CRLF);
-                }
-                indentCount = indents;
-            }
-        }
-
-        // Wait for the code to finish running, so we can capture the output
-        if (codeTimeoutMs) {
-            try {
-                await this.timeout(
-                    async () => {
-                        while (this._pythonCodeRunning) {
-                            await sleep(100);
-                        }
-                    }, codeTimeoutMs
-                );
-            } catch (error) {
-                console.log("Code timed out.");
-            }
-        } else {
-            // Run without timeout
-            while (this._pythonCodeRunning) {
-                await sleep(100);
-            }
-        }
-
-        return this._codeOutput;
     }
 
     async checkSaved() {
@@ -424,30 +301,10 @@ class Workflow {
     async available() {
         return Error("This work flow is not available.");
     }
-
-    // Split a string up by full title start and end character sequences
-    _tokenize(string) {
-        const tokenRegex = new RegExp("(" + regexEscape(CHAR_TITLE_START) + "|" + regexEscape(CHAR_TITLE_END) + ")", "gi");
-        return string.split(tokenRegex);
-    }
-
-    // Check if a chunk of data has a partial title start/end character sequence at the end
-    _hasPartialToken(chunk) {
-        const partialToken = /\\x1b(?:\](?:0"?)?)?$/gi;
-        return partialToken.test(chunk);
-    }
 }
 
 export {
     Workflow,
-    CHAR_CTRL_C,
-    CHAR_CTRL_D,
-    CHAR_CRLF,
-    CHAR_BKSP,
-    CHAR_TITLE_START,
-    CHAR_TITLE_END,
-    CONNTYPE,
-    CONNSTATE,
     isValidBackend,
     getBackendWorkflow,
     getWorkflowBackendName

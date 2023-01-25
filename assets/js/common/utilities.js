@@ -84,11 +84,6 @@ function getUrlParam(name, remove = true) {
     return paramValue;
 }
 
-// Escape a regex string
-function regexEscape(regexString) {
-    return regexString.replace(/\\/, "\\\\");
-}
-
 // Switch to a new url with the current document state and reload the page if the host and path are the same
 function switchUrl(url, documentState, backend = null) {
     let params  ={state: encodeURIComponent(JSON.stringify(documentState))}
@@ -139,7 +134,6 @@ export {
     getUrlParam,
     timeout,
     sleep,
-    regexEscape,
     switchUrl,
     switchDevice,
     readUploadedFileAsArrayBuffer

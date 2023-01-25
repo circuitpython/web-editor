@@ -1,4 +1,5 @@
-import {Workflow, CONNTYPE, CONNSTATE} from './workflow.js';
+import {CONNTYPE, CONNSTATE} from '../constants.js';
+import {Workflow} from './workflow.js';
 import {GenericModal} from '../common/dialogs.js';
 import {FileTransferClient} from '../common/usb-file-transfer.js';
 
@@ -48,28 +49,6 @@ class USBWorkflow extends Workflow {
         }
 
         super.onDisconnected(e, reconnect);
-    }
-
-    async onSerialReceive(e) {
-        // Prepend a partial token if it exists
-        if (this._partialToken) {
-            e.data = this._partialToken + e.data;
-            this._partialToken = null;
-        }
-
-        // Tokenize the larger string and send to the parent
-        let tokens = this._tokenize(e.data);
-
-        // Remove any partial tokens and store for the next serial data receive
-        if (tokens.length && this._hasPartialToken(tokens.slice(-1))) {
-            this._partialToken = tokens.pop();
-        }
-
-        // Send only full tokens to the parent function
-        for (let token of tokens) {
-            e.data = token;
-            super.onSerialReceive(e);
-        }
     }
 
     async serialTransmit(msg) {

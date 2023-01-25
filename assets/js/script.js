@@ -6,10 +6,10 @@ import {syntaxHighlighting} from "@codemirror/language";
 import {BLEWorkflow} from './workflows/ble.js';
 import {WebWorkflow} from './workflows/web.js';
 import {USBWorkflow} from './workflows/usb.js';
-import {CONNTYPE, CHAR_CTRL_D, isValidBackend, getBackendWorkflow, getWorkflowBackendName} from './workflows/workflow.js';
+import {isValidBackend, getBackendWorkflow, getWorkflowBackendName} from './workflows/workflow.js';
 import {ButtonValueDialog, MessageModal} from './common/dialogs.js';
-import {sleep, isLocal, switchUrl, getUrlParam} from './common/utilities.js';
-import {MODE_EDITOR, MODE_SERIAL} from './constants.js';
+import {isLocal, switchUrl, getUrlParam} from './common/utilities.js';
+import {MODE_EDITOR, MODE_SERIAL, CONNTYPE} from './constants.js';
 
 var terminal;
 var fitter;
@@ -97,8 +97,8 @@ btnSaveRun.forEach((element) => {
 // Restart Button
 btnRestart.addEventListener('click', async function(e) {
     await checkConnected();
-    // Send the Ctrl+D control character to the board via serial
-    await workflow.serialTransmit(CHAR_CTRL_D);
+    // Perform a device soft restart
+    await workflow.restartDevice();
 });
 
 // Mode Buttons
