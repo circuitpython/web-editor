@@ -11,7 +11,7 @@ const LINE_ENDING = "\r\n";
 const PROMPT_TIMEOUT = 10000;
 const PROMPT_CHECK_INTERVAL = 50;
 
-export class REPLRunner {
+export class REPL {
     constructor() {
         this._pythonCodeRunning = false;
         this._codeOutput = '';
@@ -142,7 +142,8 @@ export class REPLRunner {
     }
 
     async serialTransmit(msg) {
-        throw new Error("REPLRunner serialTransmit must be connected to an external transmit function");
+        // TODO Maybe try and have a default transmit function if possible
+        throw new Error("REPL serialTransmit must be connected to an external transmit function");
     }
 
     async runCode(code, codeTimeoutMs=15000) {

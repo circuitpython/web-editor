@@ -149,7 +149,7 @@ class WebWorkflow extends Workflow {
             return returnVal;
         }
         // Wait for a connection with a timeout
-        console.log("Waiting for connection...");
+        console.log("Waiting for connection status to change...");
         try {
             await timeout(
                 async () => {

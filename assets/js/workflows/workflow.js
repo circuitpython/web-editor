@@ -1,5 +1,5 @@
 import {FileHelper} from '../common/file.js';
-import {REPLRunner} from '../common/replrunner.js';
+import {REPL} from '../common/cpy-repl.js';
 import {UnsavedDialog} from '../common/dialogs.js';
 import {FileDialog, FILE_DIALOG_OPEN, FILE_DIALOG_SAVE} from '../common/file_dialog.js';
 import {MODE_SERIAL, CONNTYPE, CONNSTATE} from '../constants.js';
@@ -45,7 +45,7 @@ class Workflow {
         this.fileHelper = null;
         this._unsavedDialog = new UnsavedDialog("unsaved");
         this._fileDialog = new FileDialog("files", this.showBusy.bind(this));
-        this.repl = new REPLRunner();
+        this.repl = new REPL();
     }
 
     async init(params) {
@@ -114,7 +114,7 @@ class Workflow {
     }
 
     async onSerialReceive(e) {
-        //await this.repl.onSerialReceive(e);
+        await this.repl.onSerialReceive(e);
 
         this.writeToTerminal(e.data);
     }
@@ -132,7 +132,7 @@ class Workflow {
     }
 
     updateConnected(connectionState) {
-        if (connectionState in CONNSTATE) {
+        if (Object.values(CONNSTATE).includes(connectionState)) {
             this._connected = connectionState;
         }
     }
