@@ -91,8 +91,7 @@ class USBWorkflow extends Workflow {
             } catch (e) {
                 // TODO: We should probably remove existing devices if it fails here
                 console.log("Failed to automatically connect to saved device. Prompting user to select a device.");
-                console.log(e);
-                alert(e.message);
+                //console.log(e);
                 device = await navigator.serial.requestPort();
                 console.log(device);
             }
@@ -205,7 +204,7 @@ class USBWorkflow extends Workflow {
         // or microcontroller is a list
         // It might be better to take a minimal python approach and do most of
         // the conversion in the javascript
-        let result = await this.runPythonCodeOnDevice(
+        let result = await this.repl.runCode(
 `import microcontroller
 import binascii
 binascii.hexlify(microcontroller.cpu.uid).decode('ascii').upper()`

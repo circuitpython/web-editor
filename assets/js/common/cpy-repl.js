@@ -48,7 +48,7 @@ export class REPL {
         // Check again after a short delay to see if it's still a prompt
         await this._sleep(this.promptCheckInterval);
 
-        if (!_currentLineIsPrompt()) {
+        if (!this._currentLineIsPrompt()) {
             return;
         }
 
