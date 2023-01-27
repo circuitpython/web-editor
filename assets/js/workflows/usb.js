@@ -52,11 +52,19 @@ class USBWorkflow extends Workflow {
     }
 
     async serialTransmit(msg) {
+        console.log('Transmitting to Serial...');
         if (this._serialDevice && this._serialDevice.writable) {
+            console.log('Serial connected and wriatable');
             const encoder = new TextEncoder();
+            console.log(msg);
+            console.log('Created Encoder...');
             const writer = this._serialDevice.writable.getWriter();
-            await writer.write(encoder.encode(msg));
+            console.log('Got writer...');
+            await writer.write(encoder.encode(msg)); // Why is this fucking up msg?????? It makes no sense
+            console.log(`Message '${msg}' Written...`);
+            console.log(msg, encoder.encode(msg));
             writer.releaseLock();
+            console.log('Lock released...');
         }
     }
 
@@ -77,21 +85,31 @@ class USBWorkflow extends Workflow {
         console.log('Connecting to Serial...');
 
         // There's no way to reference a specific port, so we just hope the user
-        // only has a single port stored. If not, we'll prompt the user to select
-        // a device port.
-        let devices = await navigator.serial.getPorts();
+        // only has a single device stored and connected. However, we can check that
+        // the device on the stored port is currently connected by checking if the
+        // readable and writable properties are null.
+
+        let allDevices = await navigator.serial.getPorts();
+        let connectedDevices = [];
+        for (let device of allDevices) {
+            let devInfo = await device.getInfo();
+            if (devInfo.readable && devInfo.writable) {
+                connectedDevices.push(device);
+            }
+        }
         let device = null;
 
-        if (devices.length == 1) {
-            device = devices[0];
+        if (connectedDevices.length == 1) {
+            device = connectedDevices[0];
             console.log(await device.getInfo());
             try {
                 // Attempt to connect to the saved device. If it's not found, this will fail.
                 await this._switchToDevice(device);
             } catch (e) {
-                // TODO: We should probably remove existing devices if it fails here
+                // We should probably remove existing devices if it fails here
+                await device.forget();
+
                 console.log("Failed to automatically connect to saved device. Prompting user to select a device.");
-                //console.log(e);
                 device = await navigator.serial.requestPort();
                 console.log(device);
             }
@@ -204,14 +222,23 @@ class USBWorkflow extends Workflow {
         // or microcontroller is a list
         // It might be better to take a minimal python approach and do most of
         // the conversion in the javascript
+
+        /*console.log("Waiting for REPL Prompt");
+        //await this.repl.waitForPrompt();
+
+        console.log("Getting Device UID");
         let result = await this.repl.runCode(
 `import microcontroller
 import binascii
 binascii.hexlify(microcontroller.cpu.uid).decode('ascii').upper()`
         );
         // Strip out whitespace as well as start and end quotes
-        this._uid = result.trim().slice(1, -1);
-        console.log(this._uid);
+        if (result) {
+            this._uid = result.trim().slice(1, -1);
+            console.log(this._uid);
+        } else {
+            console.log("Returned result was", result);
+        }*/
     }
 
     async _readSerialLoop() {

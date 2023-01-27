@@ -20,6 +20,9 @@ export class REPL {
         this._titleMode = false;
         this.promptTimeout = PROMPT_TIMEOUT;
         this.promptCheckInterval = PROMPT_CHECK_INTERVAL;
+        this.withholdTitle = false;
+        this.serialTransmit = null;
+        this._tokenQueue = [];
     }
 
     _sleep(ms) {
@@ -27,7 +30,7 @@ export class REPL {
     }
 
     _timeout(callback, ms) {
-        return Promise.race([callback(), sleep(ms).then(() => {throw Error("Timed Out");})]);
+        return Promise.race([callback(), this._sleep(ms).then(() => {throw Error("Timed Out");})]);
     }
 
     _currentLineIsPrompt() {
@@ -57,9 +60,10 @@ export class REPL {
 
     async waitForPrompt() {
         this._pythonCodeRunning = true;
-        await this.serialTransmit(CHAR_CTRL_C);
+        await this._serialTransmit(CHAR_CTRL_C);
 
         // Wait for a prompt
+        console.trace("waiting for prompt.");
         try {
             await this._timeout(
                 async () => {
@@ -72,7 +76,6 @@ export class REPL {
             console.log("Awaiting prompt timed out.");
             return false;
         }
-
         return true;
     }
 
@@ -82,6 +85,8 @@ export class REPL {
 
     async onSerialReceive(e) {
         // Prepend a partial token if it exists
+        //console.log("serial data received: " + e.data);
+
         if (this._partialToken) {
             e.data = this._partialToken + e.data;
             this._partialToken = null;
@@ -95,10 +100,24 @@ export class REPL {
             this._partialToken = tokens.pop();
         }
 
-        // Send only full tokens to the parent function
+        // Send only full tokens to the token queue
         for (let token of tokens) {
-            await this._processToken(token);
+            this._tokenQueue.push(token);
         }
+        await this._processQueuedTokens();
+    }
+
+    async _processQueuedTokens() {
+        if (this._processing) {
+            return;
+        }
+        this._processing = true;
+        console.log("Begin processing tokens");
+        while (this._tokenQueue.length) {
+            await this._processToken(this._tokenQueue.shift());
+        }
+        console.log("Done processing tokens");
+        this._processing = false;
     }
 
     async _processToken(token) {
@@ -111,9 +130,10 @@ export class REPL {
             this.setTitle(token, true);
         }
 
+        console.log("token received: " + token);
+
         let codeline = '';
         if (this._pythonCodeRunning) {
-            //console.log("received: " + token);
             this._currentSerialReceiveLine += token;
 
             // Run asynchronously to avoid blocking the serial receive
@@ -141,15 +161,17 @@ export class REPL {
         this.title = title;
     }
 
-    async serialTransmit(msg) {
-        // TODO Maybe try and have a default transmit function if possible
-        throw new Error("REPL serialTransmit must be connected to an external transmit function");
+    async _serialTransmit(msg) {
+        if (!this.serialTransmit) {
+            console.log("Default serial transmit function called. Message: " + msg);
+            throw new Error("REPL serialTransmit must be connected to an external transmit function");
+        } else {
+            return await this.serialTransmit(msg);
+        }
     }
 
     async runCode(code, codeTimeoutMs=15000) {
         // Allows for supplied python code to be run on the device via the REPL
-        //
-        // TODO: Improve reliability. Right now, the timing is a bit tight and occasionally fails to run
 
         // Wait for the prompt to appear
         if (!this.waitForPrompt()) {
@@ -161,15 +183,21 @@ export class REPL {
         this._codeOutput = '';
         const codeBlocks = code.split(/(?:\r?\n)+(?!\s)/);
 
-        let indentCount = 0;
+        console.log(codeBlocks);
+        let indentLevel = 0;
         for (const block of codeBlocks) {
             for (const line of block.split(/\r?\n/)) {
-                const indents = Math.floor(line.match(/^\s*/)[0].length / 4);
-                await this.serialTransmit(line.slice(indents * 4) + CHAR_CRLF);
-                if (indents < indentCount) {
-                    await this.serialTransmit(CHAR_BKSP.repeat(indentCount - indents) + CHAR_CRLF);
+                const codeIndent = Math.floor(line.match(/^\s*/)[0].length / 4);
+                console.log(line, codeIndent, indentLevel);
+                console.log("Sending", line.slice(codeIndent * 4) + CHAR_CRLF);
+                // Send code line with indents removed
+                await this._serialTransmit(line.slice(codeIndent * 4) + CHAR_CRLF);
+                console.log("Sent");
+                if (codeIndent < indentLevel) {
+                    // Remove indents to match the code
+                    await this._serialTransmit(CHAR_BKSP.repeat(indentLevel - codeIndent) + CHAR_CRLF);
                 }
-                indentCount = indents;
+                indentLevel = codeIndent;
             }
         }
 
@@ -179,6 +207,7 @@ export class REPL {
                 await this._timeout(
                     async () => {
                         while (this._pythonCodeRunning) {
+                            console.log("Waiting for code to finish");
                             await this._sleep(100);
                         }
                     }, codeTimeoutMs
@@ -189,6 +218,7 @@ export class REPL {
         } else {
             // Run without timeout
             while (this._pythonCodeRunning) {
+                console.log("Waiting for code to finish");
                 await this._sleep(100);
             }
         }

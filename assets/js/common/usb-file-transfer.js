@@ -34,7 +34,11 @@ class FileTransferClient {
                 const info = await this.versionInfo();
                 console.log(info);
                 console.log("Found via REPL: " + this._uid);
-                console.log("Found via boot_out.txt: " + info.uid);
+                if (info) {
+                    console.log("Found via boot_out.txt: " + info.uid);
+                } else {
+                    console.log("Unable to read boot_out.txt");
+                }
 
                 // TODO: This needs to be more reliable before we stop the user from continuing
                 if (info && info.uid && this._uid) {
@@ -64,21 +68,23 @@ class FileTransferClient {
 
     async _getDirHandle(preferSaved = true) {
         if (!this._dirHandle) {
-            try {
-                if (preferSaved) {
+            if (preferSaved) {
+                try {
                     const savedDirHandle = await get('usb-working-directory');
                     if (savedDirHandle && await this._verifyPermission(savedDirHandle)) {
+                        // Check if the stored directory is available. It will fail if not.
+                        await savedDirHandle.getDirectoryHandle("/");
                         return savedDirHandle;
                     }
+                } catch (e) {
+                    console.error(e);
                 }
+            }
 
-                const dirHandle = await window.showDirectoryPicker({mode: 'readwrite'});
-                if (dirHandle) {
-                    await set('usb-working-directory', dirHandle);
-                    return dirHandle;
-                }
-            } catch (e) {
-                console.error(e);
+            const dirHandle = await window.showDirectoryPicker({mode: 'readwrite'});
+            if (dirHandle) {
+                await set('usb-working-directory', dirHandle);
+                return dirHandle;
             }
         }
         return null;
@@ -182,11 +188,13 @@ class FileTransferClient {
     }
 
     // Returns an array of objects, one object for each file or directory in the given path
-    async listDir(path) {
+    async listDir(path, subfolderHandle=null) {
         await this._checkConnection();
 
         let contents = [];
-        let subfolderHandle = await this._getSubfolderHandle(path);
+        if (!subfolderHandle) {
+            subfolderHandle = await this._getSubfolderHandle(path);
+        }
 
         // Get all files and folders in the folder
         for await (const [filename, entryHandle] of subfolderHandle.entries()) {
@@ -296,7 +304,9 @@ class FileTransferClient {
     async versionInfo() {
         // Possibly open /boot_out.txt and read the version info
         let versionInfo = {};
+        console.log("Reading version info");
         let bootout = await this.readFile('/boot_out.txt', false);
+        console.log(bootout);
         if (!bootout) {
             return null;
         }
