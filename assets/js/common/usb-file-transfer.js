@@ -28,7 +28,7 @@ class FileTransferClient {
         }
 
         if (!this._dirHandle) {
-            this._dirHandle = await this._getDirHandle();
+            await this._loadDirHandle();
 
             if (this._dirHandle) {
                 const info = await this.versionInfo();
@@ -43,7 +43,7 @@ class FileTransferClient {
                 // TODO: This needs to be more reliable before we stop the user from continuing
                 if (info && info.uid && this._uid) {
                     if (this._uid == info.uid) {
-                        console.log("UIDs frond in REPL and boot_out.txt match!");
+                        console.log("UIDs found in REPL and boot_out.txt match!");
                     }
                 }
 
@@ -66,28 +66,42 @@ class FileTransferClient {
         }
     }
 
-    async _getDirHandle(preferSaved = true) {
-        if (!this._dirHandle) {
-            if (preferSaved) {
-                try {
-                    const savedDirHandle = await get('usb-working-directory');
-                    // Check if the stored directory is available. It will fail if not.
-                    if (savedDirHandle && await savedDirHandle.getDirectoryHandle("/")) {
-                        // Now Request permission to make it writable
-                        if (await this._verifyPermission(savedDirHandle)) {
-                            return savedDirHandle;
-                        }
-                    }
-                } catch (e) {
-                    console.error(e);
-                }
+    async loadSavedDirHandle() {
+        try {
+            const savedDirHandle = await get('usb-working-directory');
+            // Request permission to make it writable
+            if (savedDirHandle && (await this._verifyPermission(savedDirHandle))) {
+                // Check if the stored directory is available. It will fail if not.
+                await savedDirHandle.getFileHandle("boot_out.txt");
+                this._dirHandle = savedDirHandle;
+                return true;
             }
+        } catch (e) {
+            console.error("Unable to access boot_out.txt in saved directory handle:", e);
+        }
+        return false;
+    }
 
-            const dirHandle = await window.showDirectoryPicker({mode: 'readwrite'});
-            if (dirHandle) {
-                await set('usb-working-directory', dirHandle);
-                return dirHandle;
+    async loadDirHandle(preferSaved = true) {
+        if (preferSaved) {
+            const result = await loadSavedDirHandle();
+            if (!result) {
+                return true;
             }
+        }
+
+        const dirHandle = await window.showDirectoryPicker({mode: 'readwrite'});
+        if (dirHandle) {
+            await set('usb-working-directory', dirHandle);
+            this._dirHandle = dirHandle;
+            return true;
+        }
+        return false;
+    }
+
+    getWorkingDirectoryName() {
+        if (this._dirHandle) {
+            return this._dirHandle.name;
         }
         return null;
     }

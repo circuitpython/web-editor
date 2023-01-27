@@ -2,9 +2,8 @@ import {CONNTYPE, CONNSTATE} from '../constants.js';
 import {Workflow} from './workflow.js';
 import {GenericModal} from '../common/dialogs.js';
 import {FileTransferClient} from '../common/usb-file-transfer.js';
-import {sleep} from '../common/utilities.js';
 
-let btnRequestSerialDevice, btnSelectHostFolder;
+let btnRequestSerialDevice, btnSelectHostFolder, btnUseHostFolder, lblWorkingfolder;
 
 class USBWorkflow extends Workflow {
     constructor() {
@@ -59,22 +58,15 @@ class USBWorkflow extends Workflow {
 
     async serialTransmit(msg) {
         const encoder = new TextEncoder();
-        console.log('Transmitting to Serial...');
         if (this.writer) {
-            console.log('Serial connected and wriatable');
             const encMessage = encoder.encode(msg);
-            console.log(msg);
-            console.log(encMessage);
             await this.writer.ready.catch((err) => {
-                console.error(`Chunk error: ${err}`);
+                console.error(`Ready error: ${err}`);
             });
             await this.writer.write(encMessage).catch((err) => {
                 console.error(`Chunk error: ${err}`);
             });
-            console.log(`Message '${msg}' Written...`);
             await this.writer.ready;
-            //this.writer.releaseLock();
-            console.log('Lock released...');
         }
     }
 
@@ -92,8 +84,6 @@ class USBWorkflow extends Workflow {
     }
 
     async connectToSerial() {
-        console.log('Connecting to Serial...');
-
         // There's no way to reference a specific port, so we just hope the user
         // only has a single device stored and connected. However, we can check that
         // the device on the stored port is currently connected by checking if the
@@ -137,7 +127,7 @@ class USBWorkflow extends Workflow {
             console.log('> Requested ', device);
             await this._switchToDevice(device);
         }
-
+        console.log(this._serialDevice);
         if (this._serialDevice != null) {
             this._connectionStep(2);
             return true;
@@ -152,6 +142,8 @@ class USBWorkflow extends Workflow {
 
         btnRequestSerialDevice = modal.querySelector('#requestSerialDevice');
         btnSelectHostFolder = modal.querySelector('#selectHostFolder');
+        btnUseHostFolder = modal.querySelector('#useHostFolder');
+        lblWorkingfolder = modal.querySelector('#workingFolder');
 
         btnRequestSerialDevice.disabled = true;
         btnSelectHostFolder.disabled = true;
@@ -169,6 +161,10 @@ class USBWorkflow extends Workflow {
 
         btnSelectHostFolder.addEventListener('click', async (event) => {
             await this._selectHostFolder();
+        });
+
+        btnUseHostFolder.addEventListener('click', async (event) => {
+            await this._useHostFolder();
         });
 
         if (!(await this.available() instanceof Error)) {
@@ -197,13 +193,28 @@ class USBWorkflow extends Workflow {
     // Workflow specific functions
     async _selectHostFolder() {
         console.log('Initializing File Transfer Client...');
-        // try {
-        this.initFileClient(new FileTransferClient(this.connectionStatus.bind(this), this._uid));
-        //} catch (error) {
-        //    return new Error(`The device was not found. Be sure it is plugged in and set up properly.`);
-        //}
+        const fileClient = this.fileHelper.getFileClient();
+        const changed = await fileClient.loadDirHandle(false);
+        if (changed) {
+            this._hostFolderChanged();
+        }
+    }
+
+    async _useHostFolder() {
         await this.fileHelper.listDir('/');
         this.onConnected();
+    }
+
+    _hostFolderChanged() {
+        const fileClient = this.fileHelper.getFileClient();
+        const folderName = fileClient.getWorkingDirectoryName();
+        console.log(folderName);
+        if (folderName) {
+            // Set the working folder label
+            lblWorkingfolder.innerHTML = folderName;
+            btnUseHostFolder.classList.remove("hidden");
+            btnSelectHostFolder.innerHTML = "Select New Folder";
+        }
     }
 
     async _switchToDevice(device) {
@@ -223,13 +234,21 @@ class USBWorkflow extends Workflow {
         if (this._serialDevice.writable) {
             this.writer = this._serialDevice.writable.getWriter();
             await this.writer.ready;
-            console.log('Got writer...');
-            await sleep(100);
         }
 
         await this._getDeviceUid();
 
         this.updateConnected(CONNSTATE.partial);
+
+        // At this point we should see if we should init the file client and check if have a saved dir handle
+        this.initFileClient(new FileTransferClient(this.connectionStatus.bind(this), this._uid));
+        const fileClient = this.fileHelper.getFileClient();
+        console.log("Got file client");
+        const result = await fileClient.loadSavedDirHandle();
+        console.log(result);
+        if (result) {
+            this._hostFolderChanged();
+        }
     }
 
     async _getDeviceUid() {
@@ -238,14 +257,9 @@ class USBWorkflow extends Workflow {
         // or uid is not set due to older firmware
         // or microcontroller is a list
         // It might be better to take a minimal python approach and do most of
-        // the conversion in the javascript
-
-        console.log("Waiting for REPL Prompt");
-        //await this.repl.waitForPrompt();
+        // the conversion in the javascript code
 
         console.log("Getting Device UID");
-        // Maybe a second pause will be enough???
-
         let result = await this.repl.runCode(
 `import microcontroller
 import binascii

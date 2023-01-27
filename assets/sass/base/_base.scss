@@ -73,6 +73,10 @@ h5 {
     &:hover {
         background-color: darken($purple, 15%);
     }
+
+    &.hidden {
+        display: none;
+    }
 }
 
 .purple-button.inverted,

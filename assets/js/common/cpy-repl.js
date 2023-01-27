@@ -88,7 +88,6 @@ export class REPL {
 
     async onSerialReceive(e) {
         // Prepend a partial token if it exists
-        //console.log("serial data received: " + e.data);
 
         if (this._partialToken) {
             e.data = this._partialToken + e.data;
@@ -115,11 +114,9 @@ export class REPL {
             return;
         }
         this._processing = true;
-        console.log("Begin processing tokens");
         while (this._tokenQueue.length) {
             await this._processToken(this._tokenQueue.shift());
         }
-        console.log("Done processing tokens");
         this._processing = false;
     }
 
@@ -132,8 +129,6 @@ export class REPL {
         } else if (this._titleMode) {
             this.setTitle(token, true);
         }
-
-        console.log("token received: " + token);
 
         let codeline = '';
         if (this._pythonCodeRunning) {
@@ -173,8 +168,8 @@ export class REPL {
         }
     }
 
+    // Allows for supplied python code to be run on the device via the REPL
     async runCode(code, codeTimeoutMs=15000) {
-        // Allows for supplied python code to be run on the device via the REPL
 
         // Wait for the prompt to appear
         if (!(await this.waitForPrompt())) {
@@ -186,17 +181,12 @@ export class REPL {
         this._codeOutput = '';
         const codeBlocks = code.split(/(?:\r?\n)+(?!\s)/);
 
-        console.log(codeBlocks);
         let indentLevel = 0;
         for (const block of codeBlocks) {
             for (const line of block.split(/\r?\n/)) {
                 const codeIndent = Math.floor(line.match(/^\s*/)[0].length / 4);
-                console.log(line, codeIndent, indentLevel);
-                console.log("Sending", line.slice(codeIndent * 4) + CHAR_CRLF);
                 // Send code line with indents removed
-                //await this.waitForPrompt();
                 await this._serialTransmit(line.slice(codeIndent * 4) + CHAR_CRLF);
-                console.log("Sent");
                 if (codeIndent < indentLevel) {
                     // Remove indents to match the code
                     await this._serialTransmit(CHAR_BKSP.repeat(indentLevel - codeIndent) + CHAR_CRLF);
@@ -211,7 +201,6 @@ export class REPL {
                 await this._timeout(
                     async () => {
                         while (this._pythonCodeRunning) {
-                            console.log("Waiting for code to finish");
                             await this._sleep(100);
                         }
                     }, codeTimeoutMs
@@ -222,7 +211,6 @@ export class REPL {
         } else {
             // Run without timeout
             while (this._pythonCodeRunning) {
-                console.log("Waiting for code to finish");
                 await this._sleep(100);
             }
         }
