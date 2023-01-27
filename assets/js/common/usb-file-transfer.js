@@ -71,10 +71,12 @@ class FileTransferClient {
             if (preferSaved) {
                 try {
                     const savedDirHandle = await get('usb-working-directory');
-                    if (savedDirHandle && await this._verifyPermission(savedDirHandle)) {
-                        // Check if the stored directory is available. It will fail if not.
-                        await savedDirHandle.getDirectoryHandle("/");
-                        return savedDirHandle;
+                    // Check if the stored directory is available. It will fail if not.
+                    if (savedDirHandle && await savedDirHandle.getDirectoryHandle("/")) {
+                        // Now Request permission to make it writable
+                        if (await this._verifyPermission(savedDirHandle)) {
+                            return savedDirHandle;
+                        }
                     }
                 } catch (e) {
                     console.error(e);

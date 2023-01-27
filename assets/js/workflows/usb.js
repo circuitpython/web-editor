@@ -2,6 +2,7 @@ import {CONNTYPE, CONNSTATE} from '../constants.js';
 import {Workflow} from './workflow.js';
 import {GenericModal} from '../common/dialogs.js';
 import {FileTransferClient} from '../common/usb-file-transfer.js';
+import {sleep} from '../common/utilities.js';
 
 let btnRequestSerialDevice, btnSelectHostFolder;
 
@@ -11,6 +12,7 @@ class USBWorkflow extends Workflow {
         this._serialDevice = null;
         this.titleMode = false;
         this.reader = null;
+        this.writer = null;
         this.connectDialog = new GenericModal("usb-connect");
         this._fileContents = null;
         this.type = CONNTYPE.Usb;
@@ -42,6 +44,10 @@ class USBWorkflow extends Workflow {
             await this.reader.cancel();
             this.reader = null;
         }
+        if (this.writer) {
+            await this.writer.releaseLock();
+            this.writer = null;
+        }
 
         if (this._serialDevice) {
             await this._serialDevice.close();
@@ -52,18 +58,22 @@ class USBWorkflow extends Workflow {
     }
 
     async serialTransmit(msg) {
+        const encoder = new TextEncoder();
         console.log('Transmitting to Serial...');
-        if (this._serialDevice && this._serialDevice.writable) {
+        if (this.writer) {
             console.log('Serial connected and wriatable');
-            const encoder = new TextEncoder();
+            const encMessage = encoder.encode(msg);
             console.log(msg);
-            console.log('Created Encoder...');
-            const writer = this._serialDevice.writable.getWriter();
-            console.log('Got writer...');
-            await writer.write(encoder.encode(msg)); // Why is this fucking up msg?????? It makes no sense
+            console.log(encMessage);
+            await this.writer.ready.catch((err) => {
+                console.error(`Chunk error: ${err}`);
+            });
+            await this.writer.write(encMessage).catch((err) => {
+                console.error(`Chunk error: ${err}`);
+            });
             console.log(`Message '${msg}' Written...`);
-            console.log(msg, encoder.encode(msg));
-            writer.releaseLock();
+            await this.writer.ready;
+            //this.writer.releaseLock();
             console.log('Lock released...');
         }
     }
@@ -210,6 +220,13 @@ class USBWorkflow extends Workflow {
             }.bind(this)
         );
 
+        if (this._serialDevice.writable) {
+            this.writer = this._serialDevice.writable.getWriter();
+            await this.writer.ready;
+            console.log('Got writer...');
+            await sleep(100);
+        }
+
         await this._getDeviceUid();
 
         this.updateConnected(CONNSTATE.partial);
@@ -223,10 +240,12 @@ class USBWorkflow extends Workflow {
         // It might be better to take a minimal python approach and do most of
         // the conversion in the javascript
 
-        /*console.log("Waiting for REPL Prompt");
+        console.log("Waiting for REPL Prompt");
         //await this.repl.waitForPrompt();
 
         console.log("Getting Device UID");
+        // Maybe a second pause will be enough???
+
         let result = await this.repl.runCode(
 `import microcontroller
 import binascii
@@ -238,7 +257,7 @@ binascii.hexlify(microcontroller.cpu.uid).decode('ascii').upper()`
             console.log(this._uid);
         } else {
             console.log("Returned result was", result);
-        }*/
+        }
     }
 
     async _readSerialLoop() {

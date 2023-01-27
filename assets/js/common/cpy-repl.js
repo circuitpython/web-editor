@@ -60,10 +60,9 @@ export class REPL {
 
     async waitForPrompt() {
         this._pythonCodeRunning = true;
-        await this._serialTransmit(CHAR_CTRL_C);
+        await this.getToPrompt();
 
         // Wait for a prompt
-        console.trace("waiting for prompt.");
         try {
             await this._timeout(
                 async () => {
@@ -81,6 +80,10 @@ export class REPL {
 
     async softRestart() {
         await this.serialTransmit(CHAR_CTRL_D);
+    }
+
+    async getToPrompt() {
+        await this.serialTransmit(CHAR_CTRL_C);
     }
 
     async onSerialReceive(e) {
@@ -174,7 +177,7 @@ export class REPL {
         // Allows for supplied python code to be run on the device via the REPL
 
         // Wait for the prompt to appear
-        if (!this.waitForPrompt()) {
+        if (!(await this.waitForPrompt())) {
             return null;
         }
 
@@ -191,6 +194,7 @@ export class REPL {
                 console.log(line, codeIndent, indentLevel);
                 console.log("Sending", line.slice(codeIndent * 4) + CHAR_CRLF);
                 // Send code line with indents removed
+                //await this.waitForPrompt();
                 await this._serialTransmit(line.slice(codeIndent * 4) + CHAR_CRLF);
                 console.log("Sent");
                 if (codeIndent < indentLevel) {
