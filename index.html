@@ -7,7 +7,7 @@
     <link rel="icon" href="assets/images/favicon.ico" type="image/x-icon" />
     <title>CircuitPython Code Editor</title>
     <link rel="stylesheet" href="assets/css/fontawesome.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.0.0/css/xterm.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.1.0/css/xterm.css">
     <link rel="stylesheet" href="assets/css/style.css">
 </head>
 
@@ -166,7 +166,7 @@
         <div id="message"></div>
         <div class="buttons stacked">
             <button id="web-workflow" class="purple-button files-button" value="web">WiFi<i class="fa-solid fa-wifi"></i></button>
-            <button id="ble-workflow" class="purple-button files-button" value="ble">Bluetooth<i class="fa-brands fa-bluetooth"></i></button>
+            <button id="ble-workflow" class="purple-button files-button" value="ble">Bluetooth<i class="fa-brands fa-bluetooth-b"></i></button>
             <button id="usb-workflow" class="purple-button files-button" value="usb">USB<i class="fa-brands fa-usb"></i></button>
         </div>
     </div>
@@ -239,14 +239,14 @@
                     <h1>Update CircuitPython</h1>
                     <p>Web Workflow is only available on CircuitPython boards with <a
                             href="https://circuitpython.org/downloads?mcufamilies=esp32&mcufamilies=esp32c3&mcufamilies=esp32s2&mcufamilies=esp32s3"
-                            target="_blank">ESP chips running CircuitPython 8.0.0-beta.0 or newer</a>.</p>
+                            target="_blank">ESP chips running CircuitPython 8.0.0-beta.6 or newer</a>.</p>
                 </div>
             </section>
             <section class="step">
                 <div class="step-number"></div>
                 <div class="step-content">
                     <h1>Connect Device to the Internet</h1>
-                    <p>To connect the device to your network, you will need to set up the .env file on your device
+                    <p>To connect the device to your network, you will need to set up the settings.toml file on your device
                         and add your WiFi credentials. The <a href="https://learn.adafruit.com/getting-started-with-web-workflow-using-the-code-editor/device-setup"
                             target="_blank">CircuitPython Web Workflow Code Editor Quick Start Guide</a> has more details how to create
                         this file.</p>
@@ -293,6 +293,7 @@
                     <h1>Select USB Host Folder</h1>
                     <p>Select the root folder of your device. This is typically the CIRCUITPY Drive on your computer unless you renamed it. If your device does not appear as a drive on your computer, it will need to have the USB Host functionality enabled.</p>
                     <p>
+                        <button class="purple-button hidden" id="useHostFolder">Use <span id="workingFolder"></span></button>
                         <button class="purple-button" id="selectHostFolder">Select Working Folder</button>
                     </p>
                 </div>
@@ -332,7 +333,7 @@
             <button class="purple-button ok-button">Close</button>
         </div>
     </div>
-    <script src="https://cdn.jsdelivr.net/npm/xterm@5.0.0/lib/xterm.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xterm@5.1.0/lib/xterm.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.6.0/lib/xterm-addon-fit.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"
         integrity="sha512-XMVd28F1oH/O71fzwBnV7HucLxVwtxf26XV8P4wPk26EDxuGZ91N8bsOttmnomcCD3CS5ZMRL50H0GgOHvegtg==" crossorigin="anonymous"

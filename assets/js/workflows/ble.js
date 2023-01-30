@@ -2,8 +2,9 @@
  * This class will encapsulate all of the workflow functions specific to BLE
  */
 
+import {CONNTYPE, CONNSTATE} from '../constants.js';
 import {FileTransferClient} from 'https://cdn.jsdelivr.net/gh/adafruit/ble-file-transfer-js@1.0.2/adafruit-ble-file-transfer.js';
-import {Workflow, CONNTYPE} from './workflow.js';
+import {Workflow} from './workflow.js';
 import {GenericModal} from '../common/dialogs.js';
 import {sleep, getUrlParam} from '../common/utilities.js';
 
@@ -251,9 +252,8 @@ class BLEWorkflow extends Workflow {
         }
     }
 
-    updateConnected(isConnected) {
-        super.updateConnected(isConnected);
-        this._connected = true;
+    updateConnected(connectionState) {
+        super.updateConnected(connectionState);
         this.connectionStep(2);
     }
 

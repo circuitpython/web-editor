@@ -1,7 +1,10 @@
+import { get, set } from 'https://unpkg.com/idb-keyval@6.2.0/dist/index.js';
+
 class FileTransferClient {
-    constructor(connectionStatusCB) {
+    constructor(connectionStatusCB, uid) {
         this.connectionStatus = connectionStatusCB;
         this._dirHandle = null;
+        this._uid = uid;
     }
 
     async readOnly() {
@@ -16,47 +19,105 @@ class FileTransferClient {
             folderHandle = await this._getSubfolderHandle(path);
         }
 
-        const options = {mode: 'readwrite'};
-
-        if (await folderHandle.queryPermission(options) === 'granted') {
-            return false;
-        }
-
-        if (await folderHandle.requestPermission(options) === 'granted') {
-            return false;
-        }
-
-        return true;
+        return !(await self._verifyPermission(folderHandle));
     }
 
     async _checkConnection() {
-        if (!this.connectionStatus()) {
+        if (!this.connectionStatus(true)) {
             throw new Error("Unable to perform file operation. Not Connected.");
         }
 
         if (!this._dirHandle) {
-            this._dirHandle = await window.showDirectoryPicker({mode: 'readwrite'});
+            await this._loadDirHandle();
 
-            // TODO: Store the directory handle in IndexedDB storage so the user doesn't have to select it again
-            // See https://developer.chrome.com/articles/file-system-access/#storing-file-handles-or-directory-handles-in-indexeddb
+            if (this._dirHandle) {
+                const info = await this.versionInfo();
+                console.log(info);
+                console.log("Found via REPL: " + this._uid);
+                if (info) {
+                    console.log("Found via boot_out.txt: " + info.uid);
+                } else {
+                    console.log("Unable to read boot_out.txt");
+                }
 
-            const info = await this.versionInfo();
-            if (info && info.uid) {
-                // TODO: compare the UID to the one that is to be passed into the constructor
+                // TODO: This needs to be more reliable before we stop the user from continuing
+                if (info && info.uid && this._uid) {
+                    if (this._uid == info.uid) {
+                        console.log("UIDs found in REPL and boot_out.txt match!");
+                    }
+                }
+
+                if (!info === null) {
+                    // We're likely not in the root directory of the device because
+                    // boot_out.txt probably wasn't found
+                }
+
+                // TODO: Verify this is a circuitpython drive
+                // Perhaps check boot_out.txt, Certain structural elements, etc.
+                // Not sure how to verify it's the same device that we are using webserial for
+                // Perhaps we can match something in boot_out.txt to the device name
+
+                // For now we're just going to trust the user
             }
-
-            if (!info === null) {
-                // We're likely not in the root directory of the device because
-                // boot_out.txt probably wasn't found
-            }
-
-            // TODO: Verify this is a circuitpython drive
-            // Perhaps check boot_out.txt, Certain structural elements, etc.
-            // Not sure how to verify it's the same device that we are using webserial for
-            // Perhaps we can match something in boot_out.txt to the device name
-
-            // For now we're just going to trust the user
         }
+
+        if (!this._dirHandle) {
+            throw new Error("Unable to perform file operation. No Working Folder Selected.");
+        }
+    }
+
+    async loadSavedDirHandle() {
+        try {
+            const savedDirHandle = await get('usb-working-directory');
+            // Request permission to make it writable
+            if (savedDirHandle && (await this._verifyPermission(savedDirHandle))) {
+                // Check if the stored directory is available. It will fail if not.
+                await savedDirHandle.getFileHandle("boot_out.txt");
+                this._dirHandle = savedDirHandle;
+                return true;
+            }
+        } catch (e) {
+            console.error("Unable to access boot_out.txt in saved directory handle:", e);
+        }
+        return false;
+    }
+
+    async loadDirHandle(preferSaved = true) {
+        if (preferSaved) {
+            const result = await loadSavedDirHandle();
+            if (!result) {
+                return true;
+            }
+        }
+
+        const dirHandle = await window.showDirectoryPicker({mode: 'readwrite'});
+        if (dirHandle) {
+            await set('usb-working-directory', dirHandle);
+            this._dirHandle = dirHandle;
+            return true;
+        }
+        return false;
+    }
+
+    getWorkingDirectoryName() {
+        if (this._dirHandle) {
+            return this._dirHandle.name;
+        }
+        return null;
+    }
+
+    async _verifyPermission(folderHandle) {
+        const options = {mode: 'readwrite'};
+
+        if (await folderHandle.queryPermission(options) === 'granted') {
+            return true;
+        }
+
+        if (await folderHandle.requestPermission(options) === 'granted') {
+            return true;
+        }
+
+        return false;
     }
 
     async readFile(path, raw = false) {
@@ -143,11 +204,13 @@ class FileTransferClient {
     }
 
     // Returns an array of objects, one object for each file or directory in the given path
-    async listDir(path) {
+    async listDir(path, subfolderHandle=null) {
         await this._checkConnection();
 
         let contents = [];
-        let subfolderHandle = await this._getSubfolderHandle(path);
+        if (!subfolderHandle) {
+            subfolderHandle = await this._getSubfolderHandle(path);
+        }
 
         // Get all files and folders in the folder
         for await (const [filename, entryHandle] of subfolderHandle.entries()) {
@@ -257,7 +320,9 @@ class FileTransferClient {
     async versionInfo() {
         // Possibly open /boot_out.txt and read the version info
         let versionInfo = {};
+        console.log("Reading version info");
         let bootout = await this.readFile('/boot_out.txt', false);
+        console.log(bootout);
         if (!bootout) {
             return null;
         }

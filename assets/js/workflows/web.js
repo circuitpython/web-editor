@@ -2,10 +2,11 @@
  * This class will encapsulate all of the workflow functions specific to Web
  */
 
+import {CONNTYPE, CONNSTATE} from '../constants.js';
 import {FileTransferClient} from '../common/web-file-transfer.js';
-import {Workflow, CONNTYPE} from './workflow.js';
+import {Workflow} from './workflow.js';
 import {GenericModal, DiscoveryModal} from '../common/dialogs.js';
-import {isTestHost, isMdns, isIp, getUrlParam, switchDevice} from '../common/utilities.js';
+import {isTestHost, isMdns, isIp, getUrlParam, switchDevice, sleep, timeout} from '../common/utilities.js';
 
 const CONNECT_TIMEOUT_MS = 30000;
 const PING_INTERVAL_MS = 5000;
@@ -148,12 +149,12 @@ class WebWorkflow extends Workflow {
             return returnVal;
         }
         // Wait for a connection with a timeout
-        console.log("Waiting for connection...");
+        console.log("Waiting for connection status to change...");
         try {
-            await this.timeout(
+            await timeout(
                 async () => {
                     while (!this.connectionStatus()) {
-                        await this.sleep(100);
+                        await sleep(100);
                     }
                 }, CONNECT_TIMEOUT_MS
             );
@@ -205,7 +206,7 @@ class WebWorkflow extends Workflow {
 
     async _checkConnection() {
         try {
-            await this.timeout(
+            await timeout(
                 async () => {
                     await this.activeConnection();
                 }, PING_TIMEOUT_MS

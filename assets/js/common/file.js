@@ -2,6 +2,7 @@
 // with a common set of additional functions
 class FileHelper {
     constructor(fileClient) {
+        this._fileClient = fileClient;
         this.readFile = fileClient.readFile.bind(fileClient);
         this._writeFile = fileClient.writeFile.bind(fileClient);
         this.listDir = fileClient.listDir.bind(fileClient);
@@ -28,6 +29,10 @@ class FileHelper {
         } else {
             this.otherDevices = this._nullFunction;
         }
+    }
+
+    getFileClient() {
+        return this._fileClient;
     }
 
     async _nullFunction() {

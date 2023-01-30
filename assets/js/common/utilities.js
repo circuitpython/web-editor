@@ -1,15 +1,19 @@
+// Run the callback and if it doesn't complete in the given time, throw an error
 function timeout(callback, ms) {
     return Promise.race([callback(), sleep(ms).then(() => {throw Error("Timed Out");})]);
 }
 
+// Sleep for the given number of milliseconds
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+// Check if the current host is a test host
 function isTestHost() {
     return location.hostname == "localhost" || location.hostname == "127.0.0.1";
 }
 
+// Build a url hash from the given object parameters
 function buildHash(hashParams) {
     let segments = [];
     for (const item in hashParams) {
@@ -22,6 +26,7 @@ function buildHash(hashParams) {
     return '#' + segments.join('&');
 }
 
+// Build a url from the given url and extra parameters object
 function makeUrl(url, extraParams = {}) {
     let urlParams = {
         ...getUrlParams(),
@@ -36,19 +41,23 @@ function makeUrl(url, extraParams = {}) {
     return new URL(oldUrl) + buildHash(urlParams);
 }
 
+// Check if the current url is a valid CircuitPython Web Workflow local device name
 function isMdns() {
     // Check for cpy-XXXXXX.local (and optionally cpy-XXXXXX-###.local for mDNS name resolution)
     return location.hostname.search(/cpy-[0-9a-f]{6}(?:-[0-9]+)?.local/gi) == 0;
 }
 
+// Check if the current url is an IP address
 function isIp() {
     return location.hostname.search(/([0-9]{1,3}.){4}/gi) == 0;
 }
 
+// Check if the current url is a Web Workflow, IP, or Test Address and current path is /code/
 function isLocal() {
     return (isMdns() || location.hostname == "localhost" || isIp()) && (location.pathname == "/code/");
 }
 
+// Parse out the url parameters from the current url
 function getUrlParams() {
     // This should look for and validate very specific values
     var hashParams = {};
@@ -58,6 +67,7 @@ function getUrlParams() {
     return hashParams;
 }
 
+// Get a url parameter by name and optionally remove it from the current url in the process
 function getUrlParam(name, remove = true) {
     let urlParams = getUrlParams();
     let paramValue = null;
@@ -74,10 +84,7 @@ function getUrlParam(name, remove = true) {
     return paramValue;
 }
 
-function regexEscape(regexString) {
-    return regexString.replace(/\\/, "\\\\");
-}
-
+// Switch to a new url with the current document state and reload the page if the host and path are the same
 function switchUrl(url, documentState, backend = null) {
     let params  ={state: encodeURIComponent(JSON.stringify(documentState))}
     if (backend) {
@@ -94,10 +101,12 @@ function switchUrl(url, documentState, backend = null) {
     }
 }
 
+// Switch to a new device url with the current document state
 function switchDevice(deviceHost, documentState) {
     switchUrl(`http://${deviceHost}/code/`, documentState);
 }
 
+// Return an uploaded file as an array buffer
 function readUploadedFileAsArrayBuffer(inputFile) {
     const reader = new FileReader();
 
@@ -125,7 +134,6 @@ export {
     getUrlParam,
     timeout,
     sleep,
-    regexEscape,
     switchUrl,
     switchDevice,
     readUploadedFileAsArrayBuffer

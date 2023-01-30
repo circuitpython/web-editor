@@ -1,24 +1,12 @@
-import {sleep, timeout, regexEscape} from '../common/utilities.js';
 import {FileHelper} from '../common/file.js';
+import {REPL} from 'https://cdn.jsdelivr.net/gh/adafruit/circuitpython-repl-js@1.0.0/repl.js';
 import {UnsavedDialog} from '../common/dialogs.js';
 import {FileDialog, FILE_DIALOG_OPEN, FILE_DIALOG_SAVE} from '../common/file_dialog.js';
-import { MODE_SERIAL } from '../constants.js';
+import {MODE_SERIAL, CONNTYPE, CONNSTATE} from '../constants.js';
+
 /*
  * This class will encapsulate all of the common workflow-related functions
  */
-
-const CONNTYPE = {
-    None: 1,
-    Ble: 2,
-    Usb: 3,
-    Web: 4
-};
-
-const CHAR_CTRL_C = '\x03';
-const CHAR_CTRL_D = '\x04';
-const CHAR_CRLF = '\x0a\x0d';
-const CHAR_TITLE_START = "\x1b]0;";
-const CHAR_TITLE_END = "\x1b\\";
 
 const validBackends = {
     "web": CONNTYPE.Web,
@@ -51,16 +39,13 @@ class Workflow {
         this.partialWrites = false;
         this.disconnectCallback = null;
         this.loadEditor = null;
-        this.timeout = timeout;
-        this.sleep = sleep;
         this.connectDialog = null;
         this._connected = false;
         this.currentFilename = null;
         this.fileHelper = null;
         this._unsavedDialog = new UnsavedDialog("unsaved");
         this._fileDialog = new FileDialog("files", this.showBusy.bind(this));
-        this._pythonCodeRunning = false;
-        this._codeOutput = '';
+        this.repl = new REPL();
     }
 
     async init(params) {
@@ -78,6 +63,9 @@ class Workflow {
         }
         this.currentFilename = params.currentFilename;
         this._changeMode = params.changeModeFunc;
+
+        this.repl.setTitle = this.setTerminalTitle.bind(this);
+        this.repl.serialTransmit = this.serialTransmit.bind(this);
     }
 
     async initFileClient(fileClient) {
@@ -92,6 +80,10 @@ class Workflow {
         return await this.available();
     }
 
+    async restartDevice() {
+        this.repl.softRestart();
+    }
+
     makeDocState(document, docChangePos) {
         return {
             path: this.currentFilename,
@@ -102,7 +94,7 @@ class Workflow {
 
     async onDisconnected(e, reconnect = true) {
         this.debugLog("disconnected");
-        this.updateConnected(false);
+        this.updateConnected(CONNSTATE.disconnected);
         // Update Common UI Elements
         if (this.disconnectCallback) {
             this.disconnectCallback();
@@ -115,49 +107,34 @@ class Workflow {
     async onConnected(e) {
         this.debugLog("connected");
         console.log("Connected!");
-        this.updateConnected(true);
+        this.updateConnected(CONNSTATE.connected);
         if (this.connectDialog) {
             this.connectDialog.close();
         }
     }
 
     async onSerialReceive(e) {
-        if (e.data == CHAR_TITLE_START) {
-            this.titleMode = true;
-            this.setTerminalTitle("");
-        } else if (e.data == CHAR_TITLE_END) {
-            this.titleMode = false;
-        } else if (this.titleMode) {
-            this.setTerminalTitle(e.data, true);
-        }
-
-        if (e.data.match(/\n>>> $/)) {
-            console.log("prompt detected");
-            this._pythonCodeRunning = false;
-        }
-
-        if (this._pythonCodeRunning) {
-            // We may need to ignore any lines starting with >>> or . so we don't capture the input
-            // But since e.data can be a partial line, we need to wait until we have a full line
-            console.log(">" + e.data);
-            this._codeOutput += e.data;
-        } else {
-            console.log("!" + e.data);
-        }
+        await this.repl.onSerialReceive(e);
 
         this.writeToTerminal(e.data);
     }
 
-    connectionStatus() {
-        return this._connected;
+    connectionStatus(partialConnectionsAllowed = false) {
+        if (partialConnectionsAllowed) {
+            return this._connected != CONNSTATE.disconnected;
+        }
+
+        return this._connected == CONNSTATE.connected;
     }
 
     async deinit() {
 
     }
 
-    updateConnected(isConnected) {
-        this._connected = isConnected;
+    updateConnected(connectionState) {
+        if (Object.values(CONNSTATE).includes(connectionState)) {
+            this._connected = connectionState;
+        }
     }
 
     async showBusy(functionPromise, darkBackground = true) {
@@ -201,7 +178,7 @@ class Workflow {
         return await this.connectDialog.open();
     }
 
-    async runCode() {
+    async runCurrentCode() {
         let path = this.currentFilename;
 
         if (!path) {
@@ -210,7 +187,7 @@ class Workflow {
         }
 
         if (path == "/code.py") {
-            await this.serialTransmit(CHAR_CTRL_D);
+            await this.repl.softRestart();
         } else {
 
             let extension = path.split('.').pop();
@@ -225,37 +202,9 @@ class Workflow {
 
             path = path.slice(1, -3);
             path = path.replace(/\//g, ".");
-            await (this.runPythonCode("import " + path));
+            await (this.repl.runCode("import " + path));
         }
         await this._changeMode(MODE_SERIAL);
-    }
-
-    async runPythonCode(code) {
-        // Allows for supplied python code to be run on the device via the REPL
-        // Currently this is kinda buggy, but works if no return values are expected
-        //
-        // If blindly prefixing Control+C causes issues, we may need to determine if it is
-        // at the REPL such as listening for a prompt in onSerialRecieve and also have a way
-        // to determine if the device has been reset where it's not at the REPL.
-        //
-        // We could also just look for "Code done running." in the output (which is available
-        // even on a fresh connect). If that's found, we can set a variable that indicates Ctrl+C
-        // needs to be sent. Once it's sent, we unset the variable.
-        this._pythonCodeRunning = true;
-        this._codeOutput = '';
-
-        await this.serialTransmit(CHAR_CTRL_C);
-        for (const line of code.split(/\r?\n/)) {
-            await this.serialTransmit(line + CHAR_CRLF);
-        }
-
-        // Wait for the code to finish running
-        // so we can capture the output
-        /*while (this._pythonCodeRunning) {
-            await sleep(100);
-        }*/
-
-        return this._codeOutput;
     }
 
     async checkSaved() {
@@ -352,26 +301,10 @@ class Workflow {
     async available() {
         return Error("This work flow is not available.");
     }
-
-    _tokenize(string) {
-        const tokenRegex = new RegExp("(" + regexEscape(CHAR_TITLE_START) + "|" + regexEscape(CHAR_TITLE_END) + ")", "gi");
-        return string.split(tokenRegex);
-    }
-
-    _hasPartialToken(chunk) {
-        const partialToken = /\\x1b(?:\](?:0"?)?)?$/gi;
-        return partialToken.test(chunk);
-    }
 }
 
 export {
     Workflow,
-    CHAR_CTRL_C,
-    CHAR_CTRL_D,
-    CHAR_CRLF,
-    CHAR_TITLE_START,
-    CHAR_TITLE_END,
-    CONNTYPE,
     isValidBackend,
     getBackendWorkflow,
     getWorkflowBackendName
