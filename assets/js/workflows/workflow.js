@@ -291,7 +291,10 @@ class Workflow {
     }
 
     async readOnly() {
-        return await this.fileHelper.readOnly();
+        if (this.fileHelper) {
+            return await this.fileHelper.readOnly();
+        }
+        return false;
     }
 
     async parseParams() {

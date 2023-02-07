@@ -182,6 +182,7 @@ class FileTransferClient {
         if (!response) {
             return null;
         }
+
         return JSON.parse(response);
     }
 
@@ -190,7 +191,7 @@ class FileTransferClient {
         try {
             versionResponse = await fetch(`http://${host}/cp/version.json`, {mode: "cors"});
         } catch (error) {
-            console.error(`Host '${host}' not found.`);
+            //console.error(`Host '${host}' not found.`);
             throw new ProtocolError(`Host '${host}' not found.`);
         }
         return new URL("/", versionResponse.url).host;

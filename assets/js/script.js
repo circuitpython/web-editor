@@ -172,9 +172,13 @@ async function checkReadOnly() {
     btnSaveRun.forEach((element) => {
         element.disabled = readOnly;
     });
-    if (readOnly) {
+    if (readOnly instanceof Error) {
+        await showMessage(readOnly);
+        return false;
+    } else if (readOnly) {
         await showMessage("Warning: File System is in read only mode. Disable the USB drive to allow write access.");
     }
+    return true;
 }
 
 /* Update the filename and update the UI */
@@ -512,9 +516,10 @@ document.addEventListener('DOMContentLoaded', async (event) => {
         // If we don't have all the info we need to connect
         let returnVal = await workflow.parseParams();
         if (returnVal === true && await workflowConnect() && workflow.type === CONNTYPE.Web) {
-            await checkReadOnly();
-            // We're connected, local, and using Web Workflow
-            await workflow.showInfo(getDocState());
+            if (await checkReadOnly()) {
+                // We're connected, local, no errors, and using Web Workflow
+                await workflow.showInfo(getDocState());
+            }
         } else {
             if (returnVal instanceof Error) {
                 await showMessage(returnVal);

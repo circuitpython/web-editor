@@ -47,11 +47,11 @@ class WebWorkflow extends Workflow {
 
     async connect() {
         let result;
-        if (result = await super.connect() instanceof Error) {
+        if ((result = await super.connect()) instanceof Error) {
             return result;
         }
-        if (!await this.checkHost()) {
-            return false;
+        if ((result = await this.checkHost()) instanceof Error) {
+            return result;
         }
         return await this.connectToHost(this.host);
     }
@@ -179,8 +179,8 @@ class WebWorkflow extends Workflow {
                 this.host = await FileTransferClient.getRedirectedHost(this.host);
                 console.log("New Host", this.host);
             } catch (e) {
-                console.error("Unable to forward to device. Ensure they are set up and connected to the same local network.");
-                return false;
+                console.error(e);
+                return new Error("Unable to forward to device. Ensure they are set up and connected to the same local network.");
             }
         }
 
