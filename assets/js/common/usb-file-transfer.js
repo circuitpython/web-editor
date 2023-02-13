@@ -19,7 +19,7 @@ class FileTransferClient {
             folderHandle = await this._getSubfolderHandle(path);
         }
 
-        return !(await self._verifyPermission(folderHandle));
+        return !(await this._verifyPermission(folderHandle));
     }
 
     async _checkConnection() {
@@ -28,7 +28,7 @@ class FileTransferClient {
         }
 
         if (!this._dirHandle) {
-            await this._loadDirHandle();
+            await this.loadDirHandle();
 
             if (this._dirHandle) {
                 const info = await this.versionInfo();
