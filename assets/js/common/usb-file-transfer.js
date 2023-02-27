@@ -146,11 +146,12 @@ class FileTransferClient {
         await this._checkConnection();
         await this._checkWritable();
 
-        if (modificationTime) {
+        /*if (modificationTime) {
             console.warn("Setting modification time not currently supported in USB Workflow.");
-        }
+        }*/
 
         if (!raw) {
+            let encoder = new TextEncoder();
             let same = contents.slice(0, offset);
             let different = contents.slice(offset);
             offset = encoder.encode(same).byteLength;
