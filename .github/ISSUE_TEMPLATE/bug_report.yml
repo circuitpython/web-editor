@@ -1,0 +1,87 @@
+name: 🐞 Bug Report
+description: Create a bug report to help us improve
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: >-
+        Thanks for testing out CircuitPython Code Editor!
+        Now that you have encountered a bug... you can file a report for it.
+  - type: textarea
+    id: firmware
+    attributes:
+      label: CircuitPython Version
+      description: >-
+        Include the version of CircuitPython you're running on your board.
+        You can see it in the `boot_out.txt` file, as well as in the `REPL`.
+      placeholder: Adafruit CircuitPython 6.2.0 on 2021-03-01; Raspberry Pi Pico with rp2040
+      render: python
+    validations:
+      required: true
+  - type: dropdown
+    id: workflows
+    attributes:
+      label: Workflow(s)
+      description: What workflow(s) are you seeing the problem on?
+      multiple: true
+      options:
+        - BLE
+        - USB
+        - WEB
+    validations:
+      required: true
+  - type: textarea
+    id: browsers
+    attributes:
+      label: Browser(s)
+      description: >-
+        What browser(s) are you seeing the problem on?
+        Please also mention the browser's version (if available).
+      placeholder: |
+        Google Chrome 111.0.5563.65
+      render: python
+    validations:
+      required: true
+  - type: textarea
+    id: console
+    attributes:
+      label: Console Log
+      description: >-
+        The browser's console log (if available).
+        This will be automatically formatted into code, so no need for backticks.
+      placeholder: |
+        script.js:400 write failed ReferenceError: encoder is not defined
+            at oa.writeFile (usb-file-transfer.js:156:13)
+            at async Nl.writeFile (file.js:67:13)
+      render: python
+    validations:
+      required: false
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps
+      description: Please mention the steps needed to replicate the issue.
+      placeholder: |
+        1. Connect to the board with the USB workflow
+        2. Allow access to the drive (not called CIRCUITPY)
+        3. Write in a new file print("Hello")
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: Optionally, describe the bug in more detail.
+      placeholder: |
+        - Error while using...
+        - Only happens when...
+        - Might be related to #64...
+  - type: textarea
+    id: more-info
+    attributes:
+      label: Additional information
+      description: >-
+        Optionally, add any other information like screenshot of the page.
+        If you have already done some debugging, mention it here.
+      placeholder: Removing [this](url) line resolves the issue.
