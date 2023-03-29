@@ -174,6 +174,9 @@ class USBWorkflow extends Workflow {
             }
             this._connectionStep(1);
         } else {
+            modal.querySelectorAll('.step:not(:first-of-type)').forEach((stepItem) => {
+                stepItem.classList.add("hidden");
+            });
             this._connectionStep(0);
         }
 
