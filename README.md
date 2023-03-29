@@ -1,6 +1,6 @@
 # CircuitPython Code Editor
 
-This is an online Code Editor that leverages Web Bluetooth to allow editing and debugging on nrf52-based devices.
+The CircuitPython Code Editor is a browser app for editing and debugging CircuitPython devices over WiFi, Bluetooth, and USB. Each connectivity option has certain requirements on CircuitPython version and device (microcontroller).
 
 A live copy of the tool is hosted here: https://code.circuitpython.org
 
