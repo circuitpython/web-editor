@@ -67,6 +67,9 @@ class BLEWorkflow extends Workflow {
             const devices = await navigator.bluetooth.getDevices();
             this.connectionStep(devices.length > 0 ? 2 : 1);
         } else {
+            modal.querySelectorAll('.step:not(:first-of-type)').forEach((stepItem) => {
+                stepItem.classList.add("hidden");
+            });
             this.connectionStep(0);
         }
 
@@ -259,11 +262,10 @@ class BLEWorkflow extends Workflow {
 
     async available() {
         if (!('bluetooth' in navigator)) {
-            return Error("Bluetooth not supported on this browser");
+            return Error("Web Bluetooth is not enabled in this browser");
         } else if (!(await navigator.bluetooth.getAvailability())) {
-            return Error("No bluetooth adapter founnd");
+            return Error("No bluetooth adapter found");
         }
-
         return true;
     }
 
