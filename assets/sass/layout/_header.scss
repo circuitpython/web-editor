@@ -129,7 +129,7 @@
     }
 }
 
-#editor-bar {
+#editor-bar, #serial-bar {
     display: flex;
 }
 
@@ -138,7 +138,7 @@
         display: none !important;
     }
 
-    #editor-bar {
+    #editor-bar, #serial-bar {
         display: none !important;
     }
 }
