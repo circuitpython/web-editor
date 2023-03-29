@@ -25,6 +25,7 @@ workflows[CONNTYPE.Usb] = new USBWorkflow();
 const btnModeEditor = document.querySelector('.btn-mode-editor');
 const btnModeSerial = document.querySelector('.btn-mode-serial');
 const btnRestart = document.querySelector('.btn-restart');
+const btnClear = document.querySelector('.btn-clear');
 const mainContent = document.getElementById('main-content');
 const btnConnect = document.querySelectorAll('.btn-connect');
 const btnNew = document.querySelectorAll('.btn-new');
@@ -99,6 +100,11 @@ btnRestart.addEventListener('click', async function(e) {
     await checkConnected();
     // Perform a device soft restart
     await workflow.restartDevice();
+});
+
+// Clear Button
+btnClear.addEventListener('click', async function(e) {
+    terminal.clear();
 });
 
 // Mode Buttons
