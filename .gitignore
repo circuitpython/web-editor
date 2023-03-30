@@ -130,3 +130,6 @@ snowpack.key
 
 # Testing folder
 code/
+
+# generated and compiled files
+assets/css/

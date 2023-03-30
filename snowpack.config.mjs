@@ -10,15 +10,10 @@
 export default {
   exclude: ['**/Makefile', '**/.git/**/*'],
   mount: {
-    /* ... */
+    'node_modules/@fortawesome/fontawesome-free/webfonts': {url: '/assets/css/webfonts', static: true, resolve:false},
+    '.': '/',
   },
   plugins: [
-    [
-      '@snowpack/plugin-run-script', {
-        // Copy latest webfonts to css folder
-        cmd: "cp -rf node_modules/@fortawesome/fontawesome-free/webfonts assets/css"
-      }
-    ],
     [
       '@snowpack/plugin-run-script', {
         // Compile Font Awesome using the correct node package as a location
