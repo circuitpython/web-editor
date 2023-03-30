@@ -22,16 +22,16 @@ workflows[CONNTYPE.Ble] = new BLEWorkflow();
 workflows[CONNTYPE.Web] = new WebWorkflow();
 workflows[CONNTYPE.Usb] = new USBWorkflow();
 
-const btnModeEditor = document.getElementById('btn-mode-editor');
-const btnModeSerial = document.getElementById('btn-mode-serial');
-const btnRestart = document.getElementById('btn-restart');
+const btnModeEditor = document.querySelector('.btn-mode-editor');
+const btnModeSerial = document.querySelector('.btn-mode-serial');
+const btnRestart = document.querySelector('.btn-restart');
 const mainContent = document.getElementById('main-content');
 const btnConnect = document.querySelectorAll('.btn-connect');
 const btnNew = document.querySelectorAll('.btn-new');
 const btnOpen = document.querySelectorAll('.btn-open');
 const btnSaveAs = document.querySelectorAll('.btn-save-as');
 const btnSaveRun = document.querySelectorAll('.btn-save-run');
-const btnInfo = document.getElementById('btn-info');
+const btnInfo = document.querySelector('.btn-info');
 const terminalTitle = document.getElementById('terminal-title');
 
 const messageDialog = new MessageModal("message");
