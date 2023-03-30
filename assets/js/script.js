@@ -318,7 +318,8 @@ async function changeMode(mode) {
 }
 
 async function debugLog(msg) {
-    terminal.write(`\x1b[93m${msg}\x1b[m\n`);
+    terminal.writeln(''); // get a fresh line without any prior content (a '>>>' prompt might be there without newline)
+    terminal.writeln(`\x1b[93m${msg}\x1b[0m`);
 }
 
 function updateUIConnected(isConnected) {
