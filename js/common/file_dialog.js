@@ -1,6 +1,7 @@
 import {GenericModal, ProgressDialog, ButtonValueDialog} from './dialogs.js';
 import {readUploadedFileAsArrayBuffer} from './utilities.js';
 import {saveAs} from 'file-saver';
+import {JSZip} from 'jszip';
 
 const FILE_DIALOG_OPEN = 1;
 const FILE_DIALOG_SAVE = 2;

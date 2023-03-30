@@ -4,11 +4,9 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link rel="icon" href="assets/images/favicon.ico" type="image/x-icon" />
     <title>CircuitPython Code Editor</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.1.0/css/xterm.css">
-    <link rel="stylesheet" href="assets/css/fontawesome.css">
-    <link rel="stylesheet" href="assets/css/style.css">
+    <link rel="icon" href="/assets/images/favicon.ico" type="image/x-icon" />
+    <link rel="stylesheet" href="/sass/style.scss">
 </head>
 
 <body>
@@ -20,9 +18,9 @@
                 <nav class="site-brand">
                     <div class="site-logo">
                         <a href="https://code.circuitpython.org/">
-                            <img src="assets/images/logo.png" srcset="assets/images/logo.png 1x,
-                                    assets/images/logo@2x.png 2x,
-                                    assets/images/logo@3x.png 3x" alt="CircuitPython Logo" height="60" width="136">
+                            <img src="/images/logo.png" srcset="/images/logo.png 1x,
+                                    /images/logo@2x.png 2x,
+                                    /images/logo@3x.png 3x" alt="CircuitPython Logo" height="60" width="136">
                         </a>
                     </div>
                     <div class="get-started">
@@ -38,9 +36,9 @@
             <nav class="site-brand">
                 <div class="site-logo">
                     <a href="https://code.circuitpython.org/">
-                        <img src="assets/images/logo.png" srcset="assets/images/logo.png 1x,
-                                    assets/images/logo@2x.png 2x,
-                                    assets/images/logo@3x.png 3x" alt="CircuitPython Logo" height="40" width="91">
+                        <img src="/images/logo.png" srcset="/images/logo.png 1x,
+                                    /images/logo@2x.png 2x,
+                                    /images/logo@3x.png 3x" alt="CircuitPython Logo" height="40" width="91">
                     </a>
                 </div>
                 <div class="get-started">
@@ -119,8 +117,8 @@
     <div class="loader" id="loader">
         <div>
             <picture>
-                <source srcset="assets/images/loading-blinka.webp" type="image/webp">
-                <img src="assets/images/loading-blinka.gif" alt="Loading Animation" height="100" width="100">
+                <source srcset="/images/loading-blinka.webp" type="image/webp">
+                <img src="/images/loading-blinka.gif" alt="Loading Animation" height="100" width="100">
             </picture>
         </div>
     </div>
@@ -338,14 +336,7 @@
             <button class="purple-button ok-button">Close</button>
         </div>
     </div>
-    <script src="https://cdn.jsdelivr.net/npm/xterm@5.1.0/lib/xterm.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.7.0/lib/xterm-addon-fit.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/xterm-addon-web-links@0.8.0/lib/xterm-addon-web-links.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"
-        integrity="sha512-XMVd28F1oH/O71fzwBnV7HucLxVwtxf26XV8P4wPk26EDxuGZ91N8bsOttmnomcCD3CS5ZMRL50H0GgOHvegtg==" crossorigin="anonymous"
-        referrerpolicy="no-referrer"></script>
-    <script src="assets/js/header_mobile.js"></script>
-    <script type="module" src="assets/js/script.js"></script>
-</body>
 
+    <script type="module" src="/js/script.js"></script>
+</body>
 </html>
