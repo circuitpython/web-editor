@@ -8,7 +8,7 @@
 //const key = await fs.promises.readFile('localhost.key');
 
 export default {
-  exclude: ['**/Makefile'],
+  exclude: ['**/Makefile', '**/.git/**/*'],
   mount: {
     /* ... */
   },
