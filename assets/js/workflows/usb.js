@@ -239,7 +239,7 @@ class USBWorkflow extends Workflow {
             await this.writer.ready;
         }
 
-        await this._getDeviceUid();
+        await this.showBusy(this._getDeviceUid());
 
         this.updateConnected(CONNSTATE.partial);
 
@@ -262,7 +262,7 @@ class USBWorkflow extends Workflow {
         // It might be better to take a minimal python approach and do most of
         // the conversion in the javascript code
 
-        console.log("Getting Device UID");
+        console.log("Getting Device UID...");
         let result = await this.repl.runCode(
 `import microcontroller
 import binascii
@@ -271,9 +271,10 @@ binascii.hexlify(microcontroller.cpu.uid).decode('ascii').upper()`
         // Strip out whitespace as well as start and end quotes
         if (result) {
             this._uid = result.trim().slice(1, -1);
-            console.log(this._uid);
+            console.log("Device UID: " + this._uid);
+            this.debugLog("Device UID: " + this._uid)
         } else {
-            console.log("Returned result was", result);
+            console.log("Failed to get Device UID, result was", result);
         }
     }
 
