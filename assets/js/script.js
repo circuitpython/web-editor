@@ -466,8 +466,12 @@ function setupXterm() {
             cursor: '#ddd',
         }
     });
+
     fitter = new FitAddon.FitAddon();
     terminal.loadAddon(fitter);
+
+    terminal.loadAddon(new WebLinksAddon.WebLinksAddon());
+
     terminal.open(document.getElementById('terminal'));
     terminal.onData((data) => {
         workflow.serialTransmit(data);
