@@ -1,5 +1,5 @@
 export default {
-  exclude: ["**/Makefile"],
+  exclude: ["**/Makefile", "**/.git/**/*"],
   mount: {},
   plugins: [
     [
