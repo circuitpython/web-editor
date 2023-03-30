@@ -313,8 +313,22 @@ async function changeMode(mode) {
         mainContent.classList.add("mode-editor");
     } else if (mode == MODE_SERIAL) {
         mainContent.classList.add("mode-serial");
-        fitter.fit();
+        refitTerminal();
     }
+}
+
+function refitTerminal() {
+    // Re-fitting the terminal requires a full re-layout of the DOM which can be tricky to time right.
+    // see https://www.macarthur.me/posts/when-dom-updates-appear-to-be-asynchronous
+    window.requestAnimationFrame(() => {
+        window.requestAnimationFrame(() => {
+            window.requestAnimationFrame(() => {
+                if (fitter) {
+                    fitter.fit();
+                }
+            });
+        });
+    });
 }
 
 async function debugLog(msg) {
@@ -345,9 +359,7 @@ function updateUIConnected(isConnected) {
 function fixViewportHeight() {
     let vh = window.innerHeight * 0.01;
     document.documentElement.style.setProperty('--vh', `${vh}px`);
-    if (fitter) {
-        fitter.fit();
-    }
+    refitTerminal();
 }
 
 window.onbeforeunload = () => {
