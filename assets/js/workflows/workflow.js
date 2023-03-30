@@ -114,9 +114,10 @@ class Workflow {
     }
 
     async onSerialReceive(e) {
-        await this.repl.onSerialReceive(e);
-
         this.writeToTerminal(e.data);
+        // TODO: the current REPL implementation mutates the data field for partial token parsing,
+        // so invoke it after (!) writing to the terminal.
+        await this.repl.onSerialReceive(e);
     }
 
     connectionStatus(partialConnectionsAllowed = false) {
@@ -189,7 +190,6 @@ class Workflow {
         if (path == "/code.py") {
             await this.repl.softRestart();
         } else {
-
             let extension = path.split('.').pop();
             if (extension === null) {
                 console.log("Extension not found");
