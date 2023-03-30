@@ -248,9 +248,7 @@ class USBWorkflow extends Workflow {
         // At this point we should see if we should init the file client and check if have a saved dir handle
         this.initFileClient(new FileTransferClient(this.connectionStatus.bind(this), this._uid));
         const fileClient = this.fileHelper.getFileClient();
-        console.log("Got file client");
         const result = await fileClient.loadSavedDirHandle();
-        console.log(result);
         if (result) {
             console.log("Successfully loaded directory:", fileClient.getWorkingDirectoryName());
             await this._hostFolderChanged();
