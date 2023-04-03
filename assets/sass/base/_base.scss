@@ -62,11 +62,11 @@ h5 {
     cursor: pointer;
     white-space: nowrap;
 
-    &:first-of-type {
+    &:first-of-type, &.first-item {
         margin-left: 0;
     }
 
-    &:last-of-type {
+    &:last-of-type, &.last-item {
         margin-right: 0;
     }
 

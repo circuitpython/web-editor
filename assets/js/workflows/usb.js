@@ -199,7 +199,7 @@ class USBWorkflow extends Workflow {
         const fileClient = this.fileHelper.getFileClient();
         const changed = await fileClient.loadDirHandle(false);
         if (changed) {
-            this._hostFolderChanged();
+            await this._hostFolderChanged();
         }
     }
 
@@ -208,15 +208,17 @@ class USBWorkflow extends Workflow {
         this.onConnected();
     }
 
-    _hostFolderChanged() {
+    async _hostFolderChanged() {
         const fileClient = this.fileHelper.getFileClient();
         const folderName = fileClient.getWorkingDirectoryName();
-        console.log(folderName);
+        console.log("New folder name:", folderName);
         if (folderName) {
             // Set the working folder label
             lblWorkingfolder.innerHTML = folderName;
             btnUseHostFolder.classList.remove("hidden");
-            btnSelectHostFolder.innerHTML = "Select New Folder";
+            btnSelectHostFolder.innerHTML = "Select Different Folder";
+            btnSelectHostFolder.classList.add("inverted");
+            btnSelectHostFolder.classList.remove("first-item");
         }
     }
 
@@ -246,11 +248,12 @@ class USBWorkflow extends Workflow {
         // At this point we should see if we should init the file client and check if have a saved dir handle
         this.initFileClient(new FileTransferClient(this.connectionStatus.bind(this), this._uid));
         const fileClient = this.fileHelper.getFileClient();
-        console.log("Got file client");
         const result = await fileClient.loadSavedDirHandle();
-        console.log(result);
         if (result) {
-            this._hostFolderChanged();
+            console.log("Successfully loaded directory:", fileClient.getWorkingDirectoryName());
+            await this._hostFolderChanged();
+        } else {
+            console.log("Failed to load directory");
         }
     }
 
