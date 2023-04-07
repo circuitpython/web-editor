@@ -184,22 +184,22 @@ class Workflow {
 
         if (!path) {
             console.log("File has not been saved");
-            return;
+            return false;
+        }
+
+        let extension = path.split('.').pop();
+        if (extension === null) {
+            console.log("Extension not found");
+            return false;
+        }
+        if (String(extension).toLowerCase() != "py") {
+            console.log("Extension not .py, it was ." + String(extension).toLowerCase());
+            return false;
         }
 
         if (path == "/code.py") {
             await this.repl.softRestart();
         } else {
-            let extension = path.split('.').pop();
-            if (extension === null) {
-                console.log("Extension not found");
-                return false;
-            }
-            if (String(extension).toLowerCase() != "py") {
-                console.log("Extension not py, it was " + String(extension).toLowerCase());
-                return false;
-            }
-
             path = path.slice(1, -3);
             path = path.replace(/\//g, ".");
             await (this.repl.runCode("import " + path));
@@ -239,15 +239,11 @@ class Workflow {
         let path = await this.saveFileDialog();
         if (path !== null) {
             // check if filename exists
-            if (path != this.currentFilename && await this.fileExists(path)) {
-                if (window.confirm("Overwrite existing file '" + path + "'?")) {
-                    await this.saveFile(path);
-                } else {
-                    return null;
-                }
-            } else {
-                await this.saveFile(path);
+            if (path != this.currentFilename && await this.fileExists(path) && !window.confirm("Overwrite existing file '" + path + "'?")) {
+                return null;
             }
+            this.currentFilename = path;
+            await this.saveFile(path);
         }
         return path;
     }
