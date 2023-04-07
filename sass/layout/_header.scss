@@ -121,18 +121,6 @@
     text-overflow: ellipsis;
 }
 
-#footer-bar {
-    display: flex;
-
-    .spacer {
-        flex: auto;
-    }
-}
-
-#editor-bar, #serial-bar {
-    display: flex;
-}
-
 @media (max-width: $screen-xs-max) {
     #site-header {
         display: none !important;

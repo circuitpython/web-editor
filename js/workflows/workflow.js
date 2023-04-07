@@ -3,7 +3,7 @@ import {REPL} from 'circuitpython-repl-js';
 import {FileHelper} from '../common/file.js';
 import {UnsavedDialog} from '../common/dialogs.js';
 import {FileDialog, FILE_DIALOG_OPEN, FILE_DIALOG_SAVE} from '../common/file_dialog.js';
-import {MODE_SERIAL, CONNTYPE, CONNSTATE} from '../constants.js';
+import {CONNTYPE, CONNSTATE} from '../constants.js';
 
 /*
  * This class will encapsulate all of the common workflow-related functions
@@ -63,7 +63,7 @@ class Workflow {
             this.terminalTitle = params.terminalTitle;
         }
         this.currentFilename = params.currentFilename;
-        this._changeMode = params.changeModeFunc;
+        this._showSerial = params.showSerialFunc;
 
         this.repl.setTitle = this.setTerminalTitle.bind(this);
         this.repl.serialTransmit = this.serialTransmit.bind(this);
@@ -198,6 +198,8 @@ class Workflow {
             return false;
         }
 
+        await this._showSerial();
+
         if (path == "/code.py") {
             await this.repl.softRestart();
         } else {
@@ -205,7 +207,6 @@ class Workflow {
             path = path.replace(/\//g, ".");
             await (this.repl.runCode("import " + path));
         }
-        await this._changeMode(MODE_SERIAL);
     }
 
     async checkSaved() {
