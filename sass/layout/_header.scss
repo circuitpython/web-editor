@@ -5,13 +5,12 @@
 
     .wrapper {
         background-color: #333333;
-        height: 100px;
     }
 
     .content {
         display: grid;
-        padding-top: 20px;
-        padding-bottom: 20px;
+        padding-top: 10px;
+        padding-bottom: 10px;
     }
 
     a.active {
@@ -68,7 +67,7 @@
     width: 100%;
     display: flex;
     flex-direction: row;
-    align-items: flex-end;
+    align-items: center;
 }
 
 .site-banner {
@@ -80,11 +79,26 @@
     }
 }
 
+.site-logo {
+    display: flex;
+}
+
+.github-repo {
+    color: #fff;
+    font-size: 30px;
+    padding: 10px;
+    margin: 10px;
+    border-radius: 40px;
+
+    i {
+        vertical-align: middle;
+    }
+}
+
 .get-started {
     margin-left: auto;
     padding-bottom: 10px;
 
-    a,
     button {
         @include rounded-button;
         background-color: transparent;
