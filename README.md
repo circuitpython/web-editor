@@ -29,3 +29,7 @@ This way requires installing mkcert, but it's much easier to switch back and for
 1. Install [mkcert](https://github.com/FiloSottile/mkcert) on your system
 2. Generate the certificates by running: mkcert -install && mkcert -key-file snowpack.key -cert-file snowpack.crt localhost
 3. Start snowpack in secure mode by --secure to the command: npx snowpack dev --secure
+
+## License
+
+This project is made available under the MIT License. For more details, see the LICENSE file in the repository.
