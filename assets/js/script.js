@@ -30,6 +30,7 @@ const mainContent = document.getElementById('main-content');
 const btnConnect = document.querySelectorAll('.btn-connect');
 const btnNew = document.querySelectorAll('.btn-new');
 const btnOpen = document.querySelectorAll('.btn-open');
+const btnSave = document.querySelectorAll('.btn-save');
 const btnSaveAs = document.querySelectorAll('.btn-save-as');
 const btnSaveRun = document.querySelectorAll('.btn-save-run');
 const btnInfo = document.querySelector('.btn-info');
@@ -66,6 +67,16 @@ btnOpen.forEach((element) => {
         e.stopPropagation();
         await checkConnected();
         workflow.openFile();
+    });
+});
+
+// Save Link/Button (Mobile and Desktop Layout)
+btnSave.forEach((element) => {
+    element.addEventListener('click', async function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        await checkConnected();
+        await workflow.saveFile();
     });
 });
 
@@ -192,8 +203,11 @@ function setFilename(path) {
     let filename = path;
     if (path === null) {
         filename = "[New Document]";
+        btnSave.forEach((b) => b.style.display = 'none');
     } else if (!workflow) {
         throw Error("Unable to set path when no workflow is loaded");
+    } else {
+        btnSave.forEach((b) => b.style.display = null);
     }
     if (workflow) {
         workflow.currentFilename = path;
