@@ -9,6 +9,7 @@ import { Terminal } from 'xterm';
 import { FitAddon } from 'xterm-addon-fit';
 import { WebLinksAddon } from 'xterm-addon-web-links';
 
+import state from './state.js'
 import { BLEWorkflow } from './workflows/ble.js';
 import { USBWorkflow } from './workflows/usb.js';
 import { WebWorkflow } from './workflows/web.js';
@@ -16,17 +17,17 @@ import { isValidBackend, getBackendWorkflow, getWorkflowBackendName } from './wo
 import { ButtonValueDialog, MessageModal } from './common/dialogs.js';
 import { isLocal, switchUrl, getUrlParam } from './common/utilities.js';
 import { CONNTYPE } from './constants.js';
-
-var terminal;
-var fitter;
-var unchanged = 0;
-var workflow = null;
+import './layout.js'; // load for side effects only
+import { mainContent, showSerial } from './layout.js';
 
 // Instantiate workflows
-var workflows = {};
+let workflows = {};
 workflows[CONNTYPE.Ble] = new BLEWorkflow();
 workflows[CONNTYPE.Usb] = new USBWorkflow();
 workflows[CONNTYPE.Web] = new WebWorkflow();
+
+let workflow = null;
+let unchanged = 0;
 
 const btnRestart = document.querySelector('.btn-restart');
 const btnClear = document.querySelector('.btn-clear');
@@ -140,7 +141,7 @@ btnRestart.addEventListener('click', async function(e) {
 
 // Clear Button
 btnClear.addEventListener('click', async function(e) {
-    terminal.clear();
+    state.terminal.clear();
 });
 
 btnInfo.addEventListener('click', async function(e) {
@@ -292,7 +293,7 @@ async function loadWorkflow(workflowType = null) {
             workflow = workflows[workflowType];
             // Initialize the workflow
             await workflow.init({
-                terminal: terminal,
+                terminal: state.terminal,
                 terminalTitle: terminalTitle,
                 loadEditorFunc: loadEditor,
                 debugLogFunc: debugLog,
@@ -342,8 +343,8 @@ async function showMessage(message) {
 }
 
 async function debugLog(msg) {
-    terminal.writeln(''); // get a fresh line without any prior content (a '>>>' prompt might be there without newline)
-    terminal.writeln(`\x1b[93m${msg}\x1b[0m`);
+    state.terminal.writeln(''); // get a fresh line without any prior content (a '>>>' prompt might be there without newline)
+    state.terminal.writeln(`\x1b[93m${msg}\x1b[0m`);
 }
 
 function updateUIConnected(isConnected) {
@@ -471,7 +472,7 @@ editor = new EditorView({
 });
 
 function setupXterm() {
-    terminal = new Terminal({
+    state.terminal = new Terminal({
         theme: {
             background: '#333',
             foreground: '#ddd',
@@ -479,13 +480,13 @@ function setupXterm() {
         }
     });
 
-    fitter = new FitAddon();
-    terminal.loadAddon(fitter);
+    state.fitter = new FitAddon();
+    state.terminal.loadAddon(state.fitter);
 
-    terminal.loadAddon(new WebLinksAddon());
+    state.terminal.loadAddon(new WebLinksAddon());
 
-    terminal.open(document.getElementById('terminal'));
-    terminal.onData((data) => {
+    state.terminal.open(document.getElementById('terminal'));
+    state.terminal.onData((data) => {
         workflow.serialTransmit(data);
     });
 }
@@ -548,160 +549,4 @@ document.addEventListener('DOMContentLoaded', async (event) => {
     } else {
         await checkConnected();
     }
-});
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-const btnModeEditor = document.querySelector('.btn-mode-editor');
-const btnModeSerial = document.querySelector('.btn-mode-serial');
-
-const mainContent = document.getElementById('main-content');
-const editorPage = document.getElementById('editor-page');
-const serialPage = document.getElementById('serial-page');
-const pageSeparator = document.getElementById('page-separator');
-
-btnModeEditor.addEventListener('click', async function(e) {
-    if (btnModeEditor.classList.contains('active') && !btnModeSerial.classList.contains('active')) {
-        // this would cause both editor & serial pages to disappear
-        return;
-    }
-    btnModeEditor.classList.toggle('active');
-    editorPage.classList.toggle('active')
-    updatePageLayout(true, false);
-});
-
-btnModeSerial.addEventListener('click', async function(e) {
-    if (btnModeSerial.classList.contains('active') && !btnModeEditor.classList.contains('active')) {
-        // this would cause both editor & serial pages to disappear
-        return;
-    }
-    btnModeSerial.classList.toggle('active');
-    serialPage.classList.toggle('active')
-    updatePageLayout(false, true);
-});
-
-function updatePageLayout(editor=false, serial=false) {
-    if (editorPage.classList.contains('active') && serialPage.classList.contains('active')) {
-        pageSeparator.classList.add('active');
-    } else {
-        pageSeparator.classList.remove('active');
-        editorPage.style.width = null;
-        editorPage.style.flex = null;
-        serialPage.style.width = null;
-        serialPage.style.flex = null;
-        return;
-    }
-
-    if (mainContent.offsetWidth < 768) {
-        if (editor) {
-            btnModeSerial.classList.remove('active');
-            serialPage.classList.remove('active');
-        } else if (serial) {
-            btnModeEditor.classList.remove('active');
-            editorPage.classList.remove('active');
-        }
-        pageSeparator.classList.remove('active');
-    } else {
-        let w = mainContent.offsetWidth;
-        let s = pageSeparator.offsetWidth;
-        editorPage.style.width = ((w-s) / 2) + 'px';
-        editorPage.style.flex = '0 0 auto';
-        serialPage.style.width = ((w-s) / 2) + 'px';
-        serialPage.style.flex = '0 0 auto';
-    }
-
-    if (serial) {
-        refitTerminal();
-    }
-}
-
-function showEditor() {
-    btnModeEditor.classList.add('active');
-    editorPage.classList.add('active');
-    updatePageLayout(true, false);
-}
-
-function showSerial() {
-    btnModeSerial.classList.add('active');
-    serialPage.classList.add('active');
-    updatePageLayout(false, true);
-}
-
-function refitTerminal() {
-    // Re-fitting the terminal requires a full re-layout of the DOM which can be tricky to time right.
-    // see https://www.macarthur.me/posts/when-dom-updates-appear-to-be-asynchronous
-    window.requestAnimationFrame(() => {
-        window.requestAnimationFrame(() => {
-            window.requestAnimationFrame(() => {
-                if (fitter) {
-                    fitter.fit();
-                }
-            });
-        });
-    });
-}
-
-function fixViewportHeight() {
-    let vh = window.innerHeight * 0.01;
-    document.documentElement.style.setProperty('--vh', `${vh}px`);
-    refitTerminal();
-}
-fixViewportHeight();
-window.addEventListener("resize", fixViewportHeight);
-
-document.addEventListener('DOMContentLoaded', async (event) => {
-    function initResize(e) {
-        window.addEventListener('mousemove', Resize, false);
-        window.addEventListener('mouseup', stopResize, false);
-    }
-
-    function Resize(e) {
-        const w = mainContent.offsetWidth;
-        const s = pageSeparator.offsetWidth;
-        const r = e.clientX / w;
-        const hidingThreshold = 0.1;
-        const minimumThreshold = 0.2;
-        if (r < hidingThreshold) {
-            editorPage.classList.remove('active');
-            btnModeEditor.classList.remove('active');
-            updatePageLayout();
-            stopResize();
-            return;
-        } else if (r > 1-hidingThreshold) {
-            serialPage.classList.remove('active');
-            btnModeSerial.classList.remove('active');
-            updatePageLayout();
-            stopResize();
-            return;
-        } else if (r < minimumThreshold || r > 1-minimumThreshold) {
-            return;
-        }
-        editorPage.style.width = (e.clientX - s/2) + 'px';
-        serialPage.style.width = (w - e.clientX - s/2) + 'px';
-    }
-
-    function stopResize(e) {
-        window.removeEventListener('mousemove', Resize, false);
-        window.removeEventListener('mouseup', stopResize, false);
-    }
-
-    pageSeparator.addEventListener('mousedown', initResize, false);
 });
