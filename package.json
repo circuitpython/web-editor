@@ -1,13 +1,28 @@
 {
+  "name": "web-editor",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
   "devDependencies": {
-    "@snowpack/plugin-run-script": "^2.3.0",
-    "@snowpack/plugin-sass": "^1.4.0",
-    "snowpack": "^3.8.8"
+    "sass": "^1.60.0",
+    "vite": "^4.2.0"
   },
   "dependencies": {
     "@codemirror/lang-python": "^6.1.2",
     "@fortawesome/fontawesome-free": "^6.4.0",
+    "idb-keyval": "^6.2.0",
+    "jszip": "^3.10.1",
     "codemirror": "^6.0.1",
-    "file-saver": "^2.0.5"
+    "file-saver": "^2.0.5",
+    "xterm": "^5.1.0",
+    "xterm-addon-fit": "^0.7.0",
+    "xterm-addon-web-links": "^0.8.0",
+    "ble-file-transfer-js": "adafruit/ble-file-transfer-js#1.0.2",
+    "circuitpython-repl-js": "adafruit/circuitpython-repl-js#1.0.0"
   }
 }

@@ -1,5 +1,6 @@
+import {REPL} from 'circuitpython-repl-js';
+
 import {FileHelper} from '../common/file.js';
-import {REPL} from 'https://cdn.jsdelivr.net/gh/adafruit/circuitpython-repl-js@1.0.0/repl.js';
 import {UnsavedDialog} from '../common/dialogs.js';
 import {FileDialog, FILE_DIALOG_OPEN, FILE_DIALOG_SAVE} from '../common/file_dialog.js';
 import {MODE_SERIAL, CONNTYPE, CONNSTATE} from '../constants.js';

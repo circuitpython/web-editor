@@ -1,4 +1,4 @@
-import { get, set } from 'https://unpkg.com/idb-keyval@6.2.0/dist/index.js';
+import { get, set } from 'idb-keyval';
 
 class FileTransferClient {
     constructor(connectionStatusCB, uid) {

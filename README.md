@@ -6,29 +6,15 @@ A live copy of the tool is hosted here: https://code.circuitpython.org
 
 ## Environment Setup
 
-1. Make sure NPM Version 16 is installed
-2. Copy Files from the Repo to your Web Server Root.
-3. Run npm install
-4. Run npx snowpack dev to continuously update on file changes (or npx snowpack build for one time)
+1. Copy files from the repo to your web server root.
+2. Run `npm install`
+3. Run `npm run dev` or `npx vite` to continuously update on file changes
+   1. Debug with `npx vite -d`
 
-## Running locally as with SSL
+## Production Build
 
-There are 2 ways to do this.
-
-### Using devcert (No installation required)
-
-This is a quick way to get up and running.
-
-1. Generate the certificates by running: npx devcert-cli generate localhost
-2. In snowpack.config.mjs, uncomment any lines with the words "cert" and "key"
-
-### Using mkcert (Installation required)
-
-This way requires installing mkcert, but it's much easier to switch back and forth between https and http.
-
-1. Install [mkcert](https://github.com/FiloSottile/mkcert) on your system
-2. Generate the certificates by running: mkcert -install && mkcert -key-file snowpack.key -cert-file snowpack.crt localhost
-3. Start snowpack in secure mode by --secure to the command: npx snowpack dev --secure
+1. Run `npm run build` or `npx vite build` to generate a static website.
+2. Copy and deploy all files and folders in `./dist/` to your webserver.
 
 ## License
 

@@ -1,15 +1,21 @@
-import {EditorView, basicSetup} from "codemirror";
-import {EditorState} from "@codemirror/state";
-import {python} from "@codemirror/lang-python";
-import {classHighlighter} from "@lezer/highlight";
-import {syntaxHighlighting} from "@codemirror/language";
-import {BLEWorkflow} from './workflows/ble.js';
-import {WebWorkflow} from './workflows/web.js';
-import {USBWorkflow} from './workflows/usb.js';
-import {isValidBackend, getBackendWorkflow, getWorkflowBackendName} from './workflows/workflow.js';
-import {ButtonValueDialog, MessageModal} from './common/dialogs.js';
-import {isLocal, switchUrl, getUrlParam} from './common/utilities.js';
-import {MODE_EDITOR, MODE_SERIAL, CONNTYPE} from './constants.js';
+import { basicSetup } from "codemirror";
+import { EditorView } from "@codemirror/view";
+import { EditorState } from "@codemirror/state";
+import { python } from "@codemirror/lang-python";
+import { syntaxHighlighting } from "@codemirror/language";
+import { classHighlighter } from "@lezer/highlight";
+
+import { Terminal } from 'xterm';
+import { FitAddon } from 'xterm-addon-fit';
+import { WebLinksAddon } from 'xterm-addon-web-links';
+
+import { BLEWorkflow } from './workflows/ble.js';
+import { USBWorkflow } from './workflows/usb.js';
+import { WebWorkflow } from './workflows/web.js';
+import { isValidBackend, getBackendWorkflow, getWorkflowBackendName } from './workflows/workflow.js';
+import { ButtonValueDialog, MessageModal } from './common/dialogs.js';
+import { isLocal, switchUrl, getUrlParam } from './common/utilities.js';
+import { MODE_EDITOR, MODE_SERIAL, CONNTYPE } from './constants.js';
 
 var terminal;
 var fitter;
@@ -19,8 +25,8 @@ var workflow = null;
 // Instantiate workflows
 var workflows = {};
 workflows[CONNTYPE.Ble] = new BLEWorkflow();
-workflows[CONNTYPE.Web] = new WebWorkflow();
 workflows[CONNTYPE.Usb] = new USBWorkflow();
+workflows[CONNTYPE.Web] = new WebWorkflow();
 
 const btnModeEditor = document.querySelector('.btn-mode-editor');
 const btnModeSerial = document.querySelector('.btn-mode-serial');
@@ -47,6 +53,28 @@ const editorExtensions = [
     syntaxHighlighting(classHighlighter),
     EditorView.updateListener.of(onTextChange)
 ];
+
+document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('mobile-menu-button').addEventListener('click', handleMobileToggle);
+    document.querySelectorAll('#mobile-menu-contents li a').forEach((element) => {
+        element.addEventListener('click', handleMobileToggle);
+    });
+});
+
+function handleMobileToggle(event) {
+    event.preventDefault();
+
+    var menuContainer = document.getElementById('mobile-menu-contents');
+
+    menuContainer.classList.toggle('hidden');
+
+    var menuIcon = document.querySelector('#mobile-menu-button > i');
+    if (menuContainer.classList.contains('hidden')) {
+        menuIcon.classList.replace('fa-times', 'fa-bars');
+    } else {
+        menuIcon.classList.replace('fa-bars', 'fa-times');
+    }
+}
 
 // New Link/Button (Mobile and Desktop Layout)
 btnNew.forEach((element) => {
@@ -499,10 +527,10 @@ function setupXterm() {
         }
     });
 
-    fitter = new FitAddon.FitAddon();
+    fitter = new FitAddon();
     terminal.loadAddon(fitter);
 
-    terminal.loadAddon(new WebLinksAddon.WebLinksAddon());
+    terminal.loadAddon(new WebLinksAddon());
 
     terminal.open(document.getElementById('terminal'));
     terminal.onData((data) => {
