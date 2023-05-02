@@ -1,11 +1,14 @@
-<!DOCTYPE html><html lang="en"><head>
+<!doctype html>
+<html lang="en">
+
+<head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link rel="icon" href="assets/images/favicon.ico" type="image/x-icon">
     <title>CircuitPython Code Editor</title>
-    <link rel="stylesheet" href="assets/css/fontawesome.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.1.0/css/xterm.css">
-    <link rel="stylesheet" href="assets/css/style.css">
+    <link rel="icon" href="/assets/images/favicon.ico" type="image/x-icon" />
+    
+  <script type="module" crossorigin src="/assets/js/index.js"></script>
+  <link rel="stylesheet" href="/assets/index.css">
 </head>
 
 <body>
@@ -17,9 +20,7 @@
                 <nav class="site-brand">
                     <div class="site-logo">
                         <a href="https://code.circuitpython.org/">
-                            <img src="assets/images/logo.png" srcset="assets/images/logo.png 1x,
-                                    assets/images/logo@2x.png 2x,
-                                    assets/images/logo@3x.png 3x" alt="CircuitPython Logo" height="60" width="136">
+                            <img src="/assets/images/logo.png" srcset="/assets/images/logo.png 1x, /assets/images/logo@2x.png 2x, /assets/images/logo@3x.png 3x" alt="CircuitPython Logo" height="60" width="136">
                         </a>
                     </div>
                     <div class="get-started">
@@ -35,9 +36,7 @@
             <nav class="site-brand">
                 <div class="site-logo">
                     <a href="https://code.circuitpython.org/">
-                        <img src="assets/images/logo.png" srcset="assets/images/logo.png 1x,
-                                    assets/images/logo@2x.png 2x,
-                                    assets/images/logo@3x.png 3x" alt="CircuitPython Logo" height="40" width="91">
+                        <img src="/assets/images/logo.png" srcset="/assets/images/logo.png 1x, /assets/images/logo@2x.png 2x, /assets/images/logo@3x.png 3x" alt="CircuitPython Logo" height="40" width="91">
                     </a>
                 </div>
                 <div class="get-started">
@@ -108,7 +107,7 @@
             <button class="mode-button purple-button btn-mode-editor">Editor</button>
             <button class="mode-button purple-button active btn-mode-serial">Serial</button>
             <div class="spacer"></div>
-            <button class="purple-button btn-info" disabled="">Info<i class="fa-solid fa-info-circle"></i></button>
+            <button class="purple-button btn-info" disabled>Info<i class="fa-solid fa-info-circle"></i></button>
         </div>
     </div>
 
@@ -116,8 +115,8 @@
     <div class="loader" id="loader">
         <div>
             <picture>
-                <source srcset="assets/images/loading-blinka.webp" type="image/webp">
-                <img src="assets/images/loading-blinka.gif" alt="Loading Animation" height="100" width="100">
+                <source srcset="/assets/images/loading-blinka.webp " type="image/webp">
+                <img src="/assets/images/loading-blinka.gif" alt="Loading Animation" height="100" width="100">
             </picture>
         </div>
     </div>
@@ -136,7 +135,7 @@
         <i class="fa-solid fa-2x fa-xmark text-white bg-primary p-3 popup-modal__close"></i>
         <div id="file-list"></div>
         <div class="buttons">
-            <input type="text" id="filename">
+            <input type="text" id="filename" />
             <button class="purple-button ok-button">Ok</button>
             <button class="purple-button cancel-button">Cancel</button>
         </div>
@@ -146,7 +145,7 @@
         <i class="fa-solid fa-2x fa-xmark text-white bg-primary p-3 popup-modal__close"></i>
         <div id="file-list"></div>
         <div class="buttons">
-            <input type="text" id="filename">
+            <input type="text" id="filename" />
             <button class="purple-button ok-button">Ok</button>
             <button class="purple-button cancel-button">Cancel</button>
         </div>
@@ -196,7 +195,8 @@
                     <h1>Web Bluetooth not available!</h1>
                     <p>Web Bluetooth is currently only supported in Chromium-based browsers.</p>
 
-                    <p>On Linux only with older versions of Google Chrome, enable the experimental <a href="about://flags/#enable-experimental-web-platform-features">about://flags/#enable-experimental-web-platform-features</a>
+                    <p>On Linux only with older versions of Google Chrome, enable the experimental <a
+                            href="about://flags/#enable-experimental-web-platform-features">about://flags/#enable-experimental-web-platform-features</a>
                         flag. However be careful as it would be risky to browse the web with this flag turned
                         on as it enables many other experimental web platform features. Starting with Chromium
                         version 100, enable the <a href="about://flags/#enable-web-bluetooth">about://flags/#enable-web-bluetooth</a>
@@ -238,7 +238,9 @@
                 <div class="step-number"></div>
                 <div class="step-content">
                     <h1>Update CircuitPython</h1>
-                    <p>Web Workflow is only available on CircuitPython boards with <a href="https://circuitpython.org/downloads?mcufamilies=esp32&amp;mcufamilies=esp32c3&amp;mcufamilies=esp32s2&amp;mcufamilies=esp32s3" target="_blank">ESP chips running CircuitPython 8.0.0-beta.6 or newer</a>.</p>
+                    <p>Web Workflow is only available on CircuitPython boards with <a
+                            href="https://circuitpython.org/downloads?mcufamilies=esp32&mcufamilies=esp32c3&mcufamilies=esp32s2&mcufamilies=esp32s3"
+                            target="_blank">ESP chips running CircuitPython 8.0.0-beta.6 or newer</a>.</p>
                 </div>
             </section>
             <section class="step">
@@ -246,7 +248,8 @@
                 <div class="step-content">
                     <h1>Connect Device to the Internet</h1>
                     <p>To connect the device to your network, you will need to set up the settings.toml file on your device
-                        and add your WiFi credentials. The <a href="https://learn.adafruit.com/getting-started-with-web-workflow-using-the-code-editor/device-setup" target="_blank">CircuitPython Web Workflow Code Editor Quick Start Guide</a> has more details how to create
+                        and add your WiFi credentials. The <a href="https://learn.adafruit.com/getting-started-with-web-workflow-using-the-code-editor/device-setup"
+                            target="_blank">CircuitPython Web Workflow Code Editor Quick Start Guide</a> has more details how to create
                         this file.</p>
                 </div>
             </section>
@@ -331,13 +334,7 @@
             <button class="purple-button ok-button">Close</button>
         </div>
     </div>
-    <script src="https://cdn.jsdelivr.net/npm/xterm@5.1.0/lib/xterm.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.7.0/lib/xterm-addon-fit.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/xterm-addon-web-links@0.8.0/lib/xterm-addon-web-links.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" integrity="sha512-XMVd28F1oH/O71fzwBnV7HucLxVwtxf26XV8P4wPk26EDxuGZ91N8bsOttmnomcCD3CS5ZMRL50H0GgOHvegtg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-    <script src="assets/js/header_mobile.js"></script>
-    <script type="module" src="assets/js/script.js"></script>
 
-
-
-</body></html>
+    
+</body>
+</html>
