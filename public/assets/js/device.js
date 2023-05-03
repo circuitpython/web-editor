@@ -22,11 +22,11 @@ async function fetchLocation(location, options = {}) {
 }
 
 function replaceAssetLinks(code) {
-    code = code.replace(/(href|src|srcset)="(assets\/.*?)"/gmi, (all, a, b) => {
-        return `${a}="${SITE}/${b}"`;
+    code = code.replace(/(href|src)="(\/assets\/.*?)"/gmi, (all, a, b) => {
+        return `${a}="${SITE}${b}"`;
     });
     code = code.replace(/srcset="(.*? 1x)(,\n?\s*)(.*? 2x)(,\n?\s*)(.*? 3x)"/gmi, (all, a, b, c, d, e) => {
-        return `srcset="${SITE}/${a}${b}${SITE}/${c}${d}${SITE}/${e}"`;
+        return `srcset="${SITE}${a}${b}${SITE}/${c}${d}${SITE}/${e}"`;
     });
 
     return code;
