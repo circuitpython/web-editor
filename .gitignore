@@ -31,3 +31,6 @@ localhost.key
 
 # Testing folder
 code/
+
+.DS_Store
+
