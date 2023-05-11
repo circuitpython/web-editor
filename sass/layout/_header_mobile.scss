@@ -32,6 +32,8 @@
 }
 
 #mobile-editor-bar {
+    padding: 0 10px;
+
     #mobile-menu {
         float: left;
 
@@ -50,9 +52,8 @@
     #mobile-menu-contents {
         position: absolute;
         z-index: 2;
-        width: 100vh;
+        width: 100vw;
         left: 0;
-        top: 118px;
 
         &.hidden {
             display: none;
