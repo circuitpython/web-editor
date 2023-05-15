@@ -23,6 +23,6 @@
     "xterm-addon-fit": "^0.7.0",
     "xterm-addon-web-links": "^0.8.0",
     "ble-file-transfer-js": "adafruit/ble-file-transfer-js#1.0.2",
-    "circuitpython-repl-js": "adafruit/circuitpython-repl-js#1.0.0"
+    "circuitpython-repl-js": "adafruit/circuitpython-repl-js#1.2.1"
   }
 }
