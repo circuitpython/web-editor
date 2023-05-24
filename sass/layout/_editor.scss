@@ -1,18 +1,9 @@
-.CodeMirror {
-    max-height: 1000px;
-    width: 100%;
-    height: 100%;
-}
 
 .cm-editor {
     color: #ddd;
     background-color: #333;
     line-height: 1.5;
     font-family: 'Operator Mono', 'Source Code Pro', Menlo, Monaco, Consolas, Courier New, monospace;
-
-    .cm-activeLine {
-        background-color: #333;
-    }
 
     .cm-content {
         caret-color: orange;
