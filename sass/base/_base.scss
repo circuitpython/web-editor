@@ -16,6 +16,12 @@ body {
     margin: 0;
 }
 
+body {
+    @include viewport-height(0, min-height);
+    @include viewport-height(0);
+    position: relative;
+}
+
 a {
     text-decoration: none;
     color: inherit;
@@ -73,7 +79,9 @@ h5 {
     }
 }
 
-.purple-button.inverted {
+.purple-button.inverted,
+.mode-editor .btn-mode-serial,
+.mode-serial .btn-mode-editor {
     color: $purple;
     background-color: $gray;
 
@@ -85,4 +93,13 @@ h5 {
 .purple-button:disabled {
     background-color: #d8d8d8;
     color: #888;
+}
+
+fieldset {
+    border: 0;
+
+    legend {
+        font-size: 1.5em;
+        font-weight: 500;
+    }
 }
