@@ -9,28 +9,30 @@ import { Terminal } from 'xterm';
 import { FitAddon } from 'xterm-addon-fit';
 import { WebLinksAddon } from 'xterm-addon-web-links';
 
-import state from './state.js'
 import { BLEWorkflow } from './workflows/ble.js';
 import { USBWorkflow } from './workflows/usb.js';
 import { WebWorkflow } from './workflows/web.js';
 import { isValidBackend, getBackendWorkflow, getWorkflowBackendName } from './workflows/workflow.js';
 import { ButtonValueDialog, MessageModal } from './common/dialogs.js';
 import { isLocal, switchUrl, getUrlParam } from './common/utilities.js';
-import { CONNTYPE } from './constants.js';
-import './layout.js'; // load for side effects only
-import { mainContent, showSerial } from './layout.js';
+import { MODE_EDITOR, MODE_SERIAL, CONNTYPE } from './constants.js';
+
+var terminal;
+var fitter;
+var unchanged = 0;
+var workflow = null;
 
 // Instantiate workflows
-let workflows = {};
+var workflows = {};
 workflows[CONNTYPE.Ble] = new BLEWorkflow();
 workflows[CONNTYPE.Usb] = new USBWorkflow();
 workflows[CONNTYPE.Web] = new WebWorkflow();
 
-let workflow = null;
-let unchanged = 0;
-
+const btnModeEditor = document.querySelector('.btn-mode-editor');
+const btnModeSerial = document.querySelector('.btn-mode-serial');
 const btnRestart = document.querySelector('.btn-restart');
 const btnClear = document.querySelector('.btn-clear');
+const mainContent = document.getElementById('main-content');
 const btnConnect = document.querySelectorAll('.btn-connect');
 const btnNew = document.querySelectorAll('.btn-new');
 const btnOpen = document.querySelectorAll('.btn-open');
@@ -141,7 +143,16 @@ btnRestart.addEventListener('click', async function(e) {
 
 // Clear Button
 btnClear.addEventListener('click', async function(e) {
-    state.terminal.clear();
+    terminal.clear();
+});
+
+// Mode Buttons
+btnModeEditor.addEventListener('click', async function(e) {
+    await changeMode(MODE_EDITOR);
+});
+
+btnModeSerial.addEventListener('click', async function(e) {
+    await changeMode(MODE_SERIAL);
 });
 
 btnInfo.addEventListener('click', async function(e) {
@@ -293,7 +304,7 @@ async function loadWorkflow(workflowType = null) {
             workflow = workflows[workflowType];
             // Initialize the workflow
             await workflow.init({
-                terminal: state.terminal,
+                terminal: terminal,
                 terminalTitle: terminalTitle,
                 loadEditorFunc: loadEditor,
                 debugLogFunc: debugLog,
@@ -305,7 +316,7 @@ async function loadWorkflow(workflowType = null) {
                 loadEditorContentsFunc: loadEditorContents,
                 showMessageFunc: showMessage,
                 currentFilename: currentFilename,
-                showSerialFunc: showSerial,
+                changeModeFunc: changeMode,
             });
         } else {
             console.log("Reload workflow");
@@ -342,9 +353,35 @@ async function showMessage(message) {
     return await messageDialog.open(message);
 }
 
+async function changeMode(mode) {
+    if (mode > 0) {
+        mainContent.classList.remove("mode-editor", "mode-serial");
+    }
+    if (mode == MODE_EDITOR) {
+        mainContent.classList.add("mode-editor");
+    } else if (mode == MODE_SERIAL) {
+        mainContent.classList.add("mode-serial");
+        refitTerminal();
+    }
+}
+
+function refitTerminal() {
+    // Re-fitting the terminal requires a full re-layout of the DOM which can be tricky to time right.
+    // see https://www.macarthur.me/posts/when-dom-updates-appear-to-be-asynchronous
+    window.requestAnimationFrame(() => {
+        window.requestAnimationFrame(() => {
+            window.requestAnimationFrame(() => {
+                if (fitter) {
+                    fitter.fit();
+                }
+            });
+        });
+    });
+}
+
 async function debugLog(msg) {
-    state.terminal.writeln(''); // get a fresh line without any prior content (a '>>>' prompt might be there without newline)
-    state.terminal.writeln(`\x1b[93m${msg}\x1b[0m`);
+    terminal.writeln(''); // get a fresh line without any prior content (a '>>>' prompt might be there without newline)
+    terminal.writeln(`\x1b[93m${msg}\x1b[0m`);
 }
 
 function updateUIConnected(isConnected) {
@@ -367,11 +404,20 @@ function updateUIConnected(isConnected) {
     }
 }
 
+function fixViewportHeight() {
+    let vh = window.innerHeight * 0.01;
+    document.documentElement.style.setProperty('--vh', `${vh}px`);
+    refitTerminal();
+}
+
 window.onbeforeunload = () => {
     if (isDirty()) {
         return "You have unsaved changed, exit anyways?";
     }
 };
+
+fixViewportHeight();
+window.addEventListener("resize", fixViewportHeight);
 
 async function loadEditor() {
     let documentState = loadParameterizedContent();
@@ -382,6 +428,7 @@ async function loadEditor() {
     }
 
     updateUIConnected(true);
+    await changeMode(MODE_EDITOR);
 }
 
 var editor;
@@ -472,7 +519,7 @@ editor = new EditorView({
 });
 
 function setupXterm() {
-    state.terminal = new Terminal({
+    terminal = new Terminal({
         theme: {
             background: '#333',
             foreground: '#ddd',
@@ -480,13 +527,13 @@ function setupXterm() {
         }
     });
 
-    state.fitter = new FitAddon();
-    state.terminal.loadAddon(state.fitter);
+    fitter = new FitAddon();
+    terminal.loadAddon(fitter);
 
-    state.terminal.loadAddon(new WebLinksAddon());
+    terminal.loadAddon(new WebLinksAddon());
 
-    state.terminal.open(document.getElementById('terminal'));
-    state.terminal.onData((data) => {
+    terminal.open(document.getElementById('terminal'));
+    terminal.onData((data) => {
         workflow.serialTransmit(data);
     });
 }

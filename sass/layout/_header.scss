@@ -5,12 +5,13 @@
 
     .wrapper {
         background-color: #333333;
+        height: 100px;
     }
 
     .content {
         display: grid;
-        padding-top: 10px;
-        padding-bottom: 10px;
+        padding-top: 20px;
+        padding-bottom: 20px;
     }
 
     a.active {
@@ -67,7 +68,7 @@
     width: 100%;
     display: flex;
     flex-direction: row;
-    align-items: center;
+    align-items: flex-end;
 }
 
 .site-banner {
@@ -79,26 +80,11 @@
     }
 }
 
-.site-logo {
-    display: flex;
-}
-
-.github-repo {
-    color: #fff;
-    font-size: 30px;
-    padding: 10px;
-    margin: 10px;
-    border-radius: 40px;
-
-    i {
-        vertical-align: middle;
-    }
-}
-
 .get-started {
     margin-left: auto;
     padding-bottom: 10px;
 
+    a,
     button {
         @include rounded-button;
         background-color: transparent;
@@ -133,6 +119,18 @@
     flex: auto;
     overflow: hidden;
     text-overflow: ellipsis;
+}
+
+#footer-bar {
+    display: flex;
+
+    .spacer {
+        flex: auto;
+    }
+}
+
+#editor-bar, #serial-bar {
+    display: flex;
 }
 
 @media (max-width: $screen-xs-max) {
