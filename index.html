@@ -12,45 +12,64 @@
 <body>
     <div id="blackout" class="body-blackout"></div>
     <div id="clickblock" class="body-blackout no-overlay"></div>
-    <header id="site-header">
-        <div class="wrapper">
-            <div class="content container">
+
+    <div class="layout">
+        <header id="site-header">
+            <div class="wrapper">
+                <div class="content container">
+                    <nav class="site-brand">
+                        <div class="site-logo">
+                            <a href="https://code.circuitpython.org/">
+                                <img alt="CircuitPython Logo" height="50"
+                                    src="/images/logo.png"
+                                    srcset="/images/logo.png 1x,
+                                            /images/logo@2x.png 2x,
+                                            /images/logo@3x.png 3x" >
+                            </a>
+                        </div>
+                        <div class="get-started">
+                            <a class="github-repo" href="https://github.com/circuitpython/web-editor">
+                                <i class="fa-brands fa-github"></i>
+                            </a>
+                            <button class="btn-connect">Connect</button>
+                        </div>
+                    </nav>
+                </div>
+            </div>
+            <div class="bottom-bar"></div>
+        </header>
+        <header id="mobile-header">
+            <div class="header-contents">
                 <nav class="site-brand">
                     <div class="site-logo">
                         <a href="https://code.circuitpython.org/">
-                            <img src="/images/logo.png" srcset="/images/logo.png 1x,
-                                    /images/logo@2x.png 2x,
-                                    /images/logo@3x.png 3x" alt="CircuitPython Logo" height="60" width="136">
+                            <img alt="CircuitPython Logo" height="40"
+                                 src="/images/logo.png"
+                                 srcset="/images/logo.png 1x,
+                                         /images/logo@2x.png 2x,
+                                         /images/logo@3x.png 3x" >
                         </a>
                     </div>
                     <div class="get-started">
+                        <a class="github-repo" href="https://github.com/circuitpython/web-editor">
+                            <i class="fa-brands fa-github"></i>
+                        </a>
                         <button class="btn-connect">Connect</button>
                     </div>
                 </nav>
             </div>
-        </div>
-        <div class="bottom-bar"></div>
-    </header>
-    <header id="mobile-header">
-        <div class="header-contents">
-            <nav class="site-brand">
-                <div class="site-logo">
-                    <a href="https://code.circuitpython.org/">
-                        <img src="/images/logo.png" srcset="/images/logo.png 1x,
-                                    /images/logo@2x.png 2x,
-                                    /images/logo@3x.png 3x" alt="CircuitPython Logo" height="40" width="91">
-                    </a>
+            <div class="bottom-bar"></div>
+        </header>
+        <div id="main-content">
+            <div id="editor-page" class="active">
+                <div id="editor-bar">
+                    <button class="purple-button btn-new">New<i class="fa-solid fa-plus"></i></button>
+                    <button class="purple-button btn-open">Open<i class="fa-solid fa-folder-open"></i></button>
+                    <button class="purple-button btn-save">Save<i class="fa-solid fa-floppy-disk"></i></button>
+                    <button class="purple-button btn-save-as">Save As<i class="fa-solid fa-download"></i></button>
+                    <div class="file-path"></div>
+                    <button class="purple-button btn-save-run">Save + Run<i class="fa-solid fa-play"></i></button>
                 </div>
-                <div class="get-started">
-                    <button class="btn-connect">Connect</button>
-                </div>
-            </nav>
-        </div>
-        <div class="bottom-bar"></div>
-    </header>
-    <div class="mode-editor" id="main-content">
-        <div id="editor-page" class="wrapper">
-            <div class="container">
                 <div id="mobile-editor-bar">
                     <div id="mobile-menu">
                         <div class="menu-toggle">
@@ -72,42 +91,21 @@
                         </ul>
                     </nav>
                 </div>
-                <div id="editor-bar">
-                    <button class="purple-button btn-new">New<i class="fa-solid fa-plus"></i></button>
-                    <button class="purple-button btn-open">Open<i class="fa-solid fa-folder-open"></i></button>
-                    <button class="purple-button btn-save">Save<i class="fa-solid fa-floppy-disk"></i></button>
-                    <button class="purple-button btn-save-as">Save As<i class="fa-solid fa-download"></i></button>
-                    <div class="file-path"></div>
-                    <button class="purple-button btn-save-run">Save + Run<i class="fa-solid fa-play"></i></button>
-                </div>
+                <div id="editor"></div>
             </div>
-            <div>
-                <div class="editor-container">
-                    <div class="container">
-                        <div id="editor"></div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div id="serial-page" class="wrapper">
-            <div class="container">
+            <div id="page-separator" class=""></div>
+            <div id="serial-page" class="">
                 <div id="serial-bar">
                     <button class="purple-button btn-restart">Restart<i class="fa-solid fa-redo"></i></button>
                     <button class="purple-button btn-clear">Clear<i class="fa-solid fa-broom"></i></button>
                     <div id="terminal-title"></div>
                 </div>
-            </div>
-            <div>
-                <div class="terminal-container">
-                    <div class="container">
-                        <div id="terminal"></div>
-                    </div>
-                </div>
+                <div id="terminal"></div>
             </div>
         </div>
-        <div class="container" id="footer-bar">
-            <button class="mode-button purple-button btn-mode-editor">Editor</button>
-            <button class="mode-button purple-button active btn-mode-serial">Serial</button>
+        <div id="footer-bar">
+            <button id="btn-mode-editor" class="mode-button active">Editor</button>
+            <button id="btn-mode-serial" class="mode-button">Serial</button>
             <div class="spacer"></div>
             <button class="purple-button btn-info" disabled>Info<i class="fa-solid fa-info-circle"></i></button>
         </div>
