@@ -1,3 +1,106 @@
+.layout {
+    height: 100vh;
+    height: calc(var(--vh, 1vh) * 100);
+    display: flex;
+    flex-direction: column;
+
+    header {
+        height: 5em;
+    }
+
+    #footer-bar {
+        height: 4em;
+        padding: 0 10px;
+        display: flex;
+
+        .spacer {
+            flex: auto;
+        }
+    }
+}
+
+#page-separator {
+    display: none;
+    width: 0;
+    top: 0;
+    bottom: 0;
+    right: 0;
+    cursor: col-resize;
+    background-color: #9d9d9d;
+
+    &.active {
+        display: flex;
+        width: 8px;
+        flex: 0 0 8px;
+    }
+}
+
+#main-content {
+    flex: auto;
+    display: flex;
+    flex-direction: row;
+
+    #editor-page, #serial-page {
+        flex: 1 1 100%;
+        display: none;
+        flex-direction: column;
+
+        &.active {
+            display: flex;
+        }
+    }
+
+    &.unsaved .file-path {
+        color: #f60;
+    }
+}
+
+#editor-bar, #serial-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    padding: 0 10px;
+    min-height: 60px;
+    height: 4em;
+}
+
+#editor-page {
+    #editor {
+        flex: 1 1 0%;
+        background: #333;
+    }
+}
+
+#serial-page {
+    #terminal {
+        flex: 1 1 0%;
+        background: #333;
+        position: relative;
+        width: 100%;
+        overflow: hidden;
+
+        .xterm .xterm-viewport {
+            background-color: transparent;
+            overflow-y: scroll;
+            cursor: default;
+            position: absolute;
+            inset: 0;
+            scrollbar-color: var(--highlight) var(--dark);
+            scrollbar-width: thin;
+            width: initial !important;
+
+            &::-webkit-scrollbar {
+                background-color: var(--dark);
+                width: 5px;
+            }
+
+            &::-webkit-scrollbar-thumb {
+                background: var(--highlight);
+            }
+        }
+    }
+}
+
 #ble-instructions,
 #web-instructions,
 #usb-instructions {
@@ -30,67 +133,25 @@
     }
 }
 
-#editor-bar,
-#serial-bar {
-    height: 59px;
-}
+.mode-button {
+    display: inline-block;
+    font-size: 1.1em;
+    width: auto;
+    padding: 0.5em 1em 0.5em 1em;
+    margin-right: 0.5em;
+    cursor: pointer;
+    white-space: nowrap;
+    border: none;
+    color: #fff;
+    background-color: $gray;
 
-#editor-page {
-    .editor-container {
-        background: #333;
-
-        .cm-editor {
-            @include viewport-height($terminal-height-offset-mobile);
-        }
-    }
-}
-
-#serial-page {
-    .terminal-container {
-        background: #333;
+    &:hover {
+        background-color: darken($gray, 15%);
     }
 
-    #terminal {
-        position: relative;
-        width: 100%;
-        @include viewport-height($terminal-height-offset-mobile);
-        overflow: hidden;
-
-        .xterm .xterm-viewport {
-            background-color: transparent;
-            overflow-y: scroll;
-            cursor: default;
-            position: absolute;
-            inset: 0;
-            scrollbar-color: var(--highlight) var(--dark);
-            scrollbar-width: thin;
-            width: initial !important;
-
-            &::-webkit-scrollbar {
-                background-color: var(--dark);
-                width: 5px;
-            }
-
-            &::-webkit-scrollbar-thumb {
-                background: var(--highlight);
-            }
-        }
-    }
-}
-
-@media (min-width: $screen-sm) {
-    #serial-page {
-        #terminal {
-            @include viewport-height($terminal-height-offset);
-        }
-    }
-
-    #editor-page {
-        .editor-container {
-            .cm-editor {
-                @include viewport-height($terminal-height-offset);
-            }
-        }
+    &.active {
+        color: #fff;
+        background-color: $purple;
     }
 }
 
@@ -117,30 +178,6 @@
     .popup-modal.connect-dialog {
         width: 768px;
     }
-}
-
-#main-content {
-    &.mode-editor {
-        #serial-page {
-            display: none;
-        }
-    }
-
-    &.mode-serial {
-        #editor-page {
-            display: none;
-        }
-    }
-
-    &.unsaved .file-path {
-        color: #f60;
-    }
-}
-
-.CodeMirror {
-    max-height: 1000px;
-    width: 100%;
-    height: 100%;
 }
 
 .loader {
