@@ -33,4 +33,4 @@ localhost.key
 code/
 
 .DS_Store
-
+*.pem

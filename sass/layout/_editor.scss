@@ -4,6 +4,7 @@
     background-color: #333;
     line-height: 1.5;
     font-family: 'Operator Mono', 'Source Code Pro', Menlo, Monaco, Consolas, Courier New, monospace;
+    max-height: calc(100vh - 2*4em - 5em);
 
     .cm-content {
         caret-color: orange;

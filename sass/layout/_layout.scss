@@ -1,14 +1,15 @@
 .layout {
     height: 100vh;
+    height: calc(var(--vh, 1vh) * 100);
     display: flex;
     flex-direction: column;
 
     header {
-        // height: 5em;
+        height: 5em;
     }
 
     #footer-bar {
-        // height: 5em;
+        height: 4em;
         padding: 0 10px;
         display: flex;
 
@@ -36,8 +37,6 @@
 
 #main-content {
     flex: auto;
-    height: 100%;
-
     display: flex;
     flex-direction: row;
 
@@ -61,7 +60,8 @@
     flex-wrap: wrap;
     align-items: center;
     padding: 0 10px;
-    min-height: 60px
+    min-height: 60px;
+    height: 4em;
 }
 
 #editor-page {
@@ -100,7 +100,6 @@
         }
     }
 }
-
 
 #ble-instructions,
 #web-instructions,
