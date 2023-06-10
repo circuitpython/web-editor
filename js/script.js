@@ -367,16 +367,6 @@ function updateUIConnected(isConnected) {
     }
 }
 
-// Fix the viewport height for mobile devices by setting
-// the --vh css variable to 1% of the window inner height
-function fixViewportHeight() {
-    let vh = window.innerHeight * 0.01;
-    document.documentElement.style.setProperty('--vh', `${vh}px`);
-}
-
-fixViewportHeight();
-window.addEventListener("resize", fixViewportHeight);
-
 window.onbeforeunload = () => {
     if (isDirty()) {
         return "You have unsaved changed, exit anyways?";
