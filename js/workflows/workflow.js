@@ -116,8 +116,6 @@ class Workflow {
 
     async onSerialReceive(e) {
         this.writeToTerminal(e.data);
-        // TODO: the current REPL implementation mutates the data field for partial token parsing,
-        // so invoke it after (!) writing to the terminal.
         await this.repl.onSerialReceive(e);
     }
 
