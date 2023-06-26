@@ -1,8 +1,9 @@
 import { basicSetup } from "codemirror";
-import { EditorView } from "@codemirror/view";
+import { EditorView, keymap } from "@codemirror/view";
 import { EditorState } from "@codemirror/state";
+import {indentWithTab} from "@codemirror/commands"
 import { python } from "@codemirror/lang-python";
-import { syntaxHighlighting } from "@codemirror/language";
+import { syntaxHighlighting, indentUnit } from "@codemirror/language";
 import { classHighlighter } from "@lezer/highlight";
 
 import { Terminal } from 'xterm';
@@ -44,13 +45,6 @@ const messageDialog = new MessageModal("message");
 const connectionType = new ButtonValueDialog("connection-type");
 
 const editorTheme = EditorView.theme({}, {dark: true});
-const editorExtensions = [
-    basicSetup,
-    python(),
-    editorTheme,
-    syntaxHighlighting(classHighlighter),
-    EditorView.updateListener.of(onTextChange)
-];
 
 document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('mobile-menu-button').addEventListener('click', handleMobileToggle);
@@ -79,10 +73,7 @@ btnNew.forEach((element) => {
     element.addEventListener('click', async function(e) {
         e.preventDefault();
         e.stopPropagation();
-        await checkConnected();
-        if (await workflow.checkSaved()) {
-            loadFileContents(null, "");
-        }
+        await newFile();
     });
 });
 
@@ -91,8 +82,7 @@ btnOpen.forEach((element) => {
     element.addEventListener('click', async function(e) {
         e.preventDefault();
         e.stopPropagation();
-        await checkConnected();
-        workflow.openFile();
+        await openFile();
     });
 });
 
@@ -101,8 +91,7 @@ btnSave.forEach((element) => {
     element.addEventListener('click', async function(e) {
         e.preventDefault();
         e.stopPropagation();
-        await checkConnected();
-        await workflow.saveFile();
+        await saveFile();
     });
 });
 
@@ -111,10 +100,11 @@ btnSaveAs.forEach((element) => {
     element.addEventListener('click', async function(e) {
         e.preventDefault();
         e.stopPropagation();
-        await checkConnected();
-        let path = await workflow.saveFileAs();
-        if (path !== null) {
-            console.log("Current File Changed to: " + workflow.currentFilename);
+        if (await checkConnected()) {
+            let path = await workflow.saveFileAs();
+            if (path !== null) {
+                console.log("Current File Changed to: " + workflow.currentFilename);
+            }
         }
     });
 });
@@ -124,19 +114,16 @@ btnSaveRun.forEach((element) => {
     element.addEventListener('click', async function(e) {
         e.preventDefault();
         e.stopPropagation();
-        await checkConnected();
-        if (await workflow.saveFile()) {
-            setSaved(true);
-            await workflow.runCurrentCode();
-        }
+        await saveRunFile();
     });
 });
 
 // Restart Button
 btnRestart.addEventListener('click', async function(e) {
-    await checkConnected();
-    // Perform a device soft restart
-    await workflow.restartDevice();
+    if (await checkConnected()) {
+        // Perform a device soft restart
+        await workflow.restartDevice();
+    }
 });
 
 // Clear Button
@@ -145,9 +132,40 @@ btnClear.addEventListener('click', async function(e) {
 });
 
 btnInfo.addEventListener('click', async function(e) {
-    await checkConnected();
-    await workflow.showInfo(getDocState());
+    if (await checkConnected()) {
+        await workflow.showInfo(getDocState());
+    }
 });
+
+// Basic functions used for buttons and hotkeys
+async function openFile() {
+    if (await checkConnected()) {
+        workflow.openFile();
+    }
+}
+
+async function saveFile() {
+    if (await checkConnected()) {
+        await workflow.saveFile();
+    }
+}
+
+async function newFile() {
+    if (await checkConnected()) {
+        if (await workflow.checkSaved()) {
+            loadFileContents(null, "");
+        }
+    }
+}
+
+async function saveRunFile() {
+    if (await checkConnected()) {
+        if (await workflow.saveFile()) {
+            setSaved(true);
+            await workflow.runCurrentCode();
+        }
+    }
+}
 
 function setSaved(saved) {
     if (saved) {
@@ -161,7 +179,7 @@ async function checkConnected() {
     if (!workflow || !workflow.connectionStatus()) {
         let connType = await chooseConnection();
         if (!connType) {
-            return;
+            return false;
         }
         await loadWorkflow(connType);
 
@@ -180,6 +198,7 @@ async function checkConnected() {
             await workflow.showInfo(getDocState());
         }
     }
+    return true;
 }
 
 function getDocState() {
@@ -320,6 +339,23 @@ async function loadWorkflow(workflowType = null) {
         workflow = null;
     }
 }
+
+const hotkeyMap = [
+    { key: "Mod-s", run: saveFile },
+    { key: "Mod-o", run: openFile },
+    { key: "Alt-n", run: newFile },
+    { key: "Mod-r", run: saveRunFile },
+];
+const editorExtensions = [
+    basicSetup,
+    keymap.of([indentWithTab]),
+    keymap.of(hotkeyMap),
+    indentUnit.of("    "),
+    python(),
+    editorTheme,
+    syntaxHighlighting(classHighlighter),
+    EditorView.updateListener.of(onTextChange)
+];
 
 // Use the editor's function to check if anything has changed
 function isDirty() {
