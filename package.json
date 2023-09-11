@@ -21,7 +21,7 @@
     "file-saver": "^2.0.5",
     "xterm": "^5.3.0",
     "xterm-addon-fit": "^0.8.0",
-    "xterm-addon-web-links": "^0.8.0",
+    "xterm-addon-web-links": "^0.9.0",
     "ble-file-transfer-js": "adafruit/ble-file-transfer-js#1.0.2",
     "circuitpython-repl-js": "adafruit/circuitpython-repl-js#1.2.3"
   }
