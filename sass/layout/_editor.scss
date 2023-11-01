@@ -41,6 +41,10 @@
 
     &.cm-focused .cm-selectionBackground,
     ::selection {
+        background-color: orange;
+    }
+
+    &.ͼ3.cm-focused .cm-scroller .cm-selectionLayer .cm-selectionBackground {
         background-color: #99eeff33;
     }
 
