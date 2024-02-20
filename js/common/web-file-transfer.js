@@ -131,12 +131,16 @@ class FileTransferClient {
 
         const response = await this._fetch(`/fs${path}`, {headers: {"Accept": "application/json"}});
         const results = await response.json();
-        for (let result of results) {
+        let listings = results
+        if (results.files !== undefined) {
+            listings = results.files;
+        }
+        for (let listing of listings) {
             contents.push({
-                path: result.name,
-                isDir: result.directory,
-                fileSize: result.file_size,
-                fileDate: Number(result.modified_ns / 1000000),
+                path: listing.name,
+                isDir: listing.directory,
+                fileSize: listing.file_size,
+                fileDate: Number(listing.modified_ns / 1000000),
             });
         }
 
