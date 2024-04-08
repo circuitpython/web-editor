@@ -9,7 +9,7 @@
     "preview": "vite preview"
   },
   "devDependencies": {
-    "sass": "^1.72.0",
+    "sass": "^1.74.1",
     "vite": "^5.2.7"
   },
   "dependencies": {
