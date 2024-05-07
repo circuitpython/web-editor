@@ -29,6 +29,7 @@ workflows[CONNTYPE.Web] = new WebWorkflow();
 
 let workflow = null;
 let unchanged = 0;
+let connectionPromise = null;
 
 const btnRestart = document.querySelector('.btn-restart');
 const btnClear = document.querySelector('.btn-clear');
@@ -253,8 +254,10 @@ function setFilename(path) {
 }
 
 async function chooseConnection() {
+    // Don't allow more than one dialog
+    if (connectionPromise) return;
     // Get the promise first
-    let p = connectionType.open();
+    connectionPromise = connectionType.open();
 
     // Disable any buttons in validBackends, but not in workflows
     let modal = connectionType.getModal();
@@ -266,7 +269,8 @@ async function chooseConnection() {
     };
 
     // Wait for the user to click a button
-    let connType = await p;
+    let connType = await connectionPromise;
+    connectionPromise = null
     if (isValidBackend(connType)) {
         return getBackendWorkflow(connType);
     }
@@ -507,7 +511,7 @@ editor = new EditorView({
     parent: document.querySelector('#editor')
 });
 
-function setupXterm() {
+async function setupXterm() {
     state.terminal = new Terminal({
         theme: {
             background: '#333',
@@ -522,8 +526,10 @@ function setupXterm() {
     state.terminal.loadAddon(new WebLinksAddon());
 
     state.terminal.open(document.getElementById('terminal'));
-    state.terminal.onData((data) => {
-        workflow.serialTransmit(data);
+    state.terminal.onData((data) => async function(e) {
+        if (await checkConnected()) {
+            workflow.serialTransmit(data);
+        }
     });
 }
 
@@ -547,7 +553,7 @@ function loadParameterizedContent() {
 }
 
 document.addEventListener('DOMContentLoaded', async (event) => {
-    setupXterm();
+    await setupXterm();
     btnConnect.forEach((element) => {
         element.addEventListener('click', async function(e) {
             e.preventDefault();

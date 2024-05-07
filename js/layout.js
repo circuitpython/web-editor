@@ -91,10 +91,10 @@ function refitTerminal() {
 
 // Fix the viewport height for mobile devices by setting
 // the --vh css variable to 1% of the window inner height
-function fixViewportHeight() {
+function fixViewportHeight(e) {
     let vh = window.innerHeight * 0.01;
     document.documentElement.style.setProperty('--vh', `${vh}px`);
-    refitTerminal();
+    updatePageLayout();
 }
 fixViewportHeight();
 window.addEventListener("resize", fixViewportHeight);
