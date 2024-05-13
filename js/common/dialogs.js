@@ -1,4 +1,5 @@
 import {sleep, isIp, switchDevice} from './utilities.js';
+import * as focusTrap from 'focus-trap';
 
 const SELECTOR_CLOSE_BUTTON = ".popup-modal__close";
 const SELECTOR_BLACKOUT = "#blackout";
@@ -16,6 +17,7 @@ class GenericModal {
         this.closeModal = this._closeModal.bind(this);
         this._elements = {};
         this._modalLayerId;
+        this._trap = null;
     }
 
     _addDialogElement(elementId, domElement, eventName = null, eventHandler = null) {
@@ -99,6 +101,13 @@ class GenericModal {
         this._modalLayerId = modalLayers.length;
         modal.style.zIndex = BLACKOUT_ZINDEX + 1 + (this._modalLayerId * 2);
 
+        if (!this._trap){
+            this._trap = focusTrap.createFocusTrap(modal, {
+                initialFocus: () => modal,
+                allowOutsideClick: true,
+            });
+        }
+
         if (modalLayers.length >= 2) {
             // Then we will make it so the clickblock layer appears
             const clickBlock = document.querySelector(SELECTOR_CLICKBLOCK);
@@ -168,6 +177,10 @@ class GenericModal {
         }
 
         if (this._currentModal) {
+            if (this._trap) {
+                this._trap.deactivate();
+                this._trap = null;
+            }
             this._removeTopModalLayer();
             this._removeAllDialogElements();
             this._currentModal.classList.remove('is--visible');
@@ -206,6 +219,9 @@ class GenericModal {
             this._reject = reject;
         });
 
+        if (this._trap) {
+            this._trap.activate();
+        }
         return p;
     }
 }
