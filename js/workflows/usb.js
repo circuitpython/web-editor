@@ -1,7 +1,7 @@
 import {CONNTYPE, CONNSTATE} from '../constants.js';
 import {Workflow} from './workflow.js';
 import {GenericModal} from '../common/dialogs.js';
-import {FileTransferClient} from '../common/usb-file-transfer.js';
+import {FileTransferClient} from '../common/repl-file-transfer.js';
 
 let btnRequestSerialDevice, btnSelectHostFolder, btnUseHostFolder, lblWorkingfolder;
 
@@ -246,7 +246,7 @@ class USBWorkflow extends Workflow {
         this.updateConnected(CONNSTATE.partial);
 
         // At this point we should see if we should init the file client and check if have a saved dir handle
-        this.initFileClient(new FileTransferClient(this.connectionStatus.bind(this), this._uid));
+        this.initFileClient(new FileTransferClient(this.connectionStatus.bind(this), this.repl));
         const fileClient = this.fileHelper.getFileClient();
         const result = await fileClient.loadSavedDirHandle();
         if (result) {
