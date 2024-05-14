@@ -526,7 +526,7 @@ async function setupXterm() {
     state.terminal.loadAddon(new WebLinksAddon());
 
     state.terminal.open(document.getElementById('terminal'));
-    state.terminal.onData((data) => async function(e) {
+    state.terminal.onData(async (data) => {
         if (await checkConnected()) {
             workflow.serialTransmit(data);
         }
