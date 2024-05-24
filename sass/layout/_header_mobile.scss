@@ -1,4 +1,5 @@
 #mobile-header {
+    display: none;
     background-color: #333;
 
     .header-contents {
@@ -32,6 +33,7 @@
 }
 
 #mobile-editor-bar {
+    display: none;
     padding: 0 10px;
 
     #mobile-menu {
@@ -96,12 +98,12 @@
     }
 }
 
-@media (min-width: $screen-sm) {
+@media (max-width: $screen-xs-max) {
     #mobile-header {
-        display: none !important;
+        display: block !important;
     }
 
     #mobile-editor-bar {
-        display: none !important;
+        display: block !important;
     }
 }
