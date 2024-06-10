@@ -10,7 +10,7 @@
   },
   "devDependencies": {
     "sass": "^1.77.4",
-    "vite": "^5.2.12"
+    "vite": "^5.2.13"
   },
   "dependencies": {
     "@codemirror/lang-python": "^6.1.6",
