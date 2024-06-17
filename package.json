@@ -9,8 +9,8 @@
     "preview": "vite preview"
   },
   "devDependencies": {
-    "sass": "^1.77.2",
-    "vite": "^5.2.11"
+    "sass": "^1.77.5",
+    "vite": "^5.3.1"
   },
   "dependencies": {
     "@codemirror/lang-python": "^6.1.6",
