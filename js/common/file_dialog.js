@@ -183,7 +183,7 @@ class FileDialog extends GenericModal {
             this._addFile({path: "..", isDir: true}, "fa-folder-open");
         }
         if (!this._fileHelper) {
-            console.log("no client");
+            console.error("no client");
             return;
         }
 
@@ -196,7 +196,7 @@ class FileDialog extends GenericModal {
                 this._addFile(fileObj);
             }
         } catch (e) {
-            console.log(e);
+            console.error(e);
         }
         this._setElementValue('fileNameField', "");
         this._setElementEnabled('okButton', this._validSelectableFolder());

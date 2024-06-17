@@ -6,9 +6,9 @@ import { python } from "@codemirror/lang-python";
 import { syntaxHighlighting, indentUnit } from "@codemirror/language";
 import { classHighlighter } from "@lezer/highlight";
 
-import { Terminal } from 'xterm';
-import { FitAddon } from 'xterm-addon-fit';
-import { WebLinksAddon } from 'xterm-addon-web-links';
+import { Terminal } from '@xterm/xterm';
+import { FitAddon } from '@xterm/addon-fit';
+import { WebLinksAddon } from '@xterm/addon-web-links';
 
 import state from './state.js'
 import { BLEWorkflow } from './workflows/ble.js';
@@ -443,7 +443,6 @@ async function saveFileContents(path) {
     let oldUnchanged = unchanged;
     unchanged = doc.length;
     try {
-        console.log("write");
         if (await workflow.writeFile(path, contents, offset)) {
             setFilename(workflow.currentFilename);
             setSaved(true);
@@ -451,7 +450,7 @@ async function saveFileContents(path) {
             await showMessage(`Saving file '${workflow.currentFilename} failed.`);
         }
     } catch (e) {
-        console.log("write failed", e, e.stack);
+        console.error("write failed", e, e.stack);
         unchanged = Math.min(oldUnchanged, unchanged);
         if (currentTimeout != null) {
             clearTimeout(currentTimeout);

@@ -84,7 +84,7 @@ class FileTransferClient {
 
     async loadDirHandle(preferSaved = true) {
         if (preferSaved) {
-            const result = await loadSavedDirHandle();
+            const result = await this.loadSavedDirHandle();
             if (!result) {
                 return true;
             }
