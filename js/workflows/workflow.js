@@ -1,4 +1,4 @@
-import {REPL} from 'circuitpython-repl-js';
+import {REPL} from '@adafruit/circuitpython-repl-js';
 
 import {FileHelper} from '../common/file.js';
 import {UnsavedDialog} from '../common/dialogs.js';

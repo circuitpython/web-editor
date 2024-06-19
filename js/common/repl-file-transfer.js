@@ -1,4 +1,4 @@
-import {FileOps} from 'circuitpython-repl-js';
+import {FileOps} from '@adafruit/circuitpython-repl-js';
 
 class FileTransferClient {
     constructor(connectionStatusCB, repl) {
