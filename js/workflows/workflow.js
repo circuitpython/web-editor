@@ -1,4 +1,4 @@
-import {REPL} from 'circuitpython-repl-js';
+import {REPL} from '@adafruit/circuitpython-repl-js';
 
 import {FileHelper} from '../common/file.js';
 import {UnsavedDialog} from '../common/dialogs.js';
@@ -115,8 +115,7 @@ class Workflow {
     }
 
     async onSerialReceive(e) {
-        this.writeToTerminal(e.data);
-        await this.repl.onSerialReceive(e);
+        this.writeToTerminal(await this.repl.onSerialReceive(e));
     }
 
     connectionStatus(partialConnectionsAllowed = false) {

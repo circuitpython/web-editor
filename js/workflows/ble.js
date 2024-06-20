@@ -2,7 +2,7 @@
  * This class will encapsulate all of the workflow functions specific to BLE
  */
 
-import {FileTransferClient} from 'ble-file-transfer-js';
+import {FileTransferClient} from '@adafruit/ble-file-transfer-js';
 
 import {CONNTYPE, CONNSTATE} from '../constants.js';
 import {Workflow} from './workflow.js';

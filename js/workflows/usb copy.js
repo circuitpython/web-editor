@@ -1,9 +1,7 @@
 import {CONNTYPE, CONNSTATE} from '../constants.js';
 import {Workflow} from './workflow.js';
 import {GenericModal} from '../common/dialogs.js';
-import {FileOps} from '@adafruit/circuitpython-repl-js'; // Use this to determine which FileTransferClient to load
-import {FileTransferClient as ReplFileTransferClient} from '../common/repl-file-transfer.js';
-import {FileTransferClient as FSAPIFileTransferClient} from '../common/fsapi-file-transfer.js';
+import {FileTransferClient} from '../common/repl-file-transfer.js';
 
 let btnRequestSerialDevice, btnSelectHostFolder, btnUseHostFolder, lblWorkingfolder;
 
@@ -169,30 +167,21 @@ class USBWorkflow extends Workflow {
             await this._useHostFolder();
         });
 
-        // Check if WebSerial is available
         if (!(await this.available() instanceof Error)) {
-            // If so, hide the WebSerial Unavailable Message
             let stepOne;
             if (stepOne = modal.querySelector('.step:first-of-type')) {
                 stepOne.classList.add("hidden");
             }
             this._connectionStep(1);
         } else {
-            // If not, hide all steps beyond the message
             modal.querySelectorAll('.step:not(:first-of-type)').forEach((stepItem) => {
                 stepItem.classList.add("hidden");
             });
             this._connectionStep(0);
         }
 
-        // Hide the last step until we determine that we need it
-        let lastStep;
-        if (lastStep = modal.querySelector('.step:last-of-type')) {
-            lastStep.classList.add("hidden");
-        }
-
-        // TODO: If this is closed before all steps are completed (when using FSAPI), we should close the
-        // serial connection probably by calling onDisconnect()
+        // TODO: If this is closed before all steps are completed, we should close the serial connection
+        // probably by calling onDisconnect()
 
         return await p;
     }
@@ -204,7 +193,7 @@ class USBWorkflow extends Workflow {
         return true;
     }
 
-    // FSAPI specific functions
+    // Workflow specific functions
     async _selectHostFolder() {
         console.log('Initializing File Transfer Client...');
         const fileClient = this.fileHelper.getFileClient();
@@ -233,7 +222,6 @@ class USBWorkflow extends Workflow {
         }
     }
 
-    // Workflow specific Functions
     async _switchToDevice(device) {
         device.addEventListener("message", this.onSerialReceive.bind(this));
 
@@ -255,34 +243,17 @@ class USBWorkflow extends Workflow {
 
         await this.showBusy(this._getDeviceUid());
 
-        this.updateConnected(CONNSTATE.connected);
+        this.updateConnected(CONNSTATE.partial);
 
         // At this point we should see if we should init the file client and check if have a saved dir handle
-        let fileops = new FileOps(this.repl, false);
-        if (await fileops.isReadOnly()) {
-            let modal = this.connectDialog.getModal();
-
-            // Show the last step
-            let lastStep;
-            if (lastStep = modal.querySelector('.step:last-of-type')) {
-                lastStep.classList.remove("hidden");
-            }
-
-            // File System is read only, so we'll assume there is a CIRCUITPY drive mounted
-            this.initFileClient(new FSAPIFileTransferClient(this.connectionStatus.bind(this), this._uid));
-            const fileClient = this.fileHelper.getFileClient();
-            const result = await fileClient.loadSavedDirHandle();
-            if (result) {
-                console.log("Successfully loaded directory:", fileClient.getWorkingDirectoryName());
-                await this._hostFolderChanged();
-            } else {
-                console.log("Failed to load directory");
-            }
+        this.initFileClient(new FileTransferClient(this.connectionStatus.bind(this), this.repl));
+        const fileClient = this.fileHelper.getFileClient();
+        const result = await fileClient.loadSavedDirHandle();
+        if (result) {
+            console.log("Successfully loaded directory:", fileClient.getWorkingDirectoryName());
+            await this._hostFolderChanged();
         } else {
-            // File System is writable, so we can use the REPL File Transfer Client
-            this.initFileClient(new ReplFileTransferClient(this.connectionStatus.bind(this), this.repl));
-            //await this.fileHelper.listDir('/');
-            this.onConnected();
+            console.log("Failed to load directory");
         }
     }
 
@@ -298,7 +269,7 @@ class USBWorkflow extends Workflow {
         let result = await this.repl.runCode(
 `import microcontroller
 import binascii
-print(binascii.hexlify(microcontroller.cpu.uid).decode('ascii').upper())`
+binascii.hexlify(microcontroller.cpu.uid).decode('ascii').upper()`
         );
         // Strip out whitespace as well as start and end quotes
         if (result) {

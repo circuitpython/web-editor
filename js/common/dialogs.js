@@ -101,7 +101,7 @@ class GenericModal {
         this._modalLayerId = modalLayers.length;
         modal.style.zIndex = BLACKOUT_ZINDEX + 1 + (this._modalLayerId * 2);
 
-        if (!this._trap){
+        if (!this._trap && modal.dataset.tabbable !== "false"){
             this._trap = focusTrap.createFocusTrap(modal, {
                 initialFocus: () => modal,
                 allowOutsideClick: true,
