@@ -21,24 +21,27 @@ const HIDDEN_PREFIXES = ["._"];
 
 // This is for mapping file extensions to font awesome icons
 const extensionMap = {
-    "wav":  {style: FA_STYLE_REGULAR, icon: "file-audio", type: "bin"},
-    "mp3":  {style: FA_STYLE_REGULAR, icon: "file-audio", type: "bin"},
+    "avi":  {style: FA_STYLE_REGULAR, icon: "file-video", type: "bin"},
     "bmp":  {style: FA_STYLE_REGULAR, icon: "file-image", type: "bin"},
+    "css":  {style: FA_STYLE_REGULAR, icon: "file-lines", type: "text"},
     "gif":  {style: FA_STYLE_REGULAR, icon: "file-image", type: "bin"},
-    "jpg":  {style: FA_STYLE_REGULAR, icon: "file-image", type: "bin"},
+    "htm":  {style: FA_STYLE_REGULAR, icon: "file-code", type: "text"},
+    "html": {style: FA_STYLE_REGULAR, icon: "file-code", type: "text"},
     "jpeg": {style: FA_STYLE_REGULAR, icon: "file-image", type: "bin"},
-    "zip":  {style: FA_STYLE_REGULAR, icon: "file-archive", type: "bin"},
-    "py":   {style: FA_STYLE_REGULAR, icon: "file-lines", type: "text"},
+    "jpg":  {style: FA_STYLE_REGULAR, icon: "file-image", type: "bin"},
     "js":   {style: FA_STYLE_REGULAR, icon: "file-code", type: "text"},
     "json": {style: FA_STYLE_REGULAR, icon: "file-code", type: "text"},
-    "toml": {style: FA_STYLE_REGULAR, icon: "file-lines", type: "text"},
-    "pdf":  {style: FA_STYLE_REGULAR, icon: "file-pdf", type: "bin"},
-    "mpy":  {style: FA_STYLE_REGULAR, icon: "file", type: "bin"},
-    "txt":  {style: FA_STYLE_REGULAR, icon: "file-lines", type: "text"},
     "mov":  {style: FA_STYLE_REGULAR, icon: "file-video", type: "bin"},
+    "mp3":  {style: FA_STYLE_REGULAR, icon: "file-audio", type: "bin"},
     "mp4":  {style: FA_STYLE_REGULAR, icon: "file-video", type: "bin"},
-    "avi":  {style: FA_STYLE_REGULAR, icon: "file-video", type: "bin"},
+    "mpy":  {style: FA_STYLE_REGULAR, icon: "file", type: "bin"},
+    "pdf":  {style: FA_STYLE_REGULAR, icon: "file-pdf", type: "bin"},
+    "py":   {style: FA_STYLE_REGULAR, icon: "file-lines", type: "text"},
+    "toml": {style: FA_STYLE_REGULAR, icon: "file-lines", type: "text"},
+    "txt":  {style: FA_STYLE_REGULAR, icon: "file-lines", type: "text"},
+    "wav":  {style: FA_STYLE_REGULAR, icon: "file-audio", type: "bin"},
     "wmv":  {style: FA_STYLE_REGULAR, icon: "file-video", type: "bin"},
+    "zip":  {style: FA_STYLE_REGULAR, icon: "file-archive", type: "bin"},
 };
 
 const FOLDER_ICON = [FA_STYLE_REGULAR, "fa-folder"];
