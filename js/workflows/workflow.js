@@ -82,6 +82,7 @@ class Workflow {
     }
 
     async restartDevice() {
+        console.log("Restarting device");
         this.repl.softRestart();
     }
 
@@ -178,6 +179,7 @@ class Workflow {
     }
 
     async runCurrentCode() {
+        console.log("Run current code");
         let path = this.currentFilename;
 
         if (!path) {
