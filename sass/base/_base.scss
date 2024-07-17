@@ -48,12 +48,13 @@ h5 {
     border: none;
     background-color: $purple;
     margin: 10px 0 10px 10px;
-    cursor: pointer;
-    white-space: nowrap;
 
     i {
         padding-left: 10px;
     }
+
+    cursor: pointer;
+    white-space: nowrap;
 
     &:first-of-type, &.first-item {
         margin-left: 0;

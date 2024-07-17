@@ -35,6 +35,9 @@
         counter-increment: step;
 
         .step-number {
+            &::before {
+                content: counter(step);
+            }
             width: 75px;
             height: 75px;
             color: #333;
@@ -46,10 +49,6 @@
             border: solid 5px #333;
             border-radius: 100%;
             min-width: 75px;
-
-            &::before {
-                content: counter(step);
-            }
         }
 
         &.hidden {
@@ -60,9 +59,6 @@
 
 @media (max-width: $screen-xs-max) {
     .connection-layout {
-        max-height: calc(100vh - 100px);
-        padding: 20px;
-
         .step {
             .step-number {
                 width: 50px;
@@ -72,5 +68,8 @@
                 min-width: 50px;
             }
         }
+
+        max-height: calc(100vh - 100px);
+        padding: 20px;
     }
 }

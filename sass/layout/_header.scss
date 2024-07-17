@@ -101,10 +101,8 @@
 
     button {
         @include rounded-button;
-        & {
-            background-color: transparent;
-            margin: 0;
-        }
+        background-color: transparent;
+        margin: 0;
     }
 }
 
