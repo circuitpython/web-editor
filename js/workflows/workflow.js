@@ -66,6 +66,7 @@ class Workflow {
         this._showSerial = params.showSerialFunc;
 
         this.repl.setTitle = this.setTerminalTitle.bind(this);
+        this.repl.writeToTerminal = this.writeToTerminal.bind(this);
         this.repl.serialTransmit = this.serialTransmit.bind(this);
     }
 
@@ -115,7 +116,7 @@ class Workflow {
     }
 
     async onSerialReceive(e) {
-        this.writeToTerminal(await this.repl.onSerialReceive(e));
+        await this.repl.onSerialReceive(e);
     }
 
     connectionStatus(partialConnectionsAllowed = false) {

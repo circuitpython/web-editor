@@ -236,6 +236,9 @@ class USBWorkflow extends Workflow {
     // Workflow specific Functions
     async _switchToDevice(device) {
         device.addEventListener("message", this.onSerialReceive.bind(this));
+        device.addEventListener("disconnect", async (e) => {
+            await this.onDisconnected(e, false);
+        });
 
         this._serialDevice = device;
         console.log("switch to", this._serialDevice);
@@ -253,13 +256,13 @@ class USBWorkflow extends Workflow {
             await this.writer.ready;
         }
 
-        await this.showBusy(this._getDeviceUid());
-
         this.updateConnected(CONNSTATE.connected);
 
         // At this point we should see if we should init the file client and check if have a saved dir handle
         let fileops = new FileOps(this.repl, false);
         if (await fileops.isReadOnly()) {
+            // UID Only needed for matching the CIRCUITPY drive with the Serial Terminal
+            await this.showBusy(this._getDeviceUid());
             let modal = this.connectDialog.getModal();
 
             // Show the last step
