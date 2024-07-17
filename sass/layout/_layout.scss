@@ -355,6 +355,12 @@
             border: 1px solid #888;
 
             a {
+                padding-left: 5px;
+                display: grid;
+                grid-template-columns: 30px minmax(60px, 1fr) 60px 1fr;
+                grid-gap: 10px;
+                cursor: default;
+
                 &.hidden-file {
 
                     i,
@@ -362,12 +368,6 @@
                         opacity: 0.65;
                     }
                 }
-
-                padding-left: 5px;
-                display: grid;
-                grid-template-columns: 30px minmax(60px, 1fr) 60px 1fr;
-                grid-gap: 10px;
-                cursor: default;
 
                 &.selected {
                     background-color: $light-purple;
