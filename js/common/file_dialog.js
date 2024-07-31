@@ -436,9 +436,8 @@ class FileDialog extends GenericModal {
         }
 
         for (let filename of filenames) {
-            await this._showBusy(this._fileHelper.delete(filename));
             // Delete the item
-            await this._showBusy(this._fileHelper.delete(this._currentPath + filename));
+            await this._showBusy(this._fileHelper.delete(filename));
         }
 
         // Refresh the file list
@@ -641,6 +640,10 @@ class FileDialog extends GenericModal {
         if (!this._canPerformWritableFileOperation()) return;
 
         let oldName = this._getSelectedFilenames();
+        if (oldName.length != 1) {
+            return;
+        }
+        oldName = oldName[0];
         let newName = prompt("Enter a new folder name", oldName);
         // If cancelled, do nothing
         if (!newName) {
@@ -763,13 +766,10 @@ class FileDialog extends GenericModal {
         let filetype, filename;
         let selectedItem = this._getSelectedFiles();
         if (selectedItem.length > 1) {
+            // We don't currently support opening multiple items
             return;
         }
-        if (selectedItem.length == 1) {
-            selectedItem = selectedItem[0];
-        } else {
-            selectedItem = null;
-        }
+        selectedItem = selectedItem.length == 1 ? selectedItem[0] : null;
 
         if (item !== undefined) {
             filetype = item.getAttribute("data-type");
