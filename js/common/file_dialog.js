@@ -741,7 +741,7 @@ class FileDialog extends GenericModal {
 
     _getSelectedFilePath() {
         // Get the paths of all selected files. These will not be valid paths to move to.
-        paths = [];
+        let paths = [];
         let files = this._getSelectedFilesInfo();
         if (files.length < 1) return [];
 
@@ -762,10 +762,14 @@ class FileDialog extends GenericModal {
         const fileNameField = this._getElement('fileNameField');
         let filetype, filename;
         let selectedItem = this._getSelectedFiles();
-        if (selectedItem.length != 1) {
+        if (selectedItem.length > 1) {
             return;
         }
-        selectedItem = selectedItem[0];
+        if (selectedItem.length == 1) {
+            selectedItem = selectedItem[0];
+        } else {
+            selectedItem = null;
+        }
 
         if (item !== undefined) {
             filetype = item.getAttribute("data-type");
