@@ -30,10 +30,13 @@ const extensionMap = {
     "gif":  {style: FA_STYLE_REGULAR, icon: "file-image", type: "bin"},
     "htm":  {style: FA_STYLE_REGULAR, icon: "file-code", type: "text"},
     "html": {style: FA_STYLE_REGULAR, icon: "file-code", type: "text"},
+    "ini": {style: FA_STYLE_REGULAR, icon: "file-code", type: "text"},
+    "inf": {style: FA_STYLE_REGULAR, icon: "file-code", type: "text"},
     "jpeg": {style: FA_STYLE_REGULAR, icon: "file-image", type: "bin"},
     "jpg":  {style: FA_STYLE_REGULAR, icon: "file-image", type: "bin"},
     "js":   {style: FA_STYLE_REGULAR, icon: "file-code", type: "text"},
     "json": {style: FA_STYLE_REGULAR, icon: "file-code", type: "text"},
+    "md":   {style: FA_STYLE_REGULAR, icon: "file-lines", type: "text"},
     "mov":  {style: FA_STYLE_REGULAR, icon: "file-video", type: "bin"},
     "mp3":  {style: FA_STYLE_REGULAR, icon: "file-audio", type: "bin"},
     "mp4":  {style: FA_STYLE_REGULAR, icon: "file-video", type: "bin"},
@@ -50,8 +53,8 @@ const extensionMap = {
 const FOLDER_ICON = [FA_STYLE_REGULAR, "fa-folder"];
 const DEFAULT_FILE_ICON = [FA_STYLE_REGULAR, "fa-file"];
 
-const FILESIZE_UNITS = ["bytes", "KB", "MB", "GB"];
-const COMPACT_UNITS = ["", "K", "M", "G"];
+const FILESIZE_UNITS = ["bytes", "KB", "MB", "GB", "TB"];
+const COMPACT_UNITS = ["", "K", "M", "G", "T"];
 
 function getFileExtension(filename) {
     let extension = filename.split('.').pop();
@@ -280,7 +283,9 @@ class FileDialog extends GenericModal {
             this._selectItem(listItem, selectedFiles.includes(listItem));
         }
 
-        if (clickedItem.getAttribute("data-type") != "folder") {
+        if (this._multipleItemsSelected()) {
+            this._getElement('fileNameField').value = "";
+        } else if (clickedItem.getAttribute("data-type") != "folder") {
             this._getElement('fileNameField').value = clickedItem.querySelector("span").innerHTML;
         }
 
