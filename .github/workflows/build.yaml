@@ -15,5 +15,6 @@ jobs:
           node-version: 22
           cache: 'npm'
       - run: rm -rf node_modules
+      - run: rm package-lock.json
       - run: npm ci
       - run: npm run build
