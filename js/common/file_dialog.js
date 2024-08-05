@@ -42,7 +42,7 @@ const extensionMap = {
     "mp4":  {style: FA_STYLE_REGULAR, icon: "file-video", type: "bin"},
     "mpy":  {style: FA_STYLE_REGULAR, icon: "file", type: "bin"},
     "pdf":  {style: FA_STYLE_REGULAR, icon: "file-pdf", type: "bin"},
-    "py":   {style: FA_STYLE_REGULAR, icon: "file-lines", type: "text"},
+    "py":   {style: FA_STYLE_REGULAR, icon: "file-code", type: "text"},
     "toml": {style: FA_STYLE_REGULAR, icon: "file-lines", type: "text"},
     "txt":  {style: FA_STYLE_REGULAR, icon: "file-lines", type: "text"},
     "wav":  {style: FA_STYLE_REGULAR, icon: "file-audio", type: "bin"},
@@ -57,6 +57,9 @@ const FILESIZE_UNITS = ["bytes", "KB", "MB", "GB", "TB"];
 const COMPACT_UNITS = ["", "K", "M", "G", "T"];
 
 function getFileExtension(filename) {
+    if (filename === null) {
+        return null;
+    }
     let extension = filename.split('.').pop();
     if (extension !== null) {
         return String(extension).toLowerCase();
@@ -189,7 +192,7 @@ class FileDialog extends GenericModal {
             this._currentPath = path;
         }
         const currentPathLabel = this._getElement('currentPathLabel');
-        currentPathLabel.innerHTML = this._currentPath;
+        currentPathLabel.innerHTML = `<i class="${FA_STYLE_REGULAR} fa-folder-open"></i> ` + this._currentPath;
 
         if (this._currentPath != "/") {
             this._addFile({path: "..", isDir: true}, "fa-folder-open");

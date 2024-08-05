@@ -1,6 +1,6 @@
 import {CONNTYPE, CONNSTATE} from '../constants.js';
 import {Workflow} from './workflow.js';
-import {GenericModal} from '../common/dialogs.js';
+import {GenericModal, DeviceInfoModal} from '../common/dialogs.js';
 import {FileOps} from '@adafruit/circuitpython-repl-js'; // Use this to determine which FileTransferClient to load
 import {FileTransferClient as ReplFileTransferClient} from '../common/repl-file-transfer.js';
 import {FileTransferClient as FSAPIFileTransferClient} from '../common/fsapi-file-transfer.js';
@@ -15,6 +15,7 @@ class USBWorkflow extends Workflow {
         this.reader = null;
         this.writer = null;
         this.connectDialog = new GenericModal("usb-connect");
+        this.infoDialog = new DeviceInfoModal("device-info");
         this._fileContents = null;
         this.type = CONNTYPE.Usb;
         this._partialToken = null;
@@ -339,6 +340,10 @@ print(binascii.hexlify(microcontroller.cpu.uid).decode('ascii').upper())`
         }
 
         console.log("Read Loop Stopped. Closing Serial Port.");
+    }
+
+    async showInfo(documentState) {
+        return await this.infoDialog.open(this, documentState);
     }
 
     // Handle the different button states for various connection steps

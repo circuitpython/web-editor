@@ -5,6 +5,7 @@ import {indentWithTab} from "@codemirror/commands"
 import { python } from "@codemirror/lang-python";
 import { syntaxHighlighting, indentUnit } from "@codemirror/language";
 import { classHighlighter } from "@lezer/highlight";
+import { getFileIcon } from "./common/file_dialog.js";
 
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
@@ -237,7 +238,13 @@ async function checkReadOnly() {
 
 /* Update the filename and update the UI */
 function setFilename(path) {
+    // Use the extension_map to figure out the file icon
     let filename = path;
+
+    // Prepend an icon to the path
+    const [style, icon] = getFileIcon(path);
+    filename = `<i class="${style} ${icon}"></i> ` + filename;
+
     if (path === null) {
         filename = "[New Document]";
         btnSave.forEach((b) => b.style.display = 'none');

@@ -2,11 +2,10 @@
  * This class will encapsulate all of the workflow functions specific to BLE
  */
 
-import {FileTransferClient} from '@adafruit/ble-file-transfer-js';
-
+import {FileTransferClient} from '../common/ble-file-transfer.js';
 import {CONNTYPE, CONNSTATE} from '../constants.js';
 import {Workflow} from './workflow.js';
-import {GenericModal} from '../common/dialogs.js';
+import {GenericModal, DeviceInfoModal} from '../common/dialogs.js';
 import {sleep, getUrlParam} from '../common/utilities.js';
 
 const bleNusServiceUUID = 'adaf0001-4369-7263-7569-74507974686e';
@@ -27,6 +26,7 @@ class BLEWorkflow extends Workflow {
         this.bleDevice = null;
         this.decoder = new TextDecoder();
         this.connectDialog = new GenericModal("ble-connect");
+        this.infoDialog = new DeviceInfoModal("device-info");
         this.partialWrites = true;
         this.type = CONNTYPE.Ble;
     }
@@ -268,6 +268,10 @@ class BLEWorkflow extends Workflow {
             return Error("No bluetooth adapter found");
         }
         return true;
+    }
+
+    async showInfo(documentState) {
+        return await this.infoDialog.open(this, documentState);
     }
 
     // Handle the different button states for various connection steps

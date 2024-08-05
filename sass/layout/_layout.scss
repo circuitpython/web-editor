@@ -401,7 +401,8 @@
         }
     }
 
-    &[data-popup-modal="device-discovery"] {
+    &[data-popup-modal="device-discovery"],
+    &[data-popup-modal="device-info"] {
         .device-info {
             margin-top: 5px;
             width: 100%;
