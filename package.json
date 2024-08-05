@@ -25,5 +25,8 @@
     "focus-trap": "^7.5.4",
     "idb-keyval": "^6.2.1",
     "jszip": "^3.10.1"
+  },
+  "optionalDependencies": {
+    "@rollup/rollup-linux-x64-gnu": "^4.20.0"
   }
 }
