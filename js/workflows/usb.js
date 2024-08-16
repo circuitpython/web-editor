@@ -160,15 +160,15 @@ class USBWorkflow extends Workflow {
                 //alert("Unable to connect to device. Make sure it is not already in use.");
                 // TODO: I think this also occurs if the user cancels the requestPort dialog
             }
-        });
+        }, {once: true});
 
         btnSelectHostFolder.addEventListener('click', async (event) => {
             await this._selectHostFolder();
-        });
+        }, {once: true});
 
         btnUseHostFolder.addEventListener('click', async (event) => {
             await this._useHostFolder();
-        });
+        }, {once: true});
 
         // Check if WebSerial is available
         if (!(await this.available() instanceof Error)) {
@@ -236,10 +236,10 @@ class USBWorkflow extends Workflow {
 
     // Workflow specific Functions
     async _switchToDevice(device) {
-        device.addEventListener("message", this.onSerialReceive.bind(this));
+        device.addEventListener("message", this.onSerialReceive.bind(this), {once: true});
         device.addEventListener("disconnect", async (e) => {
             await this.onDisconnected(e, false);
-        });
+        }, {once: true});
 
         this._serialDevice = device;
         console.log("switch to", this._serialDevice);
