@@ -150,8 +150,7 @@ class USBWorkflow extends Workflow {
 
         btnRequestSerialDevice.disabled = true;
         btnSelectHostFolder.disabled = true;
-
-        btnRequestSerialDevice.addEventListener('click', async (event) => {
+        let serialConnect = async (event) => {
             try {
                 await this.connectToSerial();
             } catch (e) {
@@ -160,15 +159,15 @@ class USBWorkflow extends Workflow {
                 //alert("Unable to connect to device. Make sure it is not already in use.");
                 // TODO: I think this also occurs if the user cancels the requestPort dialog
             }
-        }, {once: true});
+        };
+        btnRequestSerialDevice.removeEventListener('click', serialConnect);
+        btnRequestSerialDevice.addEventListener('click', serialConnect);
 
-        btnSelectHostFolder.addEventListener('click', async (event) => {
-            await this._selectHostFolder();
-        }, {once: true});
+        btnSelectHostFolder.removeEventListener('click', this._selectHostFolder);
+        btnSelectHostFolder.addEventListener('click', this._selectHostFolder);
 
-        btnUseHostFolder.addEventListener('click', async (event) => {
-            await this._useHostFolder();
-        }, {once: true});
+        btnUseHostFolder.removeEventListener('click', this._useHostFolder);
+        btnUseHostFolder.addEventListener('click', this._useHostFolder);
 
         // Check if WebSerial is available
         if (!(await this.available() instanceof Error)) {
@@ -236,10 +235,14 @@ class USBWorkflow extends Workflow {
 
     // Workflow specific Functions
     async _switchToDevice(device) {
-        device.addEventListener("message", this.onSerialReceive.bind(this), {once: true});
-        device.addEventListener("disconnect", async (e) => {
+        device.removeEventListener("message", this.onSerialReceive.bind(this));
+        device.addEventListener("message", this.onSerialReceive.bind(this));
+
+        let onDisconnect = async (e) => {
             await this.onDisconnected(e, false);
-        }, {once: true});
+        };
+        device.removeEventListener("disconnect", onDisconnect);
+        device.addEventListener("disconnect", onDisconnect);
 
         this._serialDevice = device;
         console.log("switch to", this._serialDevice);
