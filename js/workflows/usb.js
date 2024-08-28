@@ -237,8 +237,8 @@ class USBWorkflow extends Workflow {
     async _switchToDevice(device) {
 
         device.removeEventListener("message", this.messageCallback);
-        this.messageCallback = this.onSerialReceive.bind(this);
-        device.addEventListener("message", this.messageCallback);
+        this._messageCallback = this.onSerialReceive.bind(this);
+        device.addEventListener("message", this._messageCallback);
 
         let onDisconnect = async (e) => {
             await this.onDisconnected(e, false);
