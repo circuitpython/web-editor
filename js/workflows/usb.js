@@ -21,6 +21,7 @@ class USBWorkflow extends Workflow {
         this._partialToken = null;
         this._uid = null;
         this._readLoopPromise = null;
+        this._messageCallback = null;
     }
 
     async init(params) {
