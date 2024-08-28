@@ -237,7 +237,7 @@ class USBWorkflow extends Workflow {
     // Workflow specific Functions
     async _switchToDevice(device) {
 
-        device.removeEventListener("message", this.messageCallback);
+        device.removeEventListener("message", this._messageCallback);
         this._messageCallback = this.onSerialReceive.bind(this);
         device.addEventListener("message", this._messageCallback);
 
