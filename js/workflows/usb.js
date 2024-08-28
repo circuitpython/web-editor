@@ -21,6 +21,9 @@ class USBWorkflow extends Workflow {
         this._partialToken = null;
         this._uid = null;
         this._readLoopPromise = null;
+        this._btnSelectHostFolderCallback = null;
+        this._btnUseHostFolderCallback = null;
+
     }
 
     async init(params) {
@@ -163,18 +166,18 @@ class USBWorkflow extends Workflow {
         btnRequestSerialDevice.removeEventListener('click', serialConnect);
         btnRequestSerialDevice.addEventListener('click', serialConnect);
 
-        btnSelectHostFolder.removeEventListener('click', this.btnSelectHostFolderCallback)
-        this.btnSelectHostFolderCallback = async (event) => {
+        btnSelectHostFolder.removeEventListener('click', this._btnSelectHostFolderCallback)
+        this._btnSelectHostFolderCallback = async (event) => {
             await this._selectHostFolder();
         };
-        btnSelectHostFolder.addEventListener('click', this.btnSelectHostFolderCallback);
+        btnSelectHostFolder.addEventListener('click', this._btnSelectHostFolderCallback);
 
 
-        btnUseHostFolder.removeEventListener('click', this.btnUseHostFolderCallback);
-        this.btnUseHostFolderCallback = async (event) => {
+        btnUseHostFolder.removeEventListener('click', this._btnUseHostFolderCallback);
+        this._btnUseHostFolderCallback = async (event) => {
             await this._useHostFolder();
         }
-        btnUseHostFolder.addEventListener('click', this.btnUseHostFolderCallback);
+        btnUseHostFolder.addEventListener('click', this._btnUseHostFolderCallback);
 
         // Check if WebSerial is available
         if (!(await this.available() instanceof Error)) {
