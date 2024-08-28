@@ -21,9 +21,9 @@ class USBWorkflow extends Workflow {
         this._partialToken = null;
         this._uid = null;
         this._readLoopPromise = null;
+        this._messageCallback = null;
         this._btnSelectHostFolderCallback = null;
         this._btnUseHostFolderCallback = null;
-
     }
 
     async init(params) {
@@ -245,8 +245,10 @@ class USBWorkflow extends Workflow {
 
     // Workflow specific Functions
     async _switchToDevice(device) {
-        device.removeEventListener("message", this.onSerialReceive.bind(this));
-        device.addEventListener("message", this.onSerialReceive.bind(this));
+
+        device.removeEventListener("message", this._messageCallback);
+        this._messageCallback = this.onSerialReceive.bind(this);
+        device.addEventListener("message", this._messageCallback);
 
         let onDisconnect = async (e) => {
             await this.onDisconnected(e, false);
