@@ -163,11 +163,18 @@ class USBWorkflow extends Workflow {
         btnRequestSerialDevice.removeEventListener('click', serialConnect);
         btnRequestSerialDevice.addEventListener('click', serialConnect);
 
-        btnSelectHostFolder.removeEventListener('click', this._selectHostFolder);
-        btnSelectHostFolder.addEventListener('click', this._selectHostFolder);
+        btnSelectHostFolder.removeEventListener('click', this.btnSelectHostFolderCallback)
+        this.btnSelectHostFolderCallback = async (event) => {
+            await this._selectHostFolder();
+        };
+        btnSelectHostFolder.addEventListener('click', this.btnSelectHostFolderCallback);
 
-        btnUseHostFolder.removeEventListener('click', this._useHostFolder);
-        btnUseHostFolder.addEventListener('click', this._useHostFolder);
+
+        btnUseHostFolder.removeEventListener('click', this.btnUseHostFolderCallback);
+        this.btnUseHostFolderCallback = async (event) => {
+            await this._useHostFolder();
+        }
+        btnUseHostFolder.addEventListener('click', this.btnUseHostFolderCallback);
 
         // Check if WebSerial is available
         if (!(await this.available() instanceof Error)) {
