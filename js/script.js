@@ -21,6 +21,8 @@ import { CONNTYPE } from './constants.js';
 import './layout.js'; // load for side effects only
 import { mainContent, showSerial } from './layout.js';
 
+import Chart from 'chart.js/auto'
+
 // Instantiate workflows
 let workflows = {};
 workflows[CONNTYPE.Ble] = new BLEWorkflow();
@@ -32,6 +34,7 @@ let unchanged = 0;
 let connectionPromise = null;
 
 const btnRestart = document.querySelector('.btn-restart');
+const btnPlotter = document.querySelector('.btn-plotter');
 const btnClear = document.querySelector('.btn-clear');
 const btnConnect = document.querySelectorAll('.btn-connect');
 const btnNew = document.querySelectorAll('.btn-new');
@@ -41,6 +44,8 @@ const btnSaveAs = document.querySelectorAll('.btn-save-as');
 const btnSaveRun = document.querySelectorAll('.btn-save-run');
 const btnInfo = document.querySelector('.btn-info');
 const terminalTitle = document.getElementById('terminal-title');
+const serialPlotter = document.getElementById('plotter');
+
 
 const messageDialog = new MessageModal("message");
 const connectionType = new ButtonValueDialog("connection-type");
@@ -129,7 +134,31 @@ btnRestart.addEventListener('click', async function(e) {
 
 // Clear Button
 btnClear.addEventListener('click', async function(e) {
+    if (workflow.plotterChart){
+        workflow.plotterChart.data.datasets.forEach((dataSet, index) => {
+            workflow.plotterChart.data.datasets[index] = {
+                label: "" + index,
+                data: []
+            }
+        });
+        workflow.plotterChart.data.labels = [];
+        workflow.plotterChart.options.scales.y.min = -1;
+        workflow.plotterChart.options.scales.y.max = 1;
+        workflow.plotterChart.maxDataValue  = 1;
+        workflow.plotterChart.minDataValue  = -1;
+        workflow.plotterChart.update();
+    }
     state.terminal.clear();
+});
+
+// Plotter Button
+btnPlotter.addEventListener('click', async function(e){
+    serialPlotter.classList.toggle("hidden");
+    if (!workflow.plotterEnabled){
+        await setupPlotterChart();
+        workflow.plotterEnabled = true;
+    }
+
 });
 
 btnInfo.addEventListener('click', async function(e) {
@@ -530,6 +559,40 @@ async function setupXterm() {
             workflow.serialTransmit(data);
         }
     });
+}
+
+async function setupPlotterChart() {
+    let initialData = []
+    Chart.defaults.backgroundColor = '#444444';
+    Chart.defaults.borderColor = '#000000';
+    Chart.defaults.color = '#000000';
+    Chart.defaults.aspectRatio = 3/2;
+    workflow.plotterChart = new Chart(
+        document.getElementById('plotter-canvas'),
+        {
+            type: 'line',
+
+            // responsive: true,
+            // maintainAspectRatio: false,
+            options: {
+                scales: {
+                    y: {
+                        min: -1,
+                        max: 1
+                    }
+                }
+            },
+            data: {
+                labels: initialData.map(row => row.timestamp),
+                datasets: [
+                    {
+                        label: '0',
+                        data: initialData.map(row => row.value)
+                    }
+                ]
+            }
+        }
+    );
 }
 
 function getBackend() {

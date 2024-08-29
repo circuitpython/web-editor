@@ -72,6 +72,18 @@
 }
 
 #serial-page {
+    #plotter {
+        flex: 2 1 0;
+        background: #777;
+        position: relative;
+        width: 99%;
+        overflow: hidden;
+        padding: 10px 20px;
+
+        &.hidden{
+            display: none;
+        }
+    }
     #terminal {
         flex: 1 1 0%;
         background: #333;
