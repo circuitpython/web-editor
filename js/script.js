@@ -141,8 +141,6 @@ btnClear.addEventListener('click', async function(e) {
         workflow.plotterChart.data.labels = [];
         workflow.plotterChart.options.scales.y.min = -1;
         workflow.plotterChart.options.scales.y.max = 1;
-        workflow.plotterChart.maxDataValue  = 1;
-        workflow.plotterChart.minDataValue  = -1;
         workflow.plotterChart.update();
     }
     state.terminal.clear();
