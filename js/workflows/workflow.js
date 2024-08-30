@@ -4,6 +4,7 @@ import {FileHelper} from '../common/file.js';
 import {UnsavedDialog} from '../common/dialogs.js';
 import {FileDialog, FILE_DIALOG_OPEN, FILE_DIALOG_SAVE} from '../common/file_dialog.js';
 import {CONNTYPE, CONNSTATE} from '../constants.js';
+import {plotValues} from '../common/plotter.js'
 
 /*
  * This class will encapsulate all of the common workflow-related functions
@@ -28,14 +29,6 @@ function getBackendWorkflow(backend) {
 
 function getWorkflowBackendName(workflow) {
     return Object.keys(validBackends).find(key => validBackends[key] === workflow) || null;
-}
-
-function stringToBytes(val) {
-    const result = [];
-    for (let i = 0; i < val.length; i++) {
-        result.push(val.charCodeAt(i));
-    }
-    return result;
 }
 
 class Workflow {
@@ -169,66 +162,9 @@ class Workflow {
         return false;
     }
 
-    updatePlotterScales(){
-        this.plotterChart.options.scales.y.min = Math.min(...this.plotterChart.data.datasets[0].data) - 10
-        this.plotterChart.options.scales.y.max = Math.max(...this.plotterChart.data.datasets[0].data) + 10
-    }
-
     writeToTerminal(data) {
         if (this.plotterEnabled) {
-
-
-            // if (data != "" && data != "\n"){
-            //     let dataValue = JSON.parse(data);
-            //     console.log("plotter is enabled, data is: " + data);
-            //     this.plotterChart.data.datasets[0].data.push({
-            //         value: dataValue,
-            //         //timestamp: new Date()
-            //     });
-            //     this.plotterChart.data.labels.push("")
-            //     console.log(this.plotterChart.data.datasets[0])
-            //     this.plotterChart.update();
-            // }
-
-
-            try{
-
-                let strippedData = data.replace("\r\n", "")
-                console.log("plotter is enabled, data is: '" + strippedData + "'");
-                console.log("bytes: " + stringToBytes(strippedData));
-                let dataValue = JSON.parse(parseFloat(strippedData));
-               /* if (this.plotterChart.minDataValue === undefined || (dataValue - 10) < this.plotterChart.minDataValue){
-                    this.plotterChart.minDataValue = dataValue - 10
-                    this.plotterChart.options.scales.y.min = dataValue - 10;
-                }
-                if (this.plotterChart.maxDataValue === undefined || (dataValue + 10) > this.plotterChart.maxDataValue){
-                    console.log("upping max to: " + dataValue + 10);
-                    this.plotterChart.maxDataValue = dataValue + 10;
-                    this.plotterChart.options.scales.y.max = dataValue + 10;
-                }*/
-
-                console.log("plotter is enabled, data is: " + data);
-
-                while (this.plotterChart.data.labels.length > this.plotterBufferSize.value){
-                    this.plotterChart.data.labels.shift();
-                    this.plotterChart.data.datasets[0].data.shift();
-                }
-
-                this.plotterChart.data.datasets[0].data.push(dataValue);
-                //this.plotterChart.data.labels.push(new Date())
-                this.plotterChart.data.labels.push("");
-                console.log(this.plotterChart.data.datasets[0]);
-                this.updatePlotterScales();
-                this.plotterChart.update();
-            } catch (e){
-
-                console.log("JSON parse error");
-                //console.log(e)
-                console.log(e.stack);
-                // This line isn't a valid data value
-            }
-
-
+            plotValues(this.plotterChart, data, this.plotterBufferSize.value);
         }
         this.terminal.write(data);
     }

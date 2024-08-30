@@ -136,10 +136,7 @@ btnRestart.addEventListener('click', async function(e) {
 btnClear.addEventListener('click', async function(e) {
     if (workflow.plotterChart){
         workflow.plotterChart.data.datasets.forEach((dataSet, index) => {
-            workflow.plotterChart.data.datasets[index] = {
-                label: "" + index,
-                data: []
-            }
+            workflow.plotterChart.data.datasets[index].data = [];
         });
         workflow.plotterChart.data.labels = [];
         workflow.plotterChart.options.scales.y.min = -1;
@@ -562,6 +559,7 @@ async function setupXterm() {
 }
 
 async function setupPlotterChart() {
+
     let initialData = []
     Chart.defaults.backgroundColor = '#444444';
     Chart.defaults.borderColor = '#000000';
