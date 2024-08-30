@@ -153,6 +153,7 @@ btnPlotter.addEventListener('click', async function(e){
         await setupPlotterChart();
         workflow.plotterEnabled = true;
     }
+    state.fitter.fit();
 
 });
 
