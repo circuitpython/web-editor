@@ -19,6 +19,7 @@ import { ButtonValueDialog, MessageModal } from './common/dialogs.js';
 import { isLocal, switchUrl, getUrlParam } from './common/utilities.js';
 import { CONNTYPE } from './constants.js';
 import './layout.js'; // load for side effects only
+import {setupPlotterChart} from "./common/plotter.js";
 import { mainContent, showSerial } from './layout.js';
 
 import Chart from 'chart.js/auto'
@@ -150,7 +151,7 @@ btnClear.addEventListener('click', async function(e) {
 btnPlotter.addEventListener('click', async function(e){
     serialPlotter.classList.toggle("hidden");
     if (!workflow.plotterEnabled){
-        await setupPlotterChart();
+        await setupPlotterChart(workflow);
         workflow.plotterEnabled = true;
     }
     state.fitter.fit();
@@ -557,40 +558,7 @@ async function setupXterm() {
     });
 }
 
-async function setupPlotterChart() {
 
-    let initialData = []
-    Chart.defaults.backgroundColor = '#444444';
-    Chart.defaults.borderColor = '#000000';
-    Chart.defaults.color = '#000000';
-    Chart.defaults.aspectRatio = 3/2;
-    workflow.plotterChart = new Chart(
-        document.getElementById('plotter-canvas'),
-        {
-            type: 'line',
-
-            // responsive: true,
-            // maintainAspectRatio: false,
-            options: {
-                scales: {
-                    y: {
-                        min: -1,
-                        max: 1
-                    }
-                }
-            },
-            data: {
-                labels: initialData.map(row => row.timestamp),
-                datasets: [
-                    {
-                        label: '0',
-                        data: initialData.map(row => row.value)
-                    }
-                ]
-            }
-        }
-    );
-}
 
 function getBackend() {
     let backend = getUrlParam("backend");

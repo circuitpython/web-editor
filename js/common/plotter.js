@@ -1,3 +1,5 @@
+import Chart from "chart.js/auto";
+
 let textLineBuffer = "";
 let textLine;
 
@@ -83,6 +85,12 @@ export function plotValues(chartObj, serialMessage, bufferSize) {
                 }
             }
             chartObj.data.labels.push("");
+            /*chartObj.data.labels.push(new Date().toLocaleString('en-US', {
+                hour: 'numeric', // numeric, 2-digit
+                minute: 'numeric', // numeric, 2-digit
+                second: 'numeric', // numeric, 2-digit
+                millisecond: 'numeric', // numeric, 2-digit
+            }));*/
 
             for (let i = 0; i < valuesToPlot.length; i++) {
                 if (isNaN(valuesToPlot[i])) {
@@ -132,3 +140,76 @@ function updatePlotterScales(chartObj) {
     chartObj.options.scales.y.max = Math.max(...allData) + 10
 }
 
+export async function setupPlotterChart(workflow) {
+
+    let initialData = []
+    Chart.defaults.backgroundColor = '#444444';
+    Chart.defaults.borderColor = '#000000';
+    Chart.defaults.color = '#000000';
+    Chart.defaults.aspectRatio = 3/2;
+    workflow.plotterChart = new Chart(
+        document.getElementById('plotter-canvas'),
+        {
+            type: 'line',
+
+            // responsive: true,
+            // maintainAspectRatio: false,
+            options: {
+                animation: false,
+                scales: {
+                    y: {
+                        min: -1,
+                        max: 1,
+                        grid:{
+                            color: "#666"
+                        },
+                        border: {
+                            color: "#444"
+                        }
+
+                    },
+                    x:{
+                        grid: {
+                            display: true,
+                            color: "#666"
+                        },
+                        border: {
+                            color: "#444"
+                        }
+                    }
+                }
+            },
+            data: {
+                labels: initialData.map(row => row.timestamp),
+                datasets: [
+                    {
+                        label: '0',
+                        data: initialData.map(row => row.value)
+                    }
+                ]
+            }
+        }
+    );
+    workflow.plotterGridLines.addEventListener('change', (event) => {
+        //console.log("data: " + event.target);
+        //console.dir(event.target);
+        //console.log("value: " + event.target.value);
+        //console.log(workflow.plotterGridLines.value);
+        let gridChoice = event.target.value;
+        if (gridChoice === "x"){
+            workflow.plotterChart.options.scales.x.grid.display = true;
+            workflow.plotterChart.options.scales.y.grid.display = false;
+        }else if (gridChoice === "y"){
+            workflow.plotterChart.options.scales.y.grid.display = true;
+            workflow.plotterChart.options.scales.x.grid.display = false;
+        }else if (gridChoice === "both"){
+            workflow.plotterChart.options.scales.y.grid.display = true;
+            workflow.plotterChart.options.scales.x.grid.display = true;
+        }else if (gridChoice === "none"){
+            workflow.plotterChart.options.scales.y.grid.display = false;
+            workflow.plotterChart.options.scales.x.grid.display = false;
+        }
+        workflow.plotterChart.update();
+    });
+
+}

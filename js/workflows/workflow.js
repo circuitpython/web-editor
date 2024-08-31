@@ -63,6 +63,11 @@ class Workflow {
         this._showMessage = params.showMessageFunc;
         this.loader = document.getElementById("loader");
         this.plotterBufferSize = document.getElementById('buffer-size');
+        this.plotterGridLines = document.getElementById('plot-gridlines-select');
+        console.log("gridLineSelect " + this.plotterGridLines);
+
+
+
         if ("terminalTitle" in params) {
             this.terminalTitle = params.terminalTitle;
         }
