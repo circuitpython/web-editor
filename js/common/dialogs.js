@@ -329,6 +329,10 @@ class DiscoveryModal extends GenericModal {
         let ip = this._currentModal.querySelector("#ip");
         ip.href = `http://${deviceInfo.ip + port}/code/`;
         ip.textContent = deviceInfo.ip;
+        this._currentModal.querySelector("#builddate").textContent = deviceInfo.build_date;
+        this._currentModal.querySelector("#mcuname").textContent = deviceInfo.mcu_name;
+        this._currentModal.querySelector("#boardid").textContent = deviceInfo.board_id;
+        this._currentModal.querySelector("#uid").textContent = deviceInfo.uid;
     }
 
     async _refreshDevices() {
@@ -378,11 +382,43 @@ class DiscoveryModal extends GenericModal {
     }
 }
 
+class DeviceInfoModal extends GenericModal {
+        async _getDeviceInfo() {
+        const deviceInfo = await this._showBusy(this._fileHelper.versionInfo());
+        this._currentModal.querySelector("#version").textContent = deviceInfo.version;
+        const boardLink = this._currentModal.querySelector("#board");
+        boardLink.href = `https://circuitpython.org/board/${deviceInfo.board_id}/`;
+        boardLink.textContent = deviceInfo.board_name;
+        this._currentModal.querySelector("#builddate").textContent = deviceInfo.build_date;
+        this._currentModal.querySelector("#mcuname").textContent = deviceInfo.mcu_name;
+        this._currentModal.querySelector("#boardid").textContent = deviceInfo.board_id;
+        this._currentModal.querySelector("#uid").textContent = deviceInfo.uid;
+    }
+
+    async open(workflow, documentState) {
+        this._workflow = workflow;
+        this._fileHelper = workflow.fileHelper;
+        this._showBusy = workflow.showBusy.bind(workflow);
+        this._docState = documentState;
+
+        let p = super.open();
+        const okButton = this._currentModal.querySelector("button.ok-button");
+        this._addDialogElement('okButton', okButton, 'click', this._closeModal);
+
+        const refreshIcon = this._currentModal.querySelector("i.refresh");
+        this._addDialogElement('refreshIcon', refreshIcon, 'click', this._refreshDevices);
+
+        await this._getDeviceInfo();
+        return p;
+    }
+}
+
 export {
     GenericModal,
     MessageModal,
     ButtonValueDialog,
     UnsavedDialog,
     DiscoveryModal,
-    ProgressDialog
+    ProgressDialog,
+    DeviceInfoModal
 };

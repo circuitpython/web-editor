@@ -375,6 +375,7 @@
                 grid-template-columns: 30px minmax(60px, 1fr) 60px 1fr;
                 grid-gap: 10px;
                 cursor: default;
+                user-select:none;
 
                 &.hidden-file {
 
@@ -415,7 +416,8 @@
         }
     }
 
-    &[data-popup-modal="device-discovery"] {
+    &[data-popup-modal="device-discovery"],
+    &[data-popup-modal="device-info"] {
         .device-info {
             margin-top: 5px;
             width: 100%;

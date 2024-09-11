@@ -13,6 +13,9 @@ const FA_STYLE_REGULAR = "fa-regular";
 const FA_STYLE_SOLID = "fa-solid";
 const FA_STYLE_BRANDS = "fa-brands";
 
+const MODIFIER_SHIFT = "shift";
+const MODIFIER_CTRL = "ctrl";
+
 // Hide any file or folder matching these exact names
 const HIDDEN_FILES = [".Trashes", ".metadata_never_index", ".fseventsd"];
 
@@ -27,16 +30,19 @@ const extensionMap = {
     "gif":  {style: FA_STYLE_REGULAR, icon: "file-image", type: "bin"},
     "htm":  {style: FA_STYLE_REGULAR, icon: "file-code", type: "text"},
     "html": {style: FA_STYLE_REGULAR, icon: "file-code", type: "text"},
+    "ini": {style: FA_STYLE_REGULAR, icon: "file-code", type: "text"},
+    "inf": {style: FA_STYLE_REGULAR, icon: "file-code", type: "text"},
     "jpeg": {style: FA_STYLE_REGULAR, icon: "file-image", type: "bin"},
     "jpg":  {style: FA_STYLE_REGULAR, icon: "file-image", type: "bin"},
     "js":   {style: FA_STYLE_REGULAR, icon: "file-code", type: "text"},
     "json": {style: FA_STYLE_REGULAR, icon: "file-code", type: "text"},
+    "md":   {style: FA_STYLE_REGULAR, icon: "file-lines", type: "text"},
     "mov":  {style: FA_STYLE_REGULAR, icon: "file-video", type: "bin"},
     "mp3":  {style: FA_STYLE_REGULAR, icon: "file-audio", type: "bin"},
     "mp4":  {style: FA_STYLE_REGULAR, icon: "file-video", type: "bin"},
     "mpy":  {style: FA_STYLE_REGULAR, icon: "file", type: "bin"},
     "pdf":  {style: FA_STYLE_REGULAR, icon: "file-pdf", type: "bin"},
-    "py":   {style: FA_STYLE_REGULAR, icon: "file-lines", type: "text"},
+    "py":   {style: FA_STYLE_REGULAR, icon: "file-code", type: "text"},
     "toml": {style: FA_STYLE_REGULAR, icon: "file-lines", type: "text"},
     "txt":  {style: FA_STYLE_REGULAR, icon: "file-lines", type: "text"},
     "wav":  {style: FA_STYLE_REGULAR, icon: "file-audio", type: "bin"},
@@ -47,10 +53,13 @@ const extensionMap = {
 const FOLDER_ICON = [FA_STYLE_REGULAR, "fa-folder"];
 const DEFAULT_FILE_ICON = [FA_STYLE_REGULAR, "fa-file"];
 
-const FILESIZE_UNITS = ["bytes", "KB", "MB", "GB"];
-const COMPACT_UNITS = ["", "K", "M", "G"];
+const FILESIZE_UNITS = ["bytes", "KB", "MB", "GB", "TB"];
+const COMPACT_UNITS = ["", "K", "M", "G", "T"];
 
 function getFileExtension(filename) {
+    if (filename === null) {
+        return null;
+    }
     let extension = filename.split('.').pop();
     if (extension !== null) {
         return String(extension).toLowerCase();
@@ -91,6 +100,7 @@ class FileDialog extends GenericModal {
         this._fileHelper = null;
         this._readOnlyMode = false;
         this._progressDialog = null;
+        this._lastSelectedNode = null;
     }
 
     _removeAllChildNodes(parent) {
@@ -110,13 +120,14 @@ class FileDialog extends GenericModal {
         return "bin";
     }
 
-    async open(fileHelper, type, hidePaths = null) {
+    async open(fileHelper, type, hidePaths = null, allowMultiple = true) {
         if (![FILE_DIALOG_OPEN, FILE_DIALOG_SAVE, FILE_DIALOG_MOVE, FILE_DIALOG_COPY].includes(type)) {
             return;
         }
         this._fileHelper = fileHelper;
         this._readOnlyMode = await this._showBusy(this._fileHelper.readOnly());
         this._hidePaths = hidePaths ? hidePaths : new Set();
+        this._allowMultiple = allowMultiple;
 
         let p = super.open();
         const cancelButton = this._currentModal.querySelector("button.cancel-button");
@@ -176,11 +187,12 @@ class FileDialog extends GenericModal {
     async _openFolder(path) {
         const fileList = this._getElement('fileList');
         this._removeAllChildNodes(fileList);
+        this._lastSelectedNode = null;
         if (path !== undefined) {
             this._currentPath = path;
         }
         const currentPathLabel = this._getElement('currentPathLabel');
-        currentPathLabel.innerHTML = this._currentPath;
+        currentPathLabel.innerHTML = `<i class="${FA_STYLE_REGULAR} fa-folder-open"></i> ` + this._currentPath;
 
         if (this._currentPath != "/") {
             this._addFile({path: "..", isDir: true}, "fa-folder-open");
@@ -213,28 +225,104 @@ class FileDialog extends GenericModal {
         if (this._hidePaths.has(this._currentPath)) {
             return false;
         }
+        if (this._multipleItemsSelected()) {
+            return false;
+        }
         return true;
     }
 
-    _handleFileClick(clickedItem) {
+    _handleFileClick(clickedItem, event) {
+        // Get a list of nodes that have the data-selected attribute and store them in an array
+        let listItem;
+        let previouslySelectedNodes = [];
         for (let listItem of this._getElement('fileList').childNodes) {
-            listItem.setAttribute("data-selected", listItem.isEqualNode(clickedItem));
-            if (listItem.isEqualNode(clickedItem)) {
-                listItem.classList.add("selected");
-            } else {
-                listItem.classList.remove("selected");
+            if (this._isSelected(listItem)) {
+                previouslySelectedNodes.push(listItem);
             }
         }
-        if (clickedItem.getAttribute("data-type") != "folder") {
+
+        // Get a list of modifier keys that are currently pressed if event was passed in
+        let modifierKeys = [];
+        if (this._allowMultiple && event.shiftKey && this._lastSelectedNode !== null) {
+            modifierKeys.push(MODIFIER_SHIFT);
+        }
+
+        // Command for macs, Control for Windows
+        if (this._allowMultiple && (event.metaKey || event.ctrlKey)) {
+            modifierKeys.push(MODIFIER_CTRL);
+        }
+
+        // Go through and add which files should be selected. This will be the key for updating the UI for the
+        // files that should be selected
+        let selectedFiles = [];
+
+        // If control is held down, we should start by populating the list with everything currently selected
+        if (modifierKeys.includes(MODIFIER_CTRL)) {
+            selectedFiles = previouslySelectedNodes;
+        }
+
+        // If shift is held down, we should add all the files between the last selected file and the current file
+        if (modifierKeys.includes(MODIFIER_SHIFT)) {
+            let lastSelectedIndex = Array.from(this._getElement('fileList').childNodes).indexOf(this._lastSelectedNode);
+            let currentSelectedIndex = Array.from(this._getElement('fileList').childNodes).indexOf(clickedItem);
+            let startIndex = Math.min(lastSelectedIndex, currentSelectedIndex);
+            let endIndex = Math.max(lastSelectedIndex, currentSelectedIndex);
+            for (let i = startIndex; i <= endIndex; i++) {
+                selectedFiles.push(this._getElement('fileList').childNodes[i]);
+            }
+        } else if (modifierKeys.includes(MODIFIER_CTRL)) {
+            if (selectedFiles.includes(clickedItem)) {
+                selectedFiles.splice(selectedFiles.indexOf(clickedItem), 1);
+            } else {
+                selectedFiles.push(clickedItem);
+            }
+        } else {
+            selectedFiles.push(clickedItem);
+        }
+
+        // Go through and update the UI for all of the files that should be selected or delselected
+        for (listItem of this._getElement('fileList').childNodes) {
+            // If Control key is pressed, toggle selection
+            this._selectItem(listItem, selectedFiles.includes(listItem));
+        }
+
+        if (this._multipleItemsSelected()) {
+            this._getElement('fileNameField').value = "";
+        } else if (clickedItem.getAttribute("data-type") != "folder") {
             this._getElement('fileNameField').value = clickedItem.querySelector("span").innerHTML;
         }
-        this._setElementEnabled('okButton', clickedItem.getAttribute("data-type") != "bin");
+
+        this._lastSelectedNode = clickedItem;
+        this._setElementEnabled('okButton', !this._multipleItemsSelected() && clickedItem.getAttribute("data-type") != "bin");
         this._updateToolbar();
+    }
+
+    _selectItem(listItem, value) {
+        listItem.setAttribute("data-selected", value);
+        if (value) {
+            listItem.classList.add("selected");
+        } else {
+            listItem.classList.remove("selected");
+        }
+    }
+
+    _isSelected(listItem) {
+        return (/true/i).test(listItem.getAttribute("data-selected"));
+    }
+
+    _multipleItemsSelected() {
+        let selectedItems = 0;
+        for (let listItem of this._getElement('fileList').childNodes) {
+            if (this._isSelected(listItem)) {
+                selectedItems++;
+            }
+        }
+        return selectedItems > 1;
     }
 
     _updateToolbar() {
         this._setElementEnabled('delButton', this._canPerformWritableFileOperation());
-        this._setElementEnabled('renameButton', this._canPerformWritableFileOperation());
+        this._setElementEnabled('renameButton', !this._multipleItemsSelected() && this._canPerformWritableFileOperation());
         this._setElementEnabled('moveButton', this._canPerformWritableFileOperation());
         this._setElementEnabled('downloadButton', this._canDownload());
     }
@@ -299,28 +387,38 @@ class FileDialog extends GenericModal {
         if (this._readOnlyMode) {
             return false;
         }
-        let selectedItem = this._getSelectedFile();
-        if (!selectedItem) {
+
+        let selectedItems = this._getSelectedFilesInfo();
+
+        if (selectedItems.length < 1) {
             return false;
         }
-        let filename = selectedItem.querySelector("span").innerHTML;
-        if (!this._validName(filename)) {
-            return false;
+
+        for (let item of selectedItems) {
+            if (!this._validName(item.filename)) {
+                return false;
+            }
         }
-        if (!includeFolder && selectedItem.getAttribute("data-type") == "folder") {
-            return false;
+
+        if (!includeFolder) {
+            for (let item of selectedItems) {
+                if (item.filetype == "folder") {
+                    return false;
+                }
+            }
         }
+
         return true;
     }
 
     _canDownload() {
-        let selectedItem = this._getSelectedFile();
-        if (!selectedItem) {
-            return true;
+        let selectedItems = this._getSelectedFilesInfo();
+        for (let item of selectedItems) {
+            if (!this._validName(item.filename)) {
+                return false;
+            }
         }
-        if (!this._validName(selectedItem.querySelector("span").innerHTML)) {
-            return false;
-        }
+
         return true;
     }
 
@@ -331,15 +429,25 @@ class FileDialog extends GenericModal {
     async _handleDelButton() {
         if (!this._canPerformWritableFileOperation()) return;
 
-        let filename = this._getSelectedFilename();
-        filename = this._currentPath + filename;
+        let filenames = this._getSelectedFilenames();
+        let displayFilename = '';
+        if (filenames.length == 0) return;
 
-        if (!confirm(`Are you sure you want to delete ${filename}?`)) {
+        if (filenames.length > 1) {
+            displayFilename = `${filenames.length} items`;
+        } else {
+            displayFilename = this._currentPath + filenames[0];
+        }
+
+        if (!confirm(`Are you sure you want to delete ${displayFilename}?`)) {
             return; // If cancelled, do nothing
         }
 
-        // Delete the item
-        await this._showBusy(this._fileHelper.delete(filename));
+        for (let filename of filenames) {
+            // Delete the item
+            await this._showBusy(this._fileHelper.delete(filename));
+        }
+
         // Refresh the file list
         await this._openFolder();
     };
@@ -442,65 +550,94 @@ class FileDialog extends GenericModal {
 
     // Currently only files are downloadable, but it would be nice to eventually download zipped folders
     async _handleDownloadButton() {
-        await this._download(this._getSelectedFilename());
+        // TODO: Implement a way to download multiple files at once into a zip file
+
+        await this._download(this._getSelectedFilesInfo());
     }
 
-    async _download(filename) {
+    async _download(files) {
         if (!this._canDownload()) return;
 
-        let type, folder, blob;
+        let folder, blob, filename;
 
+        // If we only have 1 item and it is a file, we can download it directly
+        // Otherwise, we need to zip the files and download the zip keeping the structure intact
+
+        // Function to read the file contents as a blob
         let getBlob = async (path) => {
             return await this._fileHelper.readFile(path, true);
         };
 
-        if (filename) {
-            type = this._getSelectedFileType();
-        }
+        let getParentFolderName = () => {
+            if (this._currentPath == "/") {
+                return "CIRCUITPY";
+            } else {
+                return this._currentPath.split("/").slice(-2).join("");
+            }
+        };
 
-        if (type == "folder" || !filename) {
+        if (files.length == 1 && files[0].filetype != "folder") {
+            filename = files[0].filename;
+            blob = await this._showBusy(getBlob(this._currentPath + filename));
+        } else {
+            // We either have more than 1 item selected or we have a folder selected or we have no file selected and want to download the current folder
+            // If we have nothing selected, we will download the current folder
             folder = this._currentPath;
-            if (filename) {
+            if (files.length == 0) {
+                files.push({filename: getParentFolderName(), filetype: "folder", path: this._currentPath});
+            }
+
+            if (files.length == 1) {
+                filename = files[0].filename;
                 folder += filename + "/";
                 filename = `${filename}.zip`;
             } else {
-                if (folder == "/") {
-                    filename = "CIRCUITPY.zip";
-                } else {
-                    filename = folder.split("/").slice(-2).join("") + ".zip";
-                }
+                filename = `${getParentFolderName()}.zip`;
             }
 
-            let files = await this._fileHelper.findContainedFiles(folder, true);
             let zip = new JSZip();
-            for (let location of files) {
-                let contents = await this._showBusy(getBlob(folder + location));
-                zip.file(location, contents);
+            for (let item of files) {
+                if (item.filetype == "folder") {
+                    let containedFiles = await this._fileHelper.findContainedFiles(folder + item + "/", true);
+                    for (let location of containedFiles) {
+                        let contents = await this._showBusy(getBlob(folder + location));
+                        zip.file(location, contents);
+                    }
+                } else {
+                    let contents = await this._showBusy(getBlob(folder + item.filename));
+                    zip.file(item.filename, contents);
+                }
             }
             blob = await zip.generateAsync({type: "blob"});
-        } else {
-            blob = await this._showBusy(getBlob(this._currentPath + filename));
         }
+
         saveAs(blob, filename);
     }
 
     async _handleMoveButton() {
+        // Get the new path
         const newFolderDialog = new FileDialog("folder-select", this._showBusy);
         let hidePaths = new Set();
         hidePaths.add(this._getSelectedFilePath());
         hidePaths.add(this._currentPath);
-        let newFolder = await newFolderDialog.open(this._fileHelper, FILE_DIALOG_MOVE, hidePaths);
-
+        let newFolder = await newFolderDialog.open(this._fileHelper, FILE_DIALOG_MOVE, hidePaths, false);
+        let errors = false;
         if (newFolder) {
-            const filename = this._getSelectedFilename();
-            const filetype = this._getSelectedFileType() == "folder" ? "folder" : "file";
-            const oldPath = this._currentPath + filename;
-            const newPath = newFolder + filename;
-            if (await this._showBusy(this._fileHelper.fileExists(newPath))) {
-                this._showMessage(`Error moving ${oldPath}. Another ${filetype} with the same name already exists at ${newPath}.`);
-            } else if (!(await this._showBusy(this._fileHelper.move(oldPath, newPath)))) {
-                this._showMessage(`Error moving ${oldPath} to ${newPath}. Make sure the ${filetype} you are moving exists.`);
-            } else {
+            const files = this._getSelectedFilesInfo();
+            for (let file of files) {
+                const filename = file.filename;
+                const filetype = file.filetype == "folder" ? "folder" : "file";
+                const oldPath = this._currentPath + filename;
+                const newPath = newFolder + filename;
+                if (await this._showBusy(this._fileHelper.fileExists(newPath))) {
+                    this._showMessage(`Error moving ${oldPath}. Another ${filetype} with the same name already exists at ${newPath}.`);
+                    errors = true;
+                } else if (!(await this._showBusy(this._fileHelper.move(oldPath, newPath)))) {
+                    this._showMessage(`Error moving ${oldPath} to ${newPath}. Make sure the file you are moving exists.`);
+                    errors = true;
+                }
+            }
+            if (!errors) {
                 // Go to the new location
                 await this._openFolder(newFolder);
             }
@@ -510,7 +647,11 @@ class FileDialog extends GenericModal {
     async _handleRenameButton() {
         if (!this._canPerformWritableFileOperation()) return;
 
-        let oldName = this._getSelectedFilename();
+        let oldName = this._getSelectedFilenames();
+        if (oldName.length != 1) {
+            return;
+        }
+        oldName = oldName[0];
         let newName = prompt("Enter a new folder name", oldName);
         // If cancelled, do nothing
         if (!newName) {
@@ -563,27 +704,46 @@ class FileDialog extends GenericModal {
         await this._openFolder();
     };
 
-    _getSelectedFile() {
+    _getSelectedFiles() {
+        let files = [];
+
         // Loop through items and see if any have data-selected
         for (let listItem of this._getElement('fileList').childNodes) {
             if ((/true/i).test(listItem.getAttribute("data-selected"))) {
-                return listItem;
+                files.push(listItem);
             }
         }
 
-        return null;
+        return files;
     }
 
-    _getSelectedFilename() {
-        let file = this._getSelectedFile();
-        if (file) {
-            return file.querySelector("span").innerHTML;
+    _getSelectedFilesInfo() {
+        let files = [];
+        let selectedFles = this._getSelectedFiles();
+        for (let file of selectedFles) {
+            let info = {
+                filename: file.querySelector("span").innerHTML,
+                filetype: file.getAttribute("data-type"),
+                path: file.getAttribute("data-type") == "folder" ? this._currentPath : this._currentPath + file.querySelector("span").innerHTML,
+            };
+            files.push(info);
         }
-        return null;
+
+        return files;
+    }
+
+    _getSelectedFilenames() {
+        let filenames = [];
+        let files = this._getSelectedFiles();
+        for (let file of files) {
+            filenames.push(file.querySelector("span").innerHTML);
+        }
+
+        return filenames;
     }
 
     _getSelectedFileType() {
-        let file = this._getSelectedFile();
+        let file = this._getSelectedFiles();
         if (file) {
             return file.getAttribute("data-type");
         }
@@ -591,20 +751,33 @@ class FileDialog extends GenericModal {
     }
 
     _getSelectedFilePath() {
-        let filename = this._getSelectedFilename();
-        if (!filename) return null;
+        // Get the paths of all selected files. These will not be valid paths to move to.
+        let paths = [];
+        let files = this._getSelectedFilesInfo();
+        if (files.length < 1) return [];
 
-        if (this._getSelectedFileType() != "folder") {
-            return this._currentPath;
+        for (let file of files) {
+            if (file.filetype != "folder") {
+                if (!paths.includes(this._currentPath)) {
+                    paths.push(this._currentPath);
+                }
+            } else {
+                paths.push(this._currentPath + filename);
+            }
         }
 
-        return this._currentPath + filename;
+        return paths;
     }
 
     async _openItem(item, forceNavigate = false) {
         const fileNameField = this._getElement('fileNameField');
         let filetype, filename;
-        let selectedItem = this._getSelectedFile();
+        let selectedItem = this._getSelectedFiles();
+        if (selectedItem.length > 1) {
+            // We don't currently support opening multiple items
+            return;
+        }
+        selectedItem = selectedItem.length == 1 ? selectedItem[0] : null;
 
         if (item !== undefined) {
             filetype = item.getAttribute("data-type");
@@ -686,7 +859,7 @@ class FileDialog extends GenericModal {
             if (clickedItem.tagName.toLowerCase() != "a") {
                 clickedItem = clickedItem.parentNode;
             }
-            this._handleFileClick(clickedItem);
+            this._handleFileClick(clickedItem, event);
         });
         fileItem.addEventListener("dblclick", async (event) => {
             let clickedItem = event.target;
