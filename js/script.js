@@ -22,8 +22,6 @@ import './layout.js'; // load for side effects only
 import {setupPlotterChart} from "./common/plotter.js";
 import { mainContent, showSerial } from './layout.js';
 
-import Chart from 'chart.js/auto'
-
 // Instantiate workflows
 let workflows = {};
 workflows[CONNTYPE.Ble] = new BLEWorkflow();
@@ -46,7 +44,6 @@ const btnSaveRun = document.querySelectorAll('.btn-save-run');
 const btnInfo = document.querySelector('.btn-info');
 const terminalTitle = document.getElementById('terminal-title');
 const serialPlotter = document.getElementById('plotter');
-
 
 const messageDialog = new MessageModal("message");
 const connectionType = new ButtonValueDialog("connection-type");
@@ -155,7 +152,6 @@ btnPlotter.addEventListener('click', async function(e){
         workflow.plotterEnabled = true;
     }
     state.fitter.fit();
-
 });
 
 btnInfo.addEventListener('click', async function(e) {
@@ -557,8 +553,6 @@ async function setupXterm() {
         }
     });
 }
-
-
 
 function getBackend() {
     let backend = getUrlParam("backend");

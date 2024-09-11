@@ -37,20 +37,15 @@ export function plotValues(chartObj, serialMessage, bufferSize) {
     let currentLines = []
     lineTransformer.transform(serialMessage, currentLines)
 
-    //console.log("currentLines: " + currentLines);
-
     for (textLine of currentLines) {
 
         textLine = textLine.replace("\r", "").replace("\n", "")
         if (textLine.length === 0) {
             continue;
         }
-        //console.log("plotter is enabled, data is: '" + textLine + "'");
-        //console.log("bytes: " + stringToBytes(textLine));
 
         let valuesToPlot;
 
-        //console.log("starts and ends: " + textLine.startsWith("(") + ", " + textLine.endsWith(")"));
         // handle possible tuple in textLine
         if (textLine.startsWith("(") && textLine.endsWith(")")) {
             textLine = "[" + textLine.substring(1, textLine.length - 1) + "]";
@@ -85,12 +80,6 @@ export function plotValues(chartObj, serialMessage, bufferSize) {
                 }
             }
             chartObj.data.labels.push("");
-            /*chartObj.data.labels.push(new Date().toLocaleString('en-US', {
-                hour: 'numeric', // numeric, 2-digit
-                minute: 'numeric', // numeric, 2-digit
-                second: 'numeric', // numeric, 2-digit
-                millisecond: 'numeric', // numeric, 2-digit
-            }));*/
 
             for (let i = 0; i < valuesToPlot.length; i++) {
                 if (isNaN(valuesToPlot[i])) {
@@ -114,24 +103,17 @@ export function plotValues(chartObj, serialMessage, bufferSize) {
             updatePlotterScales(chartObj);
             chartObj.update();
         } catch (e) {
-
             console.log("JSON parse error");
-            //console.log(e)
-            console.log(e.stack);
             // This line isn't a valid data value
         }
     }
 }
 
-function stringToBytes(val) {
-    const result = [];
-    for (let i = 0; i < val.length; i++) {
-        result.push(val.charCodeAt(i));
-    }
-    return result;
-}
-
 function updatePlotterScales(chartObj) {
+    /*
+    Update the scale of the plotter so that maximum and minimum values are sure
+    to be shown within the plotter instead of going outside the visible range.
+     */
     let allData = []
     for (let i = 0; i < chartObj.data.datasets.length; i++) {
         allData = allData.concat(chartObj.data.datasets[i].data)
@@ -141,7 +123,9 @@ function updatePlotterScales(chartObj) {
 }
 
 export async function setupPlotterChart(workflow) {
-
+    /*
+    Initialize the plotter chart and configure it.
+     */
     let initialData = []
     Chart.defaults.backgroundColor = '#444444';
     Chart.defaults.borderColor = '#000000';
@@ -151,9 +135,6 @@ export async function setupPlotterChart(workflow) {
         document.getElementById('plotter-canvas'),
         {
             type: 'line',
-
-            // responsive: true,
-            // maintainAspectRatio: false,
             options: {
                 animation: false,
                 scales: {
@@ -166,7 +147,6 @@ export async function setupPlotterChart(workflow) {
                         border: {
                             color: "#444"
                         }
-
                     },
                     x:{
                         grid: {
@@ -190,11 +170,10 @@ export async function setupPlotterChart(workflow) {
             }
         }
     );
+
+    // Set up a listener to respond to user changing the grid choice configuration
+    // dropdown
     workflow.plotterGridLines.addEventListener('change', (event) => {
-        //console.log("data: " + event.target);
-        //console.dir(event.target);
-        //console.log("value: " + event.target.value);
-        //console.log(workflow.plotterGridLines.value);
         let gridChoice = event.target.value;
         if (gridChoice === "x"){
             workflow.plotterChart.options.scales.x.grid.display = true;
@@ -211,5 +190,4 @@ export async function setupPlotterChart(workflow) {
         }
         workflow.plotterChart.update();
     });
-
 }
