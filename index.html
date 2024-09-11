@@ -97,7 +97,20 @@
                 <div id="serial-bar">
                     <button class="purple-button btn-restart">Restart<i class="fa-solid fa-redo"></i></button>
                     <button class="purple-button btn-clear">Clear<i class="fa-solid fa-broom"></i></button>
+                    <button class="purple-button btn-plotter">Plotter<i class="fa-solid fa-chart-line"></i></button>
                     <div id="terminal-title"></div>
+                </div>
+                <div id="plotter" class="hidden">
+                    <label for="buffer-size">Buffer Size</label>
+                    <input type="number" id="buffer-size" value="20">
+                    <label for="plot-gridlines-select">Grid Lines</label>
+                    <select id="plot-gridlines-select">
+                        <option value="both">Both</option>
+                        <option value="x">X Only</option>
+                        <option value="y">Y Only</option>
+                        <option value="none">None</option>
+                    </select>
+                    <canvas id="plotter-canvas"></canvas>
                 </div>
                 <div id="terminal"></div>
             </div>

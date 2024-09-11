@@ -4,6 +4,7 @@ import {FileHelper} from '../common/file.js';
 import {UnsavedDialog} from '../common/dialogs.js';
 import {FileDialog, FILE_DIALOG_OPEN, FILE_DIALOG_SAVE} from '../common/file_dialog.js';
 import {CONNTYPE, CONNSTATE} from '../constants.js';
+import {plotValues} from '../common/plotter.js'
 
 /*
  * This class will encapsulate all of the common workflow-related functions
@@ -47,6 +48,8 @@ class Workflow {
         this._unsavedDialog = new UnsavedDialog("unsaved");
         this._fileDialog = new FileDialog("files", this.showBusy.bind(this));
         this.repl = new REPL();
+        this.plotterEnabled = false;
+        this.plotterChart = false;
     }
 
     async init(params) {
@@ -59,6 +62,8 @@ class Workflow {
         this._loadFileContents = params.loadFileFunc;
         this._showMessage = params.showMessageFunc;
         this.loader = document.getElementById("loader");
+        this.plotterBufferSize = document.getElementById('buffer-size');
+        this.plotterGridLines = document.getElementById('plot-gridlines-select');
         if ("terminalTitle" in params) {
             this.terminalTitle = params.terminalTitle;
         }
@@ -159,6 +164,9 @@ class Workflow {
     }
 
     writeToTerminal(data) {
+        if (this.plotterEnabled) {
+            plotValues(this.plotterChart, data, this.plotterBufferSize.value);
+        }
         this.terminal.write(data);
     }
 
