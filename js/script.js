@@ -148,7 +148,7 @@ btnClear.addEventListener('click', async function(e) {
 // Plotter Button
 btnPlotter.addEventListener('click', async function(e){
     serialPlotter.classList.toggle("hidden");
-    if (!workflow.plotterEnabled){
+    if (workflow && !workflow.plotterEnabled){
         await setupPlotterChart(workflow);
         workflow.plotterEnabled = true;
     }
