@@ -10,7 +10,7 @@
   },
   "devDependencies": {
     "sass": "^1.79.4",
-    "vite": "^5.4.8"
+    "vite": "^5.4.9"
   },
   "dependencies": {
     "@adafruit/ble-file-transfer-js": "adafruit/ble-file-transfer-js#1.0.2",
