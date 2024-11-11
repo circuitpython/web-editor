@@ -22,7 +22,7 @@
     "@xterm/xterm": "^5.5.0",
     "codemirror": "^6.0.1",
     "file-saver": "^2.0.5",
-    "focus-trap": "^7.6.0",
+    "focus-trap": "^7.6.1",
     "idb-keyval": "^6.2.1",
     "jszip": "^3.10.1"
   }
