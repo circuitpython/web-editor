@@ -59,6 +59,7 @@ export function showSerial() {
 
 // update type is used to indicate which button was clicked
 function updatePageLayout(updateType) {
+    // If both are visible, show the separator
     if (isEditorVisible() && isSerialVisible()) {
         pageSeparator.classList.add('active');
     } else {
@@ -72,6 +73,7 @@ function updatePageLayout(updateType) {
 
     // Mobile layout, so only show one or the other
     if (mainContent.offsetWidth < 768) {
+        // Prioritize based on the update type
         if (updateType == UPDATE_TYPE_EDITOR && isEditorVisible()) {
             serialPage.classList.remove('active');
         } else if (updateType == UPDATE_TYPE_SERIAL && isSerialVisible()) {
@@ -130,8 +132,7 @@ function fixViewportHeight(e) {
 }
 
 // Resize the panes when the separator is moved
-function resize(e) {
-    console.log("Resized");
+function resizePanels(e) {
     const w = mainContent.offsetWidth;
     const gap = pageSeparator.offsetWidth;
     const ratio = e.clientX / w;
@@ -182,12 +183,12 @@ function loadPanelSettings() {
 }
 
 function stopResize(e) {
-    window.removeEventListener('mousemove', resize, false);
+    window.removeEventListener('mousemove', resizePanels, false);
     window.removeEventListener('mouseup', stopResize, false);
 }
 
 pageSeparator.addEventListener('mousedown', async function (e) {
-    window.addEventListener('mousemove', resize, false);
+    window.addEventListener('mousemove', resizePanels, false);
     window.addEventListener('mouseup', stopResize, false);
 });
 
