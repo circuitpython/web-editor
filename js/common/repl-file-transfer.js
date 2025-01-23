@@ -35,7 +35,7 @@ class FileTransferClient {
         if (contents === null) {
             return raw ? null : "";
         }
-        return contents;
+        return contents.replaceAll("\r\n", "\n");
     }
 
     async writeFile(path, offset, contents, modificationTime, raw = false) {
