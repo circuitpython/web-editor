@@ -125,7 +125,12 @@ class USBWorkflow extends Workflow {
             // This would help with other workflows as well
         } else {
             console.log('Requesting any serial device...');
-            device = await navigator.serial.requestPort();
+            try {
+                device = await navigator.serial.requestPort();
+            } catch (e) {
+                console.log(e);
+                return false;
+            }
         }
 
         // If we didn't automatically use a saved device
@@ -155,7 +160,7 @@ class USBWorkflow extends Workflow {
         btnSelectHostFolder.disabled = true;
         let serialConnect = async (event) => {
             try {
-                await this.connectToSerial();
+                await this.showBusy(this.connectToSerial());
             } catch (e) {
                 //console.log(e);
                 //alert(e.message);
