@@ -35,6 +35,9 @@ class FileTransferClient {
         if (contents === null) {
             return raw ? null : "";
         }
+        if (raw) {
+            return contents;
+        }
         return contents.replaceAll("\r\n", "\n");
     }
 
