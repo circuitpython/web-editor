@@ -116,7 +116,35 @@ function refitTerminal() {
         window.requestAnimationFrame(() => {
             window.requestAnimationFrame(() => {
                 if (state.fitter) {
+                    // We need to get the main viewport height and calculate what the size of the terminal pane should be
+
+                    // Get the height of the header, footer, and serial bar to determine the height of the terminal
+                    let siteHeader = document.getElementById('site-header');
+                    let mobileHeader = document.getElementById('mobile-header');
+                    let headerHeight = siteHeader.offsetHeight;
+                    if (siteHeader.style.display === 'none') {
+                        headerHeight = mobileHeader.offsetHeight;
+                    }
+                    let foorterBarHeight = document.getElementById('footer-bar').offsetHeight;
+                    let serialBarHeight = document.getElementById('serial-bar').offsetHeight;
+                    let viewportHeight = window.innerHeight;
+                    let terminalHeight = viewportHeight - headerHeight - foorterBarHeight - serialBarHeight;
+
+                    // Fit the terminal to the new size (works good for growing)
                     state.fitter.fit();
+
+                    // Fix the terminal screen height if it's too big
+                    let screen = document.querySelector('.xterm-screen');
+                    if (screen && (terminalHeight < screen.offsetHeight)) {
+                        // xterm-screen is 17px per row and 9px per column
+                        let rows = Math.floor(terminalHeight / 17);
+                        if (rows < 0) {
+                            rows = 0;
+                        }
+                        if (rows < state.fitter.proposeDimensions().rows) {
+                            screen.style.height = (rows * 17) + 'px';
+                        }
+                    }
                 }
             });
         });
