@@ -152,7 +152,6 @@ btnPlotter.addEventListener('click', async function(e){
         await setupPlotterChart(workflow);
         workflow.plotterEnabled = true;
     }
-    state.fitter.fit();
 });
 
 btnInfo.addEventListener('click', async function(e) {
@@ -547,9 +546,6 @@ async function setupXterm() {
             cursor: '#ddd',
         }
     });
-
-    state.fitter = new FitAddon();
-    state.terminal.loadAddon(state.fitter);
 
     state.terminal.loadAddon(new WebLinksAddon());
 

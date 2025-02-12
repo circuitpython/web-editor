@@ -15,6 +15,9 @@ const SETTING_TERMINAL_VISIBLE = "terminal-visible";
 const UPDATE_TYPE_EDITOR = 1;
 const UPDATE_TYPE_SERIAL = 2;
 
+const MINIMUM_COLS = 2;
+const MINIMUM_ROWS = 1;
+
 function isEditorVisible() {
     return editorPage.classList.contains('active');
 }
@@ -110,41 +113,40 @@ function updatePageLayout(updateType) {
 }
 
 function refitTerminal() {
+    // Custom function to replace the terminal refit function as it was a bit buggy
+
     // Re-fitting the terminal requires a full re-layout of the DOM which can be tricky to time right.
     // see https://www.macarthur.me/posts/when-dom-updates-appear-to-be-asynchronous
     window.requestAnimationFrame(() => {
         window.requestAnimationFrame(() => {
             window.requestAnimationFrame(() => {
-                if (state.fitter) {
-                    // We need to get the main viewport height and calculate what the size of the terminal pane should be
+                const TERMINAL_ROW_HEIGHT = state.terminal._core._renderService.dimensions.css.cell.height;
+                const TERMINAL_COL_WIDTH = state.terminal._core._renderService.dimensions.css.cell.width;
 
-                    // Get the height of the header, footer, and serial bar to determine the height of the terminal
-                    let siteHeader = document.getElementById('site-header');
-                    let mobileHeader = document.getElementById('mobile-header');
-                    let headerHeight = siteHeader.offsetHeight;
-                    if (siteHeader.style.display === 'none') {
-                        headerHeight = mobileHeader.offsetHeight;
+                // Get the height of the header, footer, and serial bar to determine the height of the terminal
+                let siteHeader = document.getElementById('site-header');
+                let mobileHeader = document.getElementById('mobile-header');
+                let headerHeight = siteHeader.offsetHeight;
+                if (siteHeader.style.display === 'none') {
+                    headerHeight = mobileHeader.offsetHeight;
+                }
+                let foorterBarHeight = document.getElementById('footer-bar').offsetHeight;
+                let serialBarHeight = document.getElementById('serial-bar').offsetHeight;
+                let viewportHeight = window.innerHeight;
+                let terminalHeight = viewportHeight - headerHeight - foorterBarHeight - serialBarHeight;
+                let terminalWidth = document.getElementById('serial-page').offsetWidth;
+                let screen = document.querySelector('.xterm-screen');
+                if (screen) {
+                    let cols = Math.floor(terminalWidth / TERMINAL_COL_WIDTH);
+                    let rows = Math.floor(terminalHeight / TERMINAL_ROW_HEIGHT);
+                    if (cols < MINIMUM_COLS) {
+                        cols = MINIMUM_COLS;
                     }
-                    let foorterBarHeight = document.getElementById('footer-bar').offsetHeight;
-                    let serialBarHeight = document.getElementById('serial-bar').offsetHeight;
-                    let viewportHeight = window.innerHeight;
-                    let terminalHeight = viewportHeight - headerHeight - foorterBarHeight - serialBarHeight;
-
-                    // Fit the terminal to the new size (works good for growing)
-                    state.fitter.fit();
-
-                    // Fix the terminal screen height if it's too big
-                    let screen = document.querySelector('.xterm-screen');
-                    if (screen && (terminalHeight < screen.offsetHeight)) {
-                        // xterm-screen is 17px per row and 9px per column
-                        let rows = Math.floor(terminalHeight / 17);
-                        if (rows < 0) {
-                            rows = 0;
-                        }
-                        if (rows < state.fitter.proposeDimensions().rows) {
-                            screen.style.height = (rows * 17) + 'px';
-                        }
+                    if (rows < MINIMUM_ROWS) {
+                        rows = MINIMUM_ROWS;
                     }
+                    screen.style.width = (cols * TERMINAL_COL_WIDTH) + 'px';
+                    screen.style.height = (rows * TERMINAL_ROW_HEIGHT) + 'px';
                 }
             });
         });
