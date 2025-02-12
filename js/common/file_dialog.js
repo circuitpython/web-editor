@@ -548,20 +548,14 @@ class FileDialog extends GenericModal {
         input.click();
     }
 
-    // Currently only files are downloadable, but it would be nice to eventually download zipped folders
     async _handleDownloadButton() {
-        // TODO: Implement a way to download multiple files at once into a zip file
-
-        await this._download(this._getSelectedFilesInfo());
+        await this._showBusy(this._download(this._getSelectedFilesInfo()));
     }
 
     async _download(files) {
         if (!this._canDownload()) return;
 
-        let folder, blob, filename;
-
-        // If we only have 1 item and it is a file, we can download it directly
-        // Otherwise, we need to zip the files and download the zip keeping the structure intact
+        let blob, filename;
 
         // Function to read the file contents as a blob
         let getBlob = async (path) => {
@@ -576,36 +570,43 @@ class FileDialog extends GenericModal {
             }
         };
 
+        let addFileContentsToZip = async (zip, folder, location) => {
+            let contents = await getBlob(folder + location);
+            // Get the filename only from the path
+            zip.file(location, contents);
+        };
+
         if (files.length == 1 && files[0].filetype != "folder") {
+            // Single File Selected
             filename = files[0].filename;
-            blob = await this._showBusy(getBlob(this._currentPath + filename));
+            blob = await getBlob(this._currentPath + filename);
         } else {
             // We either have more than 1 item selected or we have a folder selected or we have no file selected and want to download the current folder
             // If we have nothing selected, we will download the current folder
-            folder = this._currentPath;
+            filename = `${getParentFolderName()}.zip`;
             if (files.length == 0) {
-                files.push({filename: getParentFolderName(), filetype: "folder", path: this._currentPath});
-            }
+                // No Files Selected, so get everything in current folder
+                const filesInFolder = await this._fileHelper.listDir(this._currentPath);
 
-            if (files.length == 1) {
-                filename = files[0].filename;
-                folder += filename + "/";
-                filename = `${filename}.zip`;
-            } else {
-                filename = `${getParentFolderName()}.zip`;
+                // Add all files in current folder to files array
+                for (let fileObj of filesInFolder) {
+                    if (this._hidePaths.has(this._currentPath + fileObj.path)) continue;
+                    files.push({filename: fileObj.path, filetype: fileObj.isDir ? "folder" : "file", path: this._currentPath});
+                }
+            } else if (files.length == 1) {
+                // Single Folder Selected
+                filename = `${files[0].filename}.zip`;
             }
 
             let zip = new JSZip();
             for (let item of files) {
                 if (item.filetype == "folder") {
-                    let containedFiles = await this._fileHelper.findContainedFiles(folder + item + "/", true);
+                    let containedFiles = await this._fileHelper.findContainedFiles(item.path + item.filename + "/", true);
                     for (let location of containedFiles) {
-                        let contents = await this._showBusy(getBlob(folder + location));
-                        zip.file(location, contents);
+                        await addFileContentsToZip(zip, item.path, item.filename + "/" + location);
                     }
                 } else {
-                    let contents = await this._showBusy(getBlob(folder + item.filename));
-                    zip.file(item.filename, contents);
+                    await addFileContentsToZip(zip, item.path, item.filename);
                 }
             }
             blob = await zip.generateAsync({type: "blob"});
