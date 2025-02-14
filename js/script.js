@@ -8,7 +8,6 @@ import { classHighlighter } from "@lezer/highlight";
 import { getFileIcon } from "./common/file_dialog.js";
 
 import { Terminal } from '@xterm/xterm';
-import { FitAddon } from '@xterm/addon-fit';
 import { WebLinksAddon } from '@xterm/addon-web-links';
 
 import state from './state.js'
