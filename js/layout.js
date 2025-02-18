@@ -15,6 +15,9 @@ const SETTING_TERMINAL_VISIBLE = "terminal-visible";
 const UPDATE_TYPE_EDITOR = 1;
 const UPDATE_TYPE_SERIAL = 2;
 
+const MINIMUM_COLS = 2;
+const MINIMUM_ROWS = 1;
+
 function isEditorVisible() {
     return editorPage.classList.contains('active');
 }
@@ -59,6 +62,7 @@ export function showSerial() {
 
 // update type is used to indicate which button was clicked
 function updatePageLayout(updateType) {
+    // If both are visible, show the separator
     if (isEditorVisible() && isSerialVisible()) {
         pageSeparator.classList.add('active');
     } else {
@@ -72,6 +76,7 @@ function updatePageLayout(updateType) {
 
     // Mobile layout, so only show one or the other
     if (mainContent.offsetWidth < 768) {
+        // Prioritize based on the update type
         if (updateType == UPDATE_TYPE_EDITOR && isEditorVisible()) {
             serialPage.classList.remove('active');
         } else if (updateType == UPDATE_TYPE_SERIAL && isSerialVisible()) {
@@ -108,13 +113,40 @@ function updatePageLayout(updateType) {
 }
 
 function refitTerminal() {
+    // Custom function to replace the terminal refit function as it was a bit buggy
+
     // Re-fitting the terminal requires a full re-layout of the DOM which can be tricky to time right.
     // see https://www.macarthur.me/posts/when-dom-updates-appear-to-be-asynchronous
     window.requestAnimationFrame(() => {
         window.requestAnimationFrame(() => {
             window.requestAnimationFrame(() => {
-                if (state.fitter) {
-                    state.fitter.fit();
+                const TERMINAL_ROW_HEIGHT = state.terminal._core._renderService.dimensions.css.cell.height;
+                const TERMINAL_COL_WIDTH = state.terminal._core._renderService.dimensions.css.cell.width;
+
+                // Get the height of the header, footer, and serial bar to determine the height of the terminal
+                let siteHeader = document.getElementById('site-header');
+                let mobileHeader = document.getElementById('mobile-header');
+                let headerHeight = siteHeader.offsetHeight;
+                if (siteHeader.style.display === 'none') {
+                    headerHeight = mobileHeader.offsetHeight;
+                }
+                let footerBarHeight = document.getElementById('footer-bar').offsetHeight;
+                let serialBarHeight = document.getElementById('serial-bar').offsetHeight;
+                let viewportHeight = window.innerHeight;
+                let terminalHeight = viewportHeight - headerHeight - footerBarHeight - serialBarHeight;
+                let terminalWidth = document.getElementById('serial-page').offsetWidth;
+                let screen = document.querySelector('.xterm-screen');
+                if (screen) {
+                    let cols = Math.floor(terminalWidth / TERMINAL_COL_WIDTH);
+                    let rows = Math.floor(terminalHeight / TERMINAL_ROW_HEIGHT);
+                    if (cols < MINIMUM_COLS) {
+                        cols = MINIMUM_COLS;
+                    }
+                    if (rows < MINIMUM_ROWS) {
+                        rows = MINIMUM_ROWS;
+                    }
+                    screen.style.width = (cols * TERMINAL_COL_WIDTH) + 'px';
+                    screen.style.height = (rows * TERMINAL_ROW_HEIGHT) + 'px';
                 }
             });
         });
@@ -130,8 +162,7 @@ function fixViewportHeight(e) {
 }
 
 // Resize the panes when the separator is moved
-function resize(e) {
-    console.log("Resized");
+function resizePanels(e) {
     const w = mainContent.offsetWidth;
     const gap = pageSeparator.offsetWidth;
     const ratio = e.clientX / w;
@@ -182,12 +213,12 @@ function loadPanelSettings() {
 }
 
 function stopResize(e) {
-    window.removeEventListener('mousemove', resize, false);
+    window.removeEventListener('mousemove', resizePanels, false);
     window.removeEventListener('mouseup', stopResize, false);
 }
 
 pageSeparator.addEventListener('mousedown', async function (e) {
-    window.addEventListener('mousemove', resize, false);
+    window.addEventListener('mousemove', resizePanels, false);
     window.addEventListener('mouseup', stopResize, false);
 });
 

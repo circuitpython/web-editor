@@ -8,7 +8,6 @@ import { classHighlighter } from "@lezer/highlight";
 import { getFileIcon } from "./common/file_dialog.js";
 
 import { Terminal } from '@xterm/xterm';
-import { FitAddon } from '@xterm/addon-fit';
 import { WebLinksAddon } from '@xterm/addon-web-links';
 
 import state from './state.js'
@@ -152,7 +151,6 @@ btnPlotter.addEventListener('click', async function(e){
         await setupPlotterChart(workflow);
         workflow.plotterEnabled = true;
     }
-    state.fitter.fit();
 });
 
 btnInfo.addEventListener('click', async function(e) {
@@ -547,9 +545,6 @@ async function setupXterm() {
             cursor: '#ddd',
         }
     });
-
-    state.fitter = new FitAddon();
-    state.terminal.loadAddon(state.fitter);
 
     state.terminal.loadAddon(new WebLinksAddon());
 
