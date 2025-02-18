@@ -130,10 +130,10 @@ function refitTerminal() {
                 if (siteHeader.style.display === 'none') {
                     headerHeight = mobileHeader.offsetHeight;
                 }
-                let foorterBarHeight = document.getElementById('footer-bar').offsetHeight;
+                let footerBarHeight = document.getElementById('footer-bar').offsetHeight;
                 let serialBarHeight = document.getElementById('serial-bar').offsetHeight;
                 let viewportHeight = window.innerHeight;
-                let terminalHeight = viewportHeight - headerHeight - foorterBarHeight - serialBarHeight;
+                let terminalHeight = viewportHeight - headerHeight - footerBarHeight - serialBarHeight;
                 let terminalWidth = document.getElementById('serial-page').offsetWidth;
                 let screen = document.querySelector('.xterm-screen');
                 if (screen) {
