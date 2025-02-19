@@ -29,6 +29,12 @@ class BLEWorkflow extends Workflow {
         this.infoDialog = new DeviceInfoModal("device-info");
         this.partialWrites = true;
         this.type = CONNTYPE.Ble;
+        this.buttonStates = [
+            {reconnect: false, request: false, bond: false},
+            {reconnect: false, request: true, bond: false},
+            {reconnect: true, request: true, bond: false},
+            {reconnect: false, request: false, bond: true},
+        ];
     }
 
     // This is called when a user clicks the main disconnect button
@@ -49,6 +55,13 @@ class BLEWorkflow extends Workflow {
         btnRequestBluetoothDevice = modal.querySelector('#requestBluetoothDevice');
         btnBond = modal.querySelector('#promptBond');
         btnReconnect = modal.querySelector('#bleReconnect');
+
+        // Map the button states to the buttons
+        this.connectButtons = {
+            reconnect: btnReconnect,
+            request: btnRequestBluetoothDevice,
+            bond: btnBond
+        };
 
         btnRequestBluetoothDevice.addEventListener('click', async (event) => {
             await this.onRequestBluetoothDeviceButtonClick(event);
@@ -272,23 +285,6 @@ class BLEWorkflow extends Workflow {
 
     async showInfo(documentState) {
         return await this.infoDialog.open(this, documentState);
-    }
-
-    // Handle the different button states for various connection steps
-    connectionStep(step) {
-        const buttonStates = [
-            {reconnect: false, request: false, bond: false},
-            {reconnect: false, request: true, bond: false},
-            {reconnect: true, request: true, bond: false},
-            {reconnect: false, request: false, bond: true},
-        ];
-
-        if (step < 0) step = 0;
-        if (step > buttonStates.length - 1) step = buttonStates.length - 1;
-
-        btnReconnect.disabled = !buttonStates[step].reconnect;
-        btnRequestBluetoothDevice.disabled = !buttonStates[step].request;
-        btnBond.disabled = !buttonStates[step].bond;
     }
 }
 
