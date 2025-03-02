@@ -51,7 +51,7 @@ class BLEWorkflow extends Workflow {
         btnReconnect = modal.querySelector('#bleReconnect');
 
         btnRequestBluetoothDevice.addEventListener('click', this.onRequestBluetoothDeviceButtonClick.bind(this));
-        //btnBond.addEventListener('click', this.onBond.bind(this));
+        btnBond.addEventListener('click', this.onBond.bind(this));
         btnReconnect.addEventListener('click', this.reconnectButtonHandler.bind(this));
 
         // Check if Web Bluetooth is available
