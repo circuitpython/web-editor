@@ -27,7 +27,7 @@ class USBWorkflow extends Workflow {
         this.buttonStates = [
             {request: false, select: false},
             {request: true, select: false},
-            {request: true, select: true},
+            {request: false, select: true},
         ];
     }
 
@@ -261,7 +261,6 @@ class USBWorkflow extends Workflow {
 
     // Workflow specific Functions
     async _switchToDevice(device) {
-
         device.removeEventListener("message", this._messageCallback);
         this._messageCallback = this.onSerialReceive.bind(this);
         device.addEventListener("message", this._messageCallback);
