@@ -23,6 +23,8 @@ class WebWorkflow extends Workflow {
         this.deviceDiscoveryDialog = new DiscoveryModal("device-discovery");
         this.connIntervalId = null;
         this.type = CONNTYPE.Web;
+        this.buttonStates = [];
+        this.buttons = {};
     }
 
     // This is called when a user clicks the main disconnect button
