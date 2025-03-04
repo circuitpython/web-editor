@@ -1,5 +1,6 @@
 // vite.config.js | https://vitejs.dev/config/
 import { defineConfig } from 'vite'
+import mkcert from 'vite-plugin-mkcert'
 
 export default defineConfig({
     build: {
@@ -20,5 +21,6 @@ export default defineConfig({
                   }
             }
         }
-    }
+    },
+    plugins: [ mkcert() ]
 })
