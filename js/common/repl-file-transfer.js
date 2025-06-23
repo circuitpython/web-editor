@@ -35,7 +35,10 @@ class FileTransferClient {
         if (contents === null) {
             return raw ? null : "";
         }
-        return contents;
+        if (raw) {
+            return contents;
+        }
+        return contents.replaceAll("\r\n", "\n");
     }
 
     async writeFile(path, offset, contents, modificationTime, raw = false) {
@@ -91,8 +94,10 @@ class FileTransferClient {
         let bootout = await this.readFile('/boot_out.txt', false);
         console.log(bootout);
         if (!bootout) {
+            console.error("Unable to read boot_out.txt");
             return null;
         }
+        bootout += "\n";
 
         // Add these items as they are found
         const searchItems = {
@@ -101,7 +106,7 @@ class FileTransferClient {
             board_name: /; (.*?) with/,
             mcu_name: /with (.*?)\r?\n/,
             board_id: /Board ID:(.*?)\r?\n/,
-            uid: /UID:([0-9A-F]{12})\r?\n/,
+            uid: /UID:([0-9A-F]{12,16})\r?\n/,
         }
 
         for (const [key, regex] of Object.entries(searchItems)) {

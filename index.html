@@ -97,7 +97,20 @@
                 <div id="serial-bar">
                     <button class="purple-button btn-restart">Restart<i class="fa-solid fa-redo"></i></button>
                     <button class="purple-button btn-clear">Clear<i class="fa-solid fa-broom"></i></button>
+                    <button class="purple-button btn-plotter">Plotter<i class="fa-solid fa-chart-line"></i></button>
                     <div id="terminal-title"></div>
+                </div>
+                <div id="plotter" class="hidden">
+                    <label for="buffer-size">Buffer Size</label>
+                    <input type="number" id="buffer-size" value="20">
+                    <label for="plot-gridlines-select">Grid Lines</label>
+                    <select id="plot-gridlines-select">
+                        <option value="both">Both</option>
+                        <option value="x">X Only</option>
+                        <option value="y">Y Only</option>
+                        <option value="none">None</option>
+                    </select>
+                    <canvas id="plotter-canvas"></canvas>
                 </div>
                 <div id="terminal"></div>
             </div>
@@ -199,7 +212,9 @@
                         flag. However be careful as it would be risky to browse the web with this flag turned
                         on as it enables many other experimental web platform features. Starting with Chromium
                         version 100, enable the <a href="about://flags/#enable-web-bluetooth">about://flags/#enable-web-bluetooth</a>
-                        safer flag instead.</p>
+                        safer flag instead. You can also enable Web Bluetooth Binding by enabling the
+                        <a href="about://flags/#enable-web-bluetooth-new-permissions-backend">about://flags/#enable-web-bluetooth-new-permissions-backend</a>
+                        flag instead of the experimental features if it is available.</p>
                 </div>
             </section>
             <section class="step">
@@ -325,10 +340,65 @@
                     <td>IP Address:</td>
                     <td><a id="ip"></a></td>
                 </tr>
+                <tr>
+                    <td>Build Date:</td>
+                    <td><span id="builddate"></span></td>
+                </tr>
+                <tr>
+                    <td>MCU Name:</td>
+                    <td><span id="mcuname"></span></td>
+                </tr>
+                <tr>
+                    <td>Board ID:</td>
+                    <td><span id="boardid"></span></td>
+                </tr>
+                <tr>
+                    <td>UID:</td>
+                    <td><span id="uid"></span></td>
+                </tr>
             </tbody>
         </table>
         <h3>More network devices<i class="refresh fa-solid fa-sync-alt" title="Refresh Device List"></i></h3>
         <div id="devices"></div>
+        <div class="buttons centered">
+            <button class="purple-button ok-button">Close</button>
+        </div>
+    </div>
+    <div class="popup-modal shadow closable" data-popup-modal="device-info">
+        <i class="fa-solid fa-2x fa-xmark text-white bg-primary p-3 popup-modal__close"></i>
+        <table class="device-info">
+            <thead>
+                <tr>
+                    <th colspan="2">Current Device Info</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Board:</td>
+                    <td><a id="board" target="_blank"></a></td>
+                </tr>
+                <tr>
+                    <td>Version:</td>
+                    <td><span id="version"></span></td>
+                </tr>
+                <tr>
+                    <td>Build Date:</td>
+                    <td><span id="builddate"></span></td>
+                </tr>
+                <tr>
+                    <td>MCU Name:</td>
+                    <td><span id="mcuname"></span></td>
+                </tr>
+                <tr>
+                    <td>Board ID:</td>
+                    <td><span id="boardid"></span></td>
+                </tr>
+                <tr>
+                    <td>UID:</td>
+                    <td><span id="uid"></span></td>
+                </tr>
+            </tbody>
+        </table>
         <div class="buttons centered">
             <button class="purple-button ok-button">Close</button>
         </div>

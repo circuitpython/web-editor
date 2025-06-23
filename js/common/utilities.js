@@ -122,6 +122,23 @@ function readUploadedFileAsArrayBuffer(inputFile) {
     });
 };
 
+// Load a setting from local storage with a default value if it doesn't exist
+function loadSetting(setting, defaultValue) {
+    let value = JSON.parse(window.localStorage.getItem(setting));
+    console.log(`Loading setting ${setting} with value ${value}`);
+    if (value == null) {
+      return defaultValue;
+    }
+
+    return value;
+}
+
+// Save a setting to local storage
+function saveSetting(setting, value) {
+    console.log(`Saving setting ${setting} with value ${value}`);
+    window.localStorage.setItem(setting, JSON.stringify(value));
+}
+
 export {
     isTestHost,
     buildHash,
@@ -135,5 +152,7 @@ export {
     sleep,
     switchUrl,
     switchDevice,
-    readUploadedFileAsArrayBuffer
+    readUploadedFileAsArrayBuffer,
+    loadSetting,
+    saveSetting
 };

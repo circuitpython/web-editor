@@ -1,6 +1,6 @@
 import {CONNTYPE, CONNSTATE} from '../constants.js';
 import {Workflow} from './workflow.js';
-import {GenericModal} from '../common/dialogs.js';
+import {GenericModal, DeviceInfoModal} from '../common/dialogs.js';
 import {FileOps} from '@adafruit/circuitpython-repl-js'; // Use this to determine which FileTransferClient to load
 import {FileTransferClient as ReplFileTransferClient} from '../common/repl-file-transfer.js';
 import {FileTransferClient as FSAPIFileTransferClient} from '../common/fsapi-file-transfer.js';
@@ -15,11 +15,20 @@ class USBWorkflow extends Workflow {
         this.reader = null;
         this.writer = null;
         this.connectDialog = new GenericModal("usb-connect");
+        this.infoDialog = new DeviceInfoModal("device-info");
         this._fileContents = null;
         this.type = CONNTYPE.Usb;
         this._partialToken = null;
         this._uid = null;
         this._readLoopPromise = null;
+        this._messageCallback = null;
+        this._btnSelectHostFolderCallback = null;
+        this._btnUseHostFolderCallback = null;
+        this.buttonStates = [
+            {request: false, select: false},
+            {request: true, select: false},
+            {request: false, select: true},
+        ];
     }
 
     async init(params) {
@@ -121,7 +130,12 @@ class USBWorkflow extends Workflow {
             // This would help with other workflows as well
         } else {
             console.log('Requesting any serial device...');
-            device = await navigator.serial.requestPort();
+            try {
+                device = await navigator.serial.requestPort();
+            } catch (e) {
+                console.log(e);
+                return false;
+            }
         }
 
         // If we didn't automatically use a saved device
@@ -131,7 +145,7 @@ class USBWorkflow extends Workflow {
         }
         console.log(this._serialDevice);
         if (this._serialDevice != null) {
-            this._connectionStep(2);
+            this.connectionStep(2);
             return true;
         }
 
@@ -147,27 +161,39 @@ class USBWorkflow extends Workflow {
         btnUseHostFolder = modal.querySelector('#useHostFolder');
         lblWorkingfolder = modal.querySelector('#workingFolder');
 
+        // Map the button states to the buttons
+        this.connectButtons = {
+            request: btnRequestSerialDevice,
+            select: btnSelectHostFolder,
+        };
+
         btnRequestSerialDevice.disabled = true;
         btnSelectHostFolder.disabled = true;
-
-        btnRequestSerialDevice.addEventListener('click', async (event) => {
+        let serialConnect = async (event) => {
             try {
-                await this.connectToSerial();
+                await this.showBusy(this.connectToSerial());
             } catch (e) {
                 //console.log(e);
                 //alert(e.message);
                 //alert("Unable to connect to device. Make sure it is not already in use.");
                 // TODO: I think this also occurs if the user cancels the requestPort dialog
             }
-        });
+        };
+        btnRequestSerialDevice.removeEventListener('click', serialConnect);
+        btnRequestSerialDevice.addEventListener('click', serialConnect);
 
-        btnSelectHostFolder.addEventListener('click', async (event) => {
+        btnSelectHostFolder.removeEventListener('click', this._btnSelectHostFolderCallback)
+        this._btnSelectHostFolderCallback = async (event) => {
             await this._selectHostFolder();
-        });
+        };
+        btnSelectHostFolder.addEventListener('click', this._btnSelectHostFolderCallback);
 
-        btnUseHostFolder.addEventListener('click', async (event) => {
+
+        btnUseHostFolder.removeEventListener('click', this._btnUseHostFolderCallback);
+        this._btnUseHostFolderCallback = async (event) => {
             await this._useHostFolder();
-        });
+        }
+        btnUseHostFolder.addEventListener('click', this._btnUseHostFolderCallback);
 
         // Check if WebSerial is available
         if (!(await this.available() instanceof Error)) {
@@ -176,13 +202,13 @@ class USBWorkflow extends Workflow {
             if (stepOne = modal.querySelector('.step:first-of-type')) {
                 stepOne.classList.add("hidden");
             }
-            this._connectionStep(1);
+            this.connectionStep(1);
         } else {
             // If not, hide all steps beyond the message
             modal.querySelectorAll('.step:not(:first-of-type)').forEach((stepItem) => {
                 stepItem.classList.add("hidden");
             });
-            this._connectionStep(0);
+            this.connectionStep(0);
         }
 
         // Hide the last step until we determine that we need it
@@ -235,10 +261,15 @@ class USBWorkflow extends Workflow {
 
     // Workflow specific Functions
     async _switchToDevice(device) {
-        device.addEventListener("message", this.onSerialReceive.bind(this));
-        device.addEventListener("disconnect", async (e) => {
+        device.removeEventListener("message", this._messageCallback);
+        this._messageCallback = this.onSerialReceive.bind(this);
+        device.addEventListener("message", this._messageCallback);
+
+        let onDisconnect = async (e) => {
             await this.onDisconnected(e, false);
-        });
+        };
+        device.removeEventListener("disconnect", onDisconnect);
+        device.addEventListener("disconnect", onDisconnect);
 
         this._serialDevice = device;
         console.log("switch to", this._serialDevice);
@@ -341,19 +372,8 @@ print(binascii.hexlify(microcontroller.cpu.uid).decode('ascii').upper())`
         console.log("Read Loop Stopped. Closing Serial Port.");
     }
 
-    // Handle the different button states for various connection steps
-    _connectionStep(step) {
-        const buttonStates = [
-            {request: false, select: false},
-            {request: true, select: false},
-            {request: true, select: true},
-        ];
-
-        if (step < 0) step = 0;
-        if (step > buttonStates.length - 1) step = buttonStates.length - 1;
-
-        btnRequestSerialDevice.disabled = !buttonStates[step].request;
-        btnSelectHostFolder.disabled = !buttonStates[step].select;
+    async showInfo(documentState) {
+        return await this.infoDialog.open(this, documentState);
     }
 }
 

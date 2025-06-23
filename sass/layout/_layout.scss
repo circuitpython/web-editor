@@ -72,6 +72,18 @@
 }
 
 #serial-page {
+    #plotter {
+        flex: 2 1 0;
+        background: #777;
+        position: relative;
+        width: 99%;
+        overflow: hidden;
+        padding: 10px 20px;
+
+        &.hidden{
+            display: none;
+        }
+    }
     #terminal {
         flex: 1 1 0%;
         background: #333;
@@ -98,6 +110,9 @@
                 background: var(--highlight);
             }
         }
+    }
+    #buffer-size{
+        width: 70px;
     }
 }
 
@@ -360,6 +375,7 @@
                 grid-template-columns: 30px minmax(60px, 1fr) 60px 1fr;
                 grid-gap: 10px;
                 cursor: default;
+                user-select:none;
 
                 &.hidden-file {
 
@@ -400,7 +416,8 @@
         }
     }
 
-    &[data-popup-modal="device-discovery"] {
+    &[data-popup-modal="device-discovery"],
+    &[data-popup-modal="device-info"] {
         .device-info {
             margin-top: 5px;
             width: 100%;

@@ -5,9 +5,9 @@ import {indentWithTab} from "@codemirror/commands"
 import { python } from "@codemirror/lang-python";
 import { syntaxHighlighting, indentUnit } from "@codemirror/language";
 import { classHighlighter } from "@lezer/highlight";
+import { getFileIcon } from "./common/file_dialog.js";
 
 import { Terminal } from '@xterm/xterm';
-import { FitAddon } from '@xterm/addon-fit';
 import { WebLinksAddon } from '@xterm/addon-web-links';
 
 import state from './state.js'
@@ -19,6 +19,7 @@ import { ButtonValueDialog, MessageModal } from './common/dialogs.js';
 import { isLocal, switchUrl, getUrlParam } from './common/utilities.js';
 import { CONNTYPE } from './constants.js';
 import './layout.js'; // load for side effects only
+import {setupPlotterChart} from "./common/plotter.js";
 import { mainContent, showSerial } from './layout.js';
 
 // Instantiate workflows
@@ -32,6 +33,7 @@ let unchanged = 0;
 let connectionPromise = null;
 
 const btnRestart = document.querySelector('.btn-restart');
+const btnPlotter = document.querySelector('.btn-plotter');
 const btnClear = document.querySelector('.btn-clear');
 const btnConnect = document.querySelectorAll('.btn-connect');
 const btnNew = document.querySelectorAll('.btn-new');
@@ -41,6 +43,7 @@ const btnSaveAs = document.querySelectorAll('.btn-save-as');
 const btnSaveRun = document.querySelectorAll('.btn-save-run');
 const btnInfo = document.querySelector('.btn-info');
 const terminalTitle = document.getElementById('terminal-title');
+const serialPlotter = document.getElementById('plotter');
 
 const messageDialog = new MessageModal("message");
 const connectionType = new ButtonValueDialog("connection-type");
@@ -129,7 +132,25 @@ btnRestart.addEventListener('click', async function(e) {
 
 // Clear Button
 btnClear.addEventListener('click', async function(e) {
+    if (workflow.plotterChart){
+        workflow.plotterChart.data.datasets.forEach((dataSet, index) => {
+            workflow.plotterChart.data.datasets[index].data = [];
+        });
+        workflow.plotterChart.data.labels = [];
+        workflow.plotterChart.options.scales.y.min = -1;
+        workflow.plotterChart.options.scales.y.max = 1;
+        workflow.plotterChart.update();
+    }
     state.terminal.clear();
+});
+
+// Plotter Button
+btnPlotter.addEventListener('click', async function(e){
+    serialPlotter.classList.toggle("hidden");
+    if (workflow && !workflow.plotterEnabled){
+        await setupPlotterChart(workflow);
+        workflow.plotterEnabled = true;
+    }
 });
 
 btnInfo.addEventListener('click', async function(e) {
@@ -237,7 +258,13 @@ async function checkReadOnly() {
 
 /* Update the filename and update the UI */
 function setFilename(path) {
+    // Use the extension_map to figure out the file icon
     let filename = path;
+
+    // Prepend an icon to the path
+    const [style, icon] = getFileIcon(path);
+    filename = `<i class="${style} ${icon}"></i> ` + filename;
+
     if (path === null) {
         filename = "[New Document]";
         btnSave.forEach((b) => b.style.display = 'none');
@@ -518,9 +545,6 @@ async function setupXterm() {
             cursor: '#ddd',
         }
     });
-
-    state.fitter = new FitAddon();
-    state.terminal.loadAddon(state.fitter);
 
     state.terminal.loadAddon(new WebLinksAddon());
 

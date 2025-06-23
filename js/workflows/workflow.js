@@ -4,6 +4,7 @@ import {FileHelper} from '../common/file.js';
 import {UnsavedDialog} from '../common/dialogs.js';
 import {FileDialog, FILE_DIALOG_OPEN, FILE_DIALOG_SAVE} from '../common/file_dialog.js';
 import {CONNTYPE, CONNSTATE} from '../constants.js';
+import {plotValues} from '../common/plotter.js'
 
 /*
  * This class will encapsulate all of the common workflow-related functions
@@ -47,6 +48,10 @@ class Workflow {
         this._unsavedDialog = new UnsavedDialog("unsaved");
         this._fileDialog = new FileDialog("files", this.showBusy.bind(this));
         this.repl = new REPL();
+        this.plotterEnabled = false;
+        this.plotterChart = false;
+        this.buttonStates = [];
+        this.connectButtons = {};
     }
 
     async init(params) {
@@ -59,6 +64,8 @@ class Workflow {
         this._loadFileContents = params.loadFileFunc;
         this._showMessage = params.showMessageFunc;
         this.loader = document.getElementById("loader");
+        this.plotterBufferSize = document.getElementById('buffer-size');
+        this.plotterGridLines = document.getElementById('plot-gridlines-select');
         if ("terminalTitle" in params) {
             this.terminalTitle = params.terminalTitle;
         }
@@ -159,6 +166,9 @@ class Workflow {
     }
 
     writeToTerminal(data) {
+        if (this.plotterEnabled) {
+            plotValues(this.plotterChart, data, this.plotterBufferSize.value);
+        }
         this.terminal.write(data);
     }
 
@@ -299,6 +309,33 @@ class Workflow {
 
     async available() {
         return Error("This work flow is not available.");
+    }
+
+    // Handle the different button states for various connection steps
+    connectionStep(step) {
+        if (step < 0) step = 0;
+        if (step > this.buttonStates.length - 1) step = this.buttonStates.length - 1;
+
+        for (let button in this.connectButtons) {
+            this.connectButtons[button].disabled = !this.buttonStates[step][button];
+        }
+
+        // Mark all previous steps as completed (hidden or not)
+        for (let stepNumber = 0; stepNumber < step; stepNumber++) {
+            this._markStepCompleted(stepNumber);
+        }
+    }
+
+    _markStepCompleted(stepNumber) {
+        let modal = this.connectDialog.getModal();
+        let steps = modal.querySelectorAll('.step');
+        // For any steps prior to the last step, add a checkmark
+        for (let i = 0; i < steps.length - 1; i++) {
+            let step = steps[stepNumber];
+            if (!step.classList.contains('completed')) {
+                step.classList.add('completed');
+            }
+        }
     }
 }
 
