@@ -41,10 +41,9 @@ function makeUrl(url, extraParams = {}) {
     return new URL(oldUrl) + buildHash(urlParams);
 }
 
-// Check if the current url is a valid CircuitPython Web Workflow local device name
+// Check for any local MDNS name, not limited to Circuitpython default names
 function isMdns() {
-    // Check for cpy-XXXXXX.local (and optionally cpy-XXXXXX-###.local for mDNS name resolution)
-    return location.hostname.search(/cpy-[0-9a-f]{6}(?:-[0-9]+)?.local/gi) == 0;
+    return location.hostname.endsWith(".local");
 }
 
 // Check if the current url is an IP address
