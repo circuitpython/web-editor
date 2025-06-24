@@ -1,3 +1,6 @@
+@use "../base/variables" as *;
+@use "../base/mixins" as *;
+
 #site-header {
     display: grid;
     grid-template-rows: 1fr 3px;

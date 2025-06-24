@@ -1,3 +1,6 @@
+@use "../base/variables" as *;
+@use "sass:color";
+
 html {
     box-sizing: border-box;
 }
@@ -64,7 +67,7 @@ h5 {
     }
 
     &:hover {
-        background-color: darken($purple, 15%);
+        background-color: color.adjust($purple, $lightness: -15%);
     }
 
     &.hidden {
@@ -77,7 +80,7 @@ h5 {
     background-color: $gray;
 
     &:hover {
-        background-color: darken($gray, 15%);
+        background-color: color.adjust($gray, $lightness: -15%);
     }
 }
 
