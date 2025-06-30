@@ -22,7 +22,7 @@
     "@xterm/addon-web-links": "^0.11.0",
     "@xterm/xterm": "^5.5.0",
     "chart.js": "^4.4.4",
-    "codemirror": "^6.0.1",
+    "codemirror": "^6.0.2",
     "file-saver": "^2.0.5",
     "focus-trap": "^7.6.1",
     "idb-keyval": "^6.2.1",
