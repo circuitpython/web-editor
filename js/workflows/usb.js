@@ -124,10 +124,6 @@ class USBWorkflow extends Workflow {
                 device = await navigator.serial.requestPort();
                 console.log(device);
             }
-
-            // TODO: Make it more obvious to user that something happened for smaller screens
-            // Perhaps providing checkmarks by adding a css class when a step is complete would be helpful
-            // This would help with other workflows as well
         } else {
             console.log('Requesting any serial device...');
             try {
@@ -171,7 +167,7 @@ class USBWorkflow extends Workflow {
         btnSelectHostFolder.disabled = true;
         let serialConnect = async (event) => {
             try {
-                await this.showBusy(this.connectToSerial());
+                await this.connectToSerial();
             } catch (e) {
                 //console.log(e);
                 //alert(e.message);
@@ -291,7 +287,7 @@ class USBWorkflow extends Workflow {
 
         // At this point we should see if we should init the file client and check if have a saved dir handle
         let fileops = new FileOps(this.repl, false);
-        if (await fileops.isReadOnly()) {
+        if (await this.showBusy(fileops.isReadOnly())) {
             // UID Only needed for matching the CIRCUITPY drive with the Serial Terminal
             await this.showBusy(this._getDeviceUid());
             let modal = this.connectDialog.getModal();

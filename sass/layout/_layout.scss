@@ -1,3 +1,6 @@
+@use "../base/variables" as *;
+@use "sass:color";
+
 .layout {
     height: 100vh;
     height: calc(var(--vh, 1vh) * 100);
@@ -170,7 +173,7 @@
     background-color: $gray;
 
     &:hover {
-        background-color: darken($gray, 15%);
+        background-color: color.adjust($gray, $lightness: -15%);
     }
 
     &.active {
