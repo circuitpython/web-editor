@@ -11,7 +11,7 @@
   "devDependencies": {
     "sass": "^1.80.6",
     "vite": "^6.3.5",
-    "vite-plugin-mkcert": "^1.17.6"
+    "vite-plugin-mkcert": "^1.17.8"
   },
   "dependencies": {
     "@adafruit/ble-file-transfer-js": "adafruit/ble-file-transfer-js#1.0.2",
@@ -21,14 +21,14 @@
     "@xterm/addon-fit": "^0.10.0",
     "@xterm/addon-web-links": "^0.11.0",
     "@xterm/xterm": "^5.5.0",
-    "chart.js": "^4.4.4",
-    "codemirror": "^6.0.1",
+    "chart.js": "^4.5.0",
+    "codemirror": "^6.0.2",
     "file-saver": "^2.0.5",
     "focus-trap": "^7.6.1",
-    "idb-keyval": "^6.2.1",
+    "idb-keyval": "^6.2.2",
     "jszip": "^3.10.1"
   },
   "optionalDependencies": {
-    "@rollup/rollup-linux-x64-gnu": "^4.20.0"
+    "@rollup/rollup-linux-x64-gnu": "^4.44.1"
   }
 }
