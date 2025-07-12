@@ -4,6 +4,7 @@ import {GenericModal, DeviceInfoModal} from '../common/dialogs.js';
 import {FileOps} from '@adafruit/circuitpython-repl-js'; // Use this to determine which FileTransferClient to load
 import {FileTransferClient as ReplFileTransferClient} from '../common/repl-file-transfer.js';
 import {FileTransferClient as FSAPIFileTransferClient} from '../common/fsapi-file-transfer.js';
+import { isChromeOs, isMicrosoftWindows } from '../common/utilities.js';
 
 let btnRequestSerialDevice, btnSelectHostFolder, btnUseHostFolder, lblWorkingfolder;
 
@@ -247,7 +248,11 @@ class USBWorkflow extends Workflow {
         console.log("New folder name:", folderName);
         if (folderName) {
             // Set the working folder label
-            lblWorkingfolder.innerHTML = folderName;
+            if (isMicrosoftWindows() || isChromeOs()) {
+                lblWorkingfolder.innerHTML = "OK";
+            } else {
+                lblWorkingfolder.innerHTML = `Use ${folderName}`;
+            }
             btnUseHostFolder.classList.remove("hidden");
             btnSelectHostFolder.innerHTML = "Select Different Folder";
             btnSelectHostFolder.classList.add("inverted");
