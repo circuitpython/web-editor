@@ -56,6 +56,25 @@ function isLocal() {
     return (isMdns() || location.hostname == "localhost" || isIp()) && (location.pathname == "/code/");
 }
 
+// Test to see if browser is running on Microsoft Windows OS
+function isMicrosoftWindows() {
+    // Newer test on Chromium
+    if (navigator.userAgentData?.platform === "Windows") {
+        return true;
+    } else if (navigator.userAgent.includes("Windows")) {
+        return true;
+    }
+    return false;
+}
+
+// Test to see if browser is running on Microsoft Windows OS
+function isChromeOs() {
+    if (navigator.userAgent.includes("CrOS")) {
+        return true;
+    }
+    return false;
+}
+
 // Parse out the url parameters from the current url
 function getUrlParams() {
     // This should look for and validate very specific values
@@ -146,6 +165,8 @@ export {
     isMdns,
     isIp,
     isLocal,
+    isMicrosoftWindows,
+    isChromeOs,
     getUrlParams,
     getUrlParam,
     timeout,
