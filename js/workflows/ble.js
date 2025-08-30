@@ -7,6 +7,7 @@ import {CONNTYPE} from '../constants.js';
 import {Workflow} from './workflow.js';
 import {GenericModal, DeviceInfoModal} from '../common/dialogs.js';
 import {sleep} from '../common/utilities.js';
+import {bluetooth} from 'webbluetooth';
 
 const bleNusServiceUUID = 'adaf0001-4369-7263-7569-74507974686e';
 const bleNusCharRXUUID = 'adaf0002-4369-7263-7569-74507974686e';
@@ -74,7 +75,7 @@ class BLEWorkflow extends Workflow {
                 stepOne.classList.add("hidden");
             }
             try {
-                const devices = await navigator.bluetooth.getDevices();
+                const devices = await bluetooth.getDevices();
                 console.log(devices);
                 this.connectionStep(devices.length > 0 ? 2 : 1);
             } catch (e) {
@@ -120,7 +121,7 @@ class BLEWorkflow extends Workflow {
         if (!this.connectionStatus()) {
             try {
                 console.log('Getting existing permitted Bluetooth devices...');
-                const devices = await navigator.bluetooth.getDevices();
+                const devices = await bluetooth.getDevices();
 
                 console.log('> Found ' + devices.length + ' Bluetooth device(s).');
                 // These devices may not be powered on or in range, so scan for
@@ -138,7 +139,7 @@ class BLEWorkflow extends Workflow {
 
     // Bring up a dialog to request a device
     async requestDevice() {
-        return navigator.bluetooth.requestDevice({
+        return bluetooth.requestDevice({
             filters: [{services: [0xfebb]},], // <- Prefer filters to save energy & show relevant devices.
             optionalServices: [0xfebb, bleNusServiceUUID]
         });
@@ -272,7 +273,7 @@ class BLEWorkflow extends Workflow {
         }
         // Is this a new connection?
         if (!this.bleDevice) {
-            let devices = await navigator.bluetooth.getDevices();
+            let devices = await bluetooth.getDevices();
             for (const device of devices) {
                 await this.connectToBluetoothDevice(device);
             }
