@@ -15,7 +15,7 @@ const bleNusCharTXUUID = 'adaf0003-4369-7263-7569-74507974686e';
 
 const BYTES_PER_WRITE = 20;
 
-let btnRequestBluetoothDevice, btnBond, btnReconnect;
+let btnRequestBluetoothDevice, btnReconnect;
 
 class BLEWorkflow extends Workflow {
     constructor() {
@@ -31,10 +31,9 @@ class BLEWorkflow extends Workflow {
         this.partialWrites = true;
         this.type = CONNTYPE.Ble;
         this.buttonStates = [
-            {reconnect: false, request: false, bond: false},
-            {reconnect: false, request: true, bond: false},
-            {reconnect: true, request: true, bond: false},
-            {reconnect: false, request: false, bond: true},
+            {reconnect: false, request: false},
+            {reconnect: false, request: true},
+            {reconnect: true, request: true},
         ];
     }
 
@@ -54,18 +53,15 @@ class BLEWorkflow extends Workflow {
         let p = this.connectDialog.open();
         let modal = this.connectDialog.getModal();
         btnRequestBluetoothDevice = modal.querySelector('#requestBluetoothDevice');
-        btnBond = modal.querySelector('#promptBond');
         btnReconnect = modal.querySelector('#bleReconnect');
 
         // Map the button states to the buttons
         this.connectButtons = {
             reconnect: btnReconnect,
-            request: btnRequestBluetoothDevice,
-            bond: btnBond
+            request: btnRequestBluetoothDevice
         };
 
         btnRequestBluetoothDevice.addEventListener('click', this.onRequestBluetoothDeviceButtonClick.bind(this));
-        btnBond.addEventListener('click', this.onBond.bind(this));
         btnReconnect.addEventListener('click', this.reconnectButtonHandler.bind(this));
 
         // Check if Web Bluetooth is available
@@ -154,11 +150,11 @@ class BLEWorkflow extends Workflow {
             abortController.abort();
             console.log('Connecting to GATT Server from "' + device.name + '"...');
             try {
-                await device.gatt.connect();
+                this.bleServer = await device.gatt.connect();
             } catch (error) {
                 await this._showMessage("Failed to connect to device. Try forgetting device from OS bluetooth devices and try again.");
             }
-            if (device.gatt.connected) {
+            if (this.bleServer && this.bleServer.connected) {
                 console.log('> Bluetooth device "' +  device.name + ' connected.');
                 await this.switchToDevice(device);
             } else {
@@ -188,9 +184,7 @@ class BLEWorkflow extends Workflow {
             let device = await this.requestDevice();
 
             console.log('> Requested ' + device.name);
-            await device.gatt.connect();
-
-            await this.switchToDevice(device);
+            await this.connectToBluetoothDevice(device);
         /*}
         catch (error) {
             console.error(error);
@@ -204,7 +198,7 @@ class BLEWorkflow extends Workflow {
         this.bleDevice = device;
         this.bleDevice.removeEventListener("gattserverdisconnected", this.onDisconnected.bind(this));
         this.bleDevice.addEventListener("gattserverdisconnected", this.onDisconnected.bind(this));
-        this.bleServer = this.bleDevice.gatt;
+        //this.bleServer = this.bleDevice.gatt;
         console.log("connected", this.bleServer);
         let services;
 
@@ -221,23 +215,8 @@ class BLEWorkflow extends Workflow {
         await this.fileHelper.bond();
         await this.connectToSerial();
 
-        // Enable/Disable UI buttons
-        this.connectionStep(3);
-
         await this.onConnected();
         this.connectDialog.close();
-        await this.loadEditor();
-    }
-
-    // Bond
-    async onBond(e) {
-        try {
-            console.log("bond");
-            await this.fileHelper.bond();
-            console.log("bond done");
-        } catch (e) {
-            console.log(e, e.stack);
-        }
         await this.loadEditor();
     }
 
@@ -277,12 +256,6 @@ class BLEWorkflow extends Workflow {
             for (const device of devices) {
                 await this.connectToBluetoothDevice(device);
             }
-        }
-
-        // Do we have a connection now but still need to connect serial?
-        if (this.bleDevice && !this.bleServer) {
-            await this.showBusy(this.bleDevice.gatt.connect());
-            this.switchToDevice(this.bleDevice);
         }
     }
 
