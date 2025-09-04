@@ -153,6 +153,8 @@ class BLEWorkflow extends Workflow {
                 this.bleServer = await device.gatt.connect();
             } catch (error) {
                 await this._showMessage("Failed to connect to device. Try forgetting device from OS bluetooth devices and try again.");
+                // Disable the reconnect button
+                this.connectionStep(1);
             }
             if (this.bleServer && this.bleServer.connected) {
                 console.log('> Bluetooth device "' +  device.name + ' connected.');
@@ -168,6 +170,7 @@ class BLEWorkflow extends Workflow {
         this.debugLog("connecting to " + device.name);
         try {
             console.log('Watching advertisements from "' + device.name + '"...');
+            console.log('If no advertisements are received, make sure the device is powered on and in range. You can also try resetting the device');
             await device.watchAdvertisements({signal: abortController.signal});
         }
         catch (error) {
