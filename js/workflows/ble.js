@@ -7,6 +7,7 @@ import {CONNTYPE} from '../constants.js';
 import {Workflow} from './workflow.js';
 import {GenericModal, DeviceInfoModal} from '../common/dialogs.js';
 import {sleep} from '../common/utilities.js';
+import {bluetooth} from 'webbluetooth';
 
 const bleNusServiceUUID = 'adaf0001-4369-7263-7569-74507974686e';
 const bleNusCharRXUUID = 'adaf0002-4369-7263-7569-74507974686e';
@@ -14,7 +15,7 @@ const bleNusCharTXUUID = 'adaf0003-4369-7263-7569-74507974686e';
 
 const BYTES_PER_WRITE = 20;
 
-let btnRequestBluetoothDevice, btnBond, btnReconnect;
+let btnRequestBluetoothDevice, btnReconnect;
 
 class BLEWorkflow extends Workflow {
     constructor() {
@@ -30,10 +31,9 @@ class BLEWorkflow extends Workflow {
         this.partialWrites = true;
         this.type = CONNTYPE.Ble;
         this.buttonStates = [
-            {reconnect: false, request: false, bond: false},
-            {reconnect: false, request: true, bond: false},
-            {reconnect: true, request: true, bond: false},
-            {reconnect: false, request: false, bond: true},
+            {reconnect: false, request: false},
+            {reconnect: false, request: true},
+            {reconnect: true, request: true},
         ];
     }
 
@@ -53,18 +53,15 @@ class BLEWorkflow extends Workflow {
         let p = this.connectDialog.open();
         let modal = this.connectDialog.getModal();
         btnRequestBluetoothDevice = modal.querySelector('#requestBluetoothDevice');
-        btnBond = modal.querySelector('#promptBond');
         btnReconnect = modal.querySelector('#bleReconnect');
 
         // Map the button states to the buttons
         this.connectButtons = {
             reconnect: btnReconnect,
-            request: btnRequestBluetoothDevice,
-            bond: btnBond
+            request: btnRequestBluetoothDevice
         };
 
         btnRequestBluetoothDevice.addEventListener('click', this.onRequestBluetoothDeviceButtonClick.bind(this));
-        btnBond.addEventListener('click', this.onBond.bind(this));
         btnReconnect.addEventListener('click', this.reconnectButtonHandler.bind(this));
 
         // Check if Web Bluetooth is available
@@ -74,7 +71,7 @@ class BLEWorkflow extends Workflow {
                 stepOne.classList.add("hidden");
             }
             try {
-                const devices = await navigator.bluetooth.getDevices();
+                const devices = await bluetooth.getDevices();
                 console.log(devices);
                 this.connectionStep(devices.length > 0 ? 2 : 1);
             } catch (e) {
@@ -120,7 +117,7 @@ class BLEWorkflow extends Workflow {
         if (!this.connectionStatus()) {
             try {
                 console.log('Getting existing permitted Bluetooth devices...');
-                const devices = await navigator.bluetooth.getDevices();
+                const devices = await bluetooth.getDevices();
 
                 console.log('> Found ' + devices.length + ' Bluetooth device(s).');
                 // These devices may not be powered on or in range, so scan for
@@ -138,7 +135,7 @@ class BLEWorkflow extends Workflow {
 
     // Bring up a dialog to request a device
     async requestDevice() {
-        return navigator.bluetooth.requestDevice({
+        return bluetooth.requestDevice({
             filters: [{services: [0xfebb]},], // <- Prefer filters to save energy & show relevant devices.
             optionalServices: [0xfebb, bleNusServiceUUID]
         });
@@ -153,11 +150,13 @@ class BLEWorkflow extends Workflow {
             abortController.abort();
             console.log('Connecting to GATT Server from "' + device.name + '"...');
             try {
-                await device.gatt.connect();
+                this.bleServer = await device.gatt.connect();
             } catch (error) {
                 await this._showMessage("Failed to connect to device. Try forgetting device from OS bluetooth devices and try again.");
+                // Disable the reconnect button
+                this.connectionStep(1);
             }
-            if (device.gatt.connected) {
+            if (this.bleServer && this.bleServer.connected) {
                 console.log('> Bluetooth device "' +  device.name + ' connected.');
                 await this.switchToDevice(device);
             } else {
@@ -171,6 +170,7 @@ class BLEWorkflow extends Workflow {
         this.debugLog("connecting to " + device.name);
         try {
             console.log('Watching advertisements from "' + device.name + '"...');
+            console.log('If no advertisements are received, make sure the device is powered on and in range. You can also try resetting the device');
             await device.watchAdvertisements({signal: abortController.signal});
         }
         catch (error) {
@@ -187,9 +187,7 @@ class BLEWorkflow extends Workflow {
             let device = await this.requestDevice();
 
             console.log('> Requested ' + device.name);
-            await device.gatt.connect();
-
-            await this.switchToDevice(device);
+            await this.connectToBluetoothDevice(device);
         /*}
         catch (error) {
             console.error(error);
@@ -203,7 +201,7 @@ class BLEWorkflow extends Workflow {
         this.bleDevice = device;
         this.bleDevice.removeEventListener("gattserverdisconnected", this.onDisconnected.bind(this));
         this.bleDevice.addEventListener("gattserverdisconnected", this.onDisconnected.bind(this));
-        this.bleServer = this.bleDevice.gatt;
+        //this.bleServer = this.bleDevice.gatt;
         console.log("connected", this.bleServer);
         let services;
 
@@ -220,23 +218,8 @@ class BLEWorkflow extends Workflow {
         await this.fileHelper.bond();
         await this.connectToSerial();
 
-        // Enable/Disable UI buttons
-        this.connectionStep(3);
-
         await this.onConnected();
         this.connectDialog.close();
-        await this.loadEditor();
-    }
-
-    // Bond
-    async onBond(e) {
-        try {
-            console.log("bond");
-            await this.fileHelper.bond();
-            console.log("bond done");
-        } catch (e) {
-            console.log(e, e.stack);
-        }
         await this.loadEditor();
     }
 
@@ -272,16 +255,10 @@ class BLEWorkflow extends Workflow {
         }
         // Is this a new connection?
         if (!this.bleDevice) {
-            let devices = await navigator.bluetooth.getDevices();
+            let devices = await bluetooth.getDevices();
             for (const device of devices) {
                 await this.connectToBluetoothDevice(device);
             }
-        }
-
-        // Do we have a connection now but still need to connect serial?
-        if (this.bleDevice && !this.bleServer) {
-            await this.showBusy(this.bleDevice.gatt.connect());
-            this.switchToDevice(this.bleDevice);
         }
     }
 
