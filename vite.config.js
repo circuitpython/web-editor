@@ -1,8 +1,12 @@
 // vite.config.js | https://vitejs.dev/config/
 import { defineConfig } from 'vite'
-import mkcert from 'vite-plugin-mkcert'
+// import mkcert from 'vite-plugin-mkcert'
 
 export default defineConfig({
+    server: {
+        port: 3000,
+        host: true
+    },
     build: {
         assetsInlineLimit: 0,
         chunkSizeWarningLimit: 1500,
@@ -22,5 +26,5 @@ export default defineConfig({
             }
         }
     },
-    plugins: [ mkcert() ]
+    plugins: [ /* mkcert() - disabled for demo */ ]
 })

@@ -7,6 +7,7 @@
     <title>CircuitPython Code Editor</title>
     <link rel="icon" href="/assets/images/favicon.ico" type="image/x-icon" />
     <link rel="stylesheet" href="/sass/style.scss">
+    <link rel="stylesheet" href="/sass/circuitpython-virtual-hardware.scss">
 </head>
 
 <body>
@@ -98,6 +99,7 @@
                     <button class="purple-button btn-restart">Restart<i class="fa-solid fa-redo"></i></button>
                     <button class="purple-button btn-clear">Clear<i class="fa-solid fa-broom"></i></button>
                     <button class="purple-button btn-plotter">Plotter<i class="fa-solid fa-chart-line"></i></button>
+                    <button class="purple-button btn-hardware" id="btn-hardware">Hardware<i class="fa-solid fa-microchip"></i></button>
                     <div id="terminal-title"></div>
                 </div>
                 <div id="plotter" class="hidden">
@@ -183,6 +185,7 @@
             <button id="web-workflow" class="purple-button files-button" value="web">WiFi<i class="fa-solid fa-wifi"></i></button>
             <button id="ble-workflow" class="purple-button files-button" value="ble">Bluetooth<i class="fa-brands fa-bluetooth-b"></i></button>
             <button id="usb-workflow" class="purple-button files-button" value="usb">USB<i class="fa-brands fa-usb"></i></button>
+            <button id="virtual-workflow" class="purple-button files-button" value="virtual">Virtual<i class="fa-solid fa-microchip"></i></button>
         </div>
     </div>
     <div class="popup-modal shadow prompt closable" data-popup-modal="message">
@@ -352,6 +355,40 @@
             <button class="purple-button ok-button">Close</button>
         </div>
     </div>
+    <div class="popup-modal shadow connect-dialog closable" data-popup-modal="virtual-connect">
+        <i class="fa-solid fa-2x fa-xmark text-white bg-primary p-3 popup-modal__close"></i>
+        <div id="virtual-instructions" class="connection-layout content">
+            <section class="step">
+                <div class="step-number"></div>
+                <div class="step-content">
+                    <h1>Virtual CircuitPython Hardware</h1>
+                    <p>Connect to a virtual CircuitPython environment with simulated hardware pins. Perfect for learning CircuitPython without physical devices!</p>
+                </div>
+            </section>
+            <section class="step">
+                <div class="step-number"></div>
+                <div class="step-content">
+                    <h1>Features Available</h1>
+                    <ul>
+                        <li><strong>Virtual Hardware Pins:</strong> LED, Button, GP0-GP5, A0-A2</li>
+                        <li><strong>Real-time Visualization:</strong> Watch pins change as your code runs</li>
+                        <li><strong>Interactive Controls:</strong> Toggle pins manually for testing</li>
+                        <li><strong>Standard CircuitPython:</strong> Full board, digitalio, analogio support</li>
+                    </ul>
+                </div>
+            </section>
+            <section class="step">
+                <div class="step-number"></div>
+                <div class="step-content">
+                    <h1>Connect to Virtual Hardware</h1>
+                    <p>Click below to start your virtual CircuitPython session. The REPL terminal and hardware viewer will be available immediately.</p>
+                    <p>
+                        <button class="purple-button" id="connectVirtualDevice">Connect to Virtual Hardware</button>
+                    </p>
+                </div>
+            </section>
+        </div>
+    </div>
     <div class="popup-modal shadow closable" data-popup-modal="device-info">
         <i class="fa-solid fa-2x fa-xmark text-white bg-primary p-3 popup-modal__close"></i>
         <table class="device-info">
@@ -393,5 +430,6 @@
     </div>
 
     <script type="module" src="/js/script.js"></script>
+    <script type="module" src="/js/circuitpython-integration.js"></script>
 </body>
 </html>

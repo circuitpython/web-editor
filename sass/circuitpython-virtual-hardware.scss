@@ -1,0 +1,267 @@
+/**
+ * Virtual Hardware Display Styles for CircuitPython Web Editor
+ */
+
+.virtual-hardware-panel {
+    position: absolute;
+    right: 20px;
+    top: 60px;
+    width: 320px;
+    max-height: calc(100vh - 200px);
+    background: var(--color-bg-secondary, #1e1e1e);
+    border: 1px solid var(--color-border, #404040);
+    border-radius: 8px;
+    padding: 15px;
+    font-family: var(--font-family-mono, 'Consolas', 'Monaco', 'Courier New', monospace);
+    color: var(--color-text, #ffffff);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    z-index: 100;
+    overflow: hidden;
+    
+    // When in serial page, position relative to container
+    #serial-page & {
+        position: absolute;
+        right: 20px;
+        top: 60px;
+    }
+    
+    h3 {
+        margin: 0 0 15px 0;
+        color: var(--color-text-secondary, inherit);
+        font-size: 14px;
+        text-align: center;
+        border-bottom: 1px solid var(--color-border, #404040);
+        padding-bottom: 8px;
+    }
+}
+
+.hardware-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-height: 350px;
+    overflow-y: auto;
+    margin-bottom: 15px;
+    
+    &::-webkit-scrollbar {
+        width: 6px;
+    }
+    
+    &::-webkit-scrollbar-track {
+        background: #2d2d2d;
+    }
+    
+    &::-webkit-scrollbar-thumb {
+        background: #555;
+        border-radius: 3px;
+    }
+}
+
+.hardware-info {
+    text-align: center;
+    color: #888;
+    font-size: 12px;
+    padding: 20px 10px;
+    
+    p {
+        margin: 8px 0;
+    }
+    
+    code {
+        background: #2d2d2d;
+        padding: 2px 4px;
+        border-radius: 3px;
+        color: #4fc3f7;
+        font-size: 11px;
+    }
+}
+
+.virtual-pin {
+    background: #2d2d2d;
+    border: 1px solid #404040;
+    border-radius: 6px;
+    padding: 10px;
+    transition: all 0.2s ease;
+    
+    &.pin-output {
+        border-color: #4caf50;
+    }
+    
+    &.pin-input {
+        border-color: #2196f3;
+    }
+    
+    &:hover {
+        background: #363636;
+    }
+}
+
+.pin-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+    
+    .pin-name {
+        font-weight: bold;
+        color: #ffffff;
+        font-size: 12px;
+    }
+    
+    .pin-direction {
+        font-size: 10px;
+        padding: 2px 6px;
+        border-radius: 3px;
+        background: #555;
+        color: #ffffff;
+    }
+}
+
+.pin-value {
+    font-size: 18px;
+    font-weight: bold;
+    text-align: center;
+    padding: 8px;
+    border-radius: 4px;
+    margin-bottom: 8px;
+    background: #1a1a1a;
+    
+    &.pin-high {
+        background: #4caf50;
+        color: #000000;
+    }
+    
+    &.pin-low {
+        background: #333333;
+        color: #ffffff;
+    }
+    
+    &.pin-analog {
+        background: linear-gradient(90deg, #2196f3, #03dac6);
+        color: #000000;
+        font-size: 12px;
+    }
+}
+
+.pin-controls {
+    display: flex;
+    justify-content: center;
+    
+    .btn-toggle {
+        background: #555;
+        color: #ffffff;
+        border: none;
+        padding: 4px 8px;
+        border-radius: 3px;
+        font-size: 10px;
+        cursor: pointer;
+        transition: background 0.2s ease;
+        
+        &:hover {
+            background: #666;
+        }
+        
+        &:active {
+            background: #777;
+        }
+    }
+}
+
+.hardware-controls {
+    border-top: 1px solid #404040;
+    padding-top: 10px;
+    text-align: center;
+    
+    .btn-reset {
+        background: #f44336;
+        color: #ffffff;
+        border: none;
+        padding: 6px 12px;
+        border-radius: 4px;
+        font-size: 11px;
+        cursor: pointer;
+        transition: background 0.2s ease;
+        
+        &:hover {
+            background: #d32f2f;
+        }
+        
+        &:active {
+            background: #b71c1c;
+        }
+    }
+}
+
+// Terminal integration
+#terminal {
+    .terminal-line {
+        font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+        font-size: 13px;
+        line-height: 1.4;
+        padding: 2px 0;
+        white-space: pre-wrap;  // Allow wrapping of long lines
+        word-wrap: break-word;  // Break long words if needed
+        overflow-wrap: break-word;  // Modern alternative to word-wrap
+        
+        &:hover {
+            background: rgba(255,255,255,0.05);
+        }
+    }
+}
+
+// Connection status indicators
+.status-connected {
+    background: #4caf50 !important;
+}
+
+.status-connecteddvirtual {
+    background: #ff9800 !important;
+}
+
+.status-failedtoinitialize {
+    background: #f44336 !important;
+}
+
+// Mobile responsive
+@media (max-width: 768px) {
+    .virtual-hardware-panel {
+        position: relative;
+        right: auto;
+        top: auto;
+        width: 100%;
+        margin: 20px 0;
+        max-height: 400px;
+    }
+}
+
+// Hide panel when not connected
+.virtual-hardware-panel.hidden {
+    display: none;
+}
+
+// Active hardware button styling - use existing web editor active button styles
+.btn-hardware.active {
+    // Let existing CSS handle active button styling
+    opacity: 0.8;
+}
+
+// Virtual terminal output styling - minimal changes to match existing terminal
+.terminal-line.virtual-output {
+    // Keep existing terminal styling, just add prefix
+    &::before {
+        content: "🐍 ";
+    }
+}
+
+// Removed old banner styling - WASM handles its own output
+
+// Serial page positioning
+#serial-page {
+    position: relative;
+    
+    .virtual-hardware-panel {
+        position: absolute;
+        right: 20px;
+        top: 60px;
+    }
+}

@@ -4,7 +4,8 @@ export const CONNTYPE = {
     None: 1,
     Ble: 2,
     Usb: 3,
-    Web: 4
+    Web: 4,
+    Virtual: 5
 };
 
 export const CONNSTATE = {

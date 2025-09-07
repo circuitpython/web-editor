@@ -17,6 +17,7 @@ const UPDATE_TYPE_SERIAL = 2;
 
 const MINIMUM_COLS = 2;
 const MINIMUM_ROWS = 1;
+const MAXIMUM_COLS = 80;  // Cap at 80 columns to ensure banner fits
 
 function isEditorVisible() {
     return editorPage.classList.contains('active');
@@ -134,7 +135,7 @@ function refitTerminal() {
                 let serialBarHeight = document.getElementById('serial-bar').offsetHeight;
                 let viewportHeight = window.innerHeight;
                 let terminalHeight = viewportHeight - headerHeight - footerBarHeight - serialBarHeight;
-                let terminalWidth = document.getElementById('serial-page').offsetWidth;
+                let terminalWidth = document.getElementById('serial-page').offsetWidth - 20; // Account for scrollbar width and padding
                 let screen = document.querySelector('.xterm-screen');
                 if (screen) {
                     let cols = Math.floor(terminalWidth / TERMINAL_COL_WIDTH);
@@ -142,11 +143,18 @@ function refitTerminal() {
                     if (cols < MINIMUM_COLS) {
                         cols = MINIMUM_COLS;
                     }
+                    if (cols > MAXIMUM_COLS) {
+                        cols = MAXIMUM_COLS;  // Cap columns to prevent text cutoff
+                    }
                     if (rows < MINIMUM_ROWS) {
                         rows = MINIMUM_ROWS;
                     }
                     screen.style.width = (cols * TERMINAL_COL_WIDTH) + 'px';
                     screen.style.height = (rows * TERMINAL_ROW_HEIGHT) + 'px';
+                    // Actually resize the terminal to the calculated dimensions
+                    if (state.terminal) {
+                        state.terminal.resize(cols, rows);
+                    }
                 }
             });
         });

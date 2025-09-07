@@ -14,6 +14,7 @@ import state from './state.js'
 import { BLEWorkflow } from './workflows/ble.js';
 import { USBWorkflow } from './workflows/usb.js';
 import { WebWorkflow } from './workflows/web.js';
+import { VirtualWorkflow } from './workflows/virtual.js';
 import { isValidBackend, getBackendWorkflow, getWorkflowBackendName } from './workflows/workflow.js';
 import { ButtonValueDialog, MessageModal } from './common/dialogs.js';
 import { isLocal, switchUrl, getUrlParam } from './common/utilities.js';
@@ -27,6 +28,7 @@ let workflows = {};
 workflows[CONNTYPE.Ble] = new BLEWorkflow();
 workflows[CONNTYPE.Usb] = new USBWorkflow();
 workflows[CONNTYPE.Web] = new WebWorkflow();
+workflows[CONNTYPE.Virtual] = new VirtualWorkflow();
 
 let workflow = null;
 let unchanged = 0;
@@ -543,7 +545,10 @@ async function setupXterm() {
             background: '#333',
             foreground: '#ddd',
             cursor: '#ddd',
-        }
+        },
+        convertEol: true,  // Convert line endings
+        wordWrap: true,    // Enable word wrapping
+        cols: 80,          // Set reasonable column width to match your max line length
     });
 
     state.terminal.loadAddon(new WebLinksAddon());
@@ -575,8 +580,9 @@ function loadParameterizedContent() {
     return documentState;
 }
 
-document.addEventListener('DOMContentLoaded', async (event) => {
+document.addEventListener('DOMContentLoaded', async () => {
     await setupXterm();
+    
     btnConnect.forEach((element) => {
         element.addEventListener('click', async function(e) {
             e.preventDefault();
@@ -594,6 +600,7 @@ document.addEventListener('DOMContentLoaded', async (event) => {
 
     // Check backend param and load appropriate type if specified
     let backend = getBackend();
+    
     if (backend) {
         await loadWorkflow(backend);
         // If we don't have all the info we need to connect
@@ -612,7 +619,7 @@ document.addEventListener('DOMContentLoaded', async (event) => {
             }
         }
     } else {
-        //await showMessage("USB Workflow is currently experiencing issues. See <a href=\"https://github.com/circuitpython/web-editor/issues/203\">GitHub issue #203</a> for more details. Please use Web Workflow.");
+        // No backend specified, show connection selection dialog
         await checkConnected();
     }
 });

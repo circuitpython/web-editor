@@ -14,6 +14,7 @@ const validBackends = {
     "web": CONNTYPE.Web,
     "ble": CONNTYPE.Ble,
     "usb": CONNTYPE.Usb,
+    "virtual": CONNTYPE.Virtual,
 };
 
 function isValidBackend(backend) {

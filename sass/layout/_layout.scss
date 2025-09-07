@@ -113,6 +113,11 @@
                 background: var(--highlight);
             }
         }
+        
+        .xterm-screen {
+            padding-right: 20px;  // Add padding to prevent text from going under scrollbar
+            box-sizing: border-box;
+        }
     }
     #buffer-size{
         width: 70px;
