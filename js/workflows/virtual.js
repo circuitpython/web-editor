@@ -1,7 +1,7 @@
 import {Workflow} from './workflow.js';
 import {CONNTYPE, CONNSTATE} from '../constants.js';
 import {GenericModal} from '../common/dialogs.js';
-import {CircuitPythonWASM} from '../circuitpython-wasm-worker.js';
+import {ModernCircuitPythonWASM} from '../circuitpython-wasm-worker-modern.js';
 
 /**
  * Virtual CircuitPython Workflow
@@ -30,8 +30,8 @@ export class VirtualWorkflow extends Workflow {
         console.log("Connecting to Virtual CircuitPython WASM...");
         
         try {
-            // Create real CircuitPython WASM instance
-            this.circuitPython = new CircuitPythonWASM();
+            // Create modern CircuitPython WASM instance
+            this.circuitPython = new ModernCircuitPythonWASM();
             
             // Initialize with terminal output callback
             await this.circuitPython.initialize((text) => {
@@ -41,13 +41,13 @@ export class VirtualWorkflow extends Workflow {
             
             this.updateConnected(CONNSTATE.connected);
             
-            console.log("Virtual CircuitPython WASM connected successfully");
+            console.log("Modern CircuitPython WASM connected successfully");
             return true;
             
         } catch (error) {
-            console.error("Failed to connect to Virtual CircuitPython WASM:", error);
+            console.error("Failed to connect to Modern CircuitPython WASM:", error);
             this.updateConnected(CONNSTATE.disconnected);
-            return new Error("Failed to connect to Virtual CircuitPython: " + error.message);
+            return new Error("Failed to connect to Modern CircuitPython: " + error.message);
         }
     }
 
@@ -106,8 +106,8 @@ export class VirtualWorkflow extends Workflow {
         
         try {
             this.writeToTerminal(`\r\n>>> # Running ${path}\r\n`);
-            // Execute code directly in the WASM REPL
-            this.circuitPython.executeCode(editorContent);
+            // Execute code using modern async API
+            await this.circuitPython.executeCode(editorContent);
             return true;
         } catch (error) {
             this.writeToTerminal(`Error executing code: ${error.message}\r\n`);
@@ -115,13 +115,11 @@ export class VirtualWorkflow extends Workflow {
         }
     }
 
-    serialTransmit(data) {
-        // Send input to the real CircuitPython REPL
+    async serialTransmit(data) {
+        // Send input to the modern CircuitPython REPL
         if (this.circuitPython && this.circuitPython.initialized) {
-            // Process each character in the input
-            for (let i = 0; i < data.length; i++) {
-                this.circuitPython.processChar(data[i]);
-            }
+            // Use modern async processInput method
+            await this.circuitPython.processInput(data);
         }
     }
 
@@ -154,11 +152,11 @@ export class VirtualWorkflow extends Workflow {
         // Show virtual device info
         const info = {
             board: "Virtual CircuitPython Board",
-            version: "9.1.4",
+            version: "10.0.0-beta.2",
             builddate: new Date().toISOString().split('T')[0],
             mcuname: "Virtual Hardware Simulator",
             boardid: "virtual_circuitpython",
-            uid: "virtual-" + Math.random().toString(36).substr(2, 9)
+            uid: "virtual-" + Math.random().toString(36).substring(2, 11)
         };
 
         // Update the device info modal with virtual info
