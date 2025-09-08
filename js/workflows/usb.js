@@ -84,7 +84,6 @@ class USBWorkflow extends Workflow {
 
     async connect() {
         let result;
-        this._clearStatus();
         if (result = await super.connect() instanceof Error) {
             return result;
         }
@@ -167,14 +166,14 @@ class USBWorkflow extends Workflow {
 
         btnRequestSerialDevice.disabled = true;
         btnSelectHostFolder.disabled = true;
-        this._clearStatus();
+        this.clearConnectStatus();
         let serialConnect = async (event) => {
             try {
-                this._clearStatus();
+                this.clearConnectStatus();
                 await this.connectToSerial();
             } catch (e) {
                 console.log('connectToSerial() returned error: ', e);
-                this._showStatus(this._suggestSerialConnectActions(e))
+                this.showConnectStatus(this._suggestSerialConnectActions(e));
             }
         };
         btnRequestSerialDevice.removeEventListener('click', serialConnect);
@@ -183,10 +182,10 @@ class USBWorkflow extends Workflow {
         btnSelectHostFolder.removeEventListener('click', this._btnSelectHostFolderCallback)
         this._btnSelectHostFolderCallback = async (event) => {
             try {
-                this._clearStatus();
+                this.clearConnectStatus();
                 await this._selectHostFolder();
             } catch (e) {
-                this._showStatus(this._suggestFileConnectActions(e))
+                this.showConnectStatus(this._suggestFileConnectActions(e));
         }
         };
         btnSelectHostFolder.addEventListener('click', this._btnSelectHostFolderCallback);
@@ -281,7 +280,7 @@ class USBWorkflow extends Workflow {
         this._serialDevice = device;
         console.log("switch to", this._serialDevice);
         await this._serialDevice.open({baudRate: 115200}); // Throws if something else is already connected or it isn't found.
-        console.log("Starting Read Loop")
+        console.log("Starting Read Loop");
         this._readLoopPromise = this._readSerialLoop().catch(
             async function(error) {
                 await this.onDisconnected();
@@ -378,27 +377,6 @@ print(binascii.hexlify(microcontroller.cpu.uid).decode('ascii').upper())`
         console.log("Read Loop Stopped. Closing Serial Port.");
     }
 
-    _clearStatus(modal) {
-        try {
-            const modal = this.connectDialog.getModal();
-            modal.querySelector('.connect-status').hidden = true;
-        } catch (e) {
-            console.log("Modal not active on _clearStatus()", e);
-        }
-    }
-
-    _showStatus(message) {
-        try {
-            const modal = this.connectDialog.getModal();
-            const statusBox = modal.querySelector('.connect-status');
-            statusBox.hidden = false;
-            let statusContentBox = statusBox.querySelector('.connect-status-content')
-            statusContentBox.innerHTML = message
-        } catch (e) {
-            console.log("Modal not active on _setStatus()", e);
-        }
-    }
-
     // Analyzes the error returned from the WebSerial API and returns human readable feedback.
     _suggestSerialConnectActions(error) {
         if (error.name == "NetworkError" && error.message.includes("Failed to open serial port")) {
@@ -417,7 +395,7 @@ print(binascii.hexlify(microcontroller.cpu.uid).decode('ascii').upper())`
             return "Permissions to access the filesystem were not granted. Please check your browser settings and try again.";
         } else if (error.name == "AbortError") {
             return "No folder selected. Press the 'Select New Folder' button to try again.";
-        }
+        } else if (error.name == "TypeError")
         return `Connect to Filesystem returned error: ${error}`;
 
     }
