@@ -9,7 +9,7 @@
     "preview": "vite preview"
   },
   "devDependencies": {
-    "sass": "^1.90.0",
+    "sass": "^1.92.1",
     "vite": "^7.1.5",
     "vite-plugin-mkcert": "^1.17.8"
   },
