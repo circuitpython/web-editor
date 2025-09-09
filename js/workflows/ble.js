@@ -71,11 +71,13 @@ class BLEWorkflow extends Workflow {
                 stepOne.classList.add("hidden");
             }
             try {
+                this.clearConnectStatus();
                 const devices = await bluetooth.getDevices();
                 console.log(devices);
                 this.connectionStep(devices.length > 0 ? 2 : 1);
-            } catch (e) {
-                console.log("New Permissions backend for Web Bluetooth not enabled. Go to chrome://flags/#enable-web-bluetooth-new-permissions-backend to enable.", e);
+            } catch (error) {
+                console.error(error);
+                this.showConnectStatus(this._suggestBLEConnectActions(error));
             }
         } else {
             modal.querySelectorAll('.step:not(:first-of-type)').forEach((stepItem) => {
@@ -128,7 +130,7 @@ class BLEWorkflow extends Workflow {
             }
             catch (error) {
                 console.error(error);
-                await this._showMessage(error);
+                this.showConnectStatus(this._suggestBLEConnectActions(error));
             }
         }
     }
@@ -152,7 +154,9 @@ class BLEWorkflow extends Workflow {
             try {
                 this.bleServer = await device.gatt.connect();
             } catch (error) {
-                await this._showMessage("Failed to connect to device. Try forgetting device from OS bluetooth devices and try again.");
+                console.log(error);
+                // TODO(ericzundel): Add to suggestBLEConnectAction if we can determine the exception type
+                this.showConnectStatus("Failed to connect to device. Try forgetting device from OS bluetooth devices and try again.");
                 // Disable the reconnect button
                 this.connectionStep(1);
             }
@@ -169,31 +173,25 @@ class BLEWorkflow extends Workflow {
 
         this.debugLog("connecting to " + device.name);
         try {
+            this.clearConnectStatus();
             console.log('Watching advertisements from "' + device.name + '"...');
             console.log('If no advertisements are received, make sure the device is powered on and in range. You can also try resetting the device.');
             await device.watchAdvertisements({signal: abortController.signal});
         }
         catch (error) {
             console.error(error);
-            await this._showMessage(error);
+            this.showConnectStatus(this._suggestBLEConnectActions(error));
         }
     }
 
     // Request Bluetooth Device
     async onRequestBluetoothDeviceButtonClick(e) {
-        //try {
-            console.log('Requesting any Bluetooth device...');
-            this.debugLog("Requesting device. Cancel if empty and try existing");
-            let device = await this.requestDevice();
+        console.log('Requesting any Bluetooth device...');
+        this.debugLog("Requesting device. Cancel if empty and try existing");
+        let device = await this.requestDevice();
 
-            console.log('> Requested ' + device.name);
-            await this.connectToBluetoothDevice(device);
-        /*}
-        catch (error) {
-            console.error(error);
-            await this._showMessage(error);
-            this.debugLog('No device selected. Try to connect to existing.');
-        }*/
+        console.log('> Requested ' + device.name);
+        await this.connectToBluetoothDevice(device);
     }
 
     async switchToDevice(device) {
@@ -278,6 +276,16 @@ class BLEWorkflow extends Workflow {
 
     async showInfo(documentState) {
         return await this.infoDialog.open(this, documentState);
+    }
+
+    // Analyze an exception and make user friendly suggestions
+     _suggestBLEConnectActions(error) {
+        if (error.name == "TypeError" &&
+            (error.message.includes("getDevices is not a function")
+            || error.message.includes("watchAdvertisements is not a function"))) {
+            return "Bluetooth API not available. Make sure you are loading from a secure context (HTTPS), then go to chrome://flags/#enable-web-bluetooth-new-permissions-backend to enable.";
+        }
+        return `Connect via Bluetooth returned error: ${error}`;
     }
 }
 

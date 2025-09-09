@@ -4,6 +4,7 @@ import {GenericModal, DeviceInfoModal} from '../common/dialogs.js';
 import {FileOps} from '@adafruit/circuitpython-repl-js'; // Use this to determine which FileTransferClient to load
 import {FileTransferClient as ReplFileTransferClient} from '../common/repl-file-transfer.js';
 import {FileTransferClient as FSAPIFileTransferClient} from '../common/fsapi-file-transfer.js';
+import { isChromeOs, isMicrosoftWindows } from '../common/utilities.js';
 
 let btnRequestSerialDevice, btnSelectHostFolder, btnUseHostFolder, lblWorkingfolder;
 
@@ -100,6 +101,7 @@ class USBWorkflow extends Workflow {
         // the device on the stored port is currently connected by checking if the
         // readable and writable properties are null.
 
+        // Can throw a Security Error if permissions are not granted
         let allDevices = await navigator.serial.getPorts();
         let connectedDevices = [];
         for (let device of allDevices) {
@@ -112,7 +114,8 @@ class USBWorkflow extends Workflow {
 
         if (connectedDevices.length == 1) {
             device = connectedDevices[0];
-            console.log(await device.getInfo());
+            deviceInfo = await device.getInfo()
+            console.log(`Got previously connected device: ${deviceInfo}`);
             try {
                 // Attempt to connect to the saved device. If it's not found, this will fail.
                 await this._switchToDevice(device);
@@ -121,37 +124,35 @@ class USBWorkflow extends Workflow {
                 await device.forget();
 
                 console.log("Failed to automatically connect to saved device. Prompting user to select a device.");
+                // If the user doesn't select a port, an exception is thrown
                 device = await navigator.serial.requestPort();
-                console.log(device);
             }
         } else {
-            console.log('Requesting any serial device...');
-            try {
-                device = await navigator.serial.requestPort();
-            } catch (e) {
-                console.log(e);
-                return false;
-            }
+            console.log('No previously connected device. Prompting user to select a device.');
+            // If the user doesn't select a port, an exception is thrown
+            device = await navigator.serial.requestPort();
         }
+        console.log(`Selected device: ${device}`);
+
 
         // If we didn't automatically use a saved device
         if (!this._serialDevice) {
             console.log('> Requested ', device);
             await this._switchToDevice(device);
         }
-        console.log(this._serialDevice);
+
         if (this._serialDevice != null) {
+            console.log(`Current serial device is: ${this._serialDevice}. Proceeding to step 2.`);
             this.connectionStep(2);
             return true;
         }
-
+        console.log("Couldn't connect to serial port");
         return false;
     }
 
     async showConnect(documentState) {
         let p = this.connectDialog.open();
         let modal = this.connectDialog.getModal();
-
         btnRequestSerialDevice = modal.querySelector('#requestSerialDevice');
         btnSelectHostFolder = modal.querySelector('#selectHostFolder');
         btnUseHostFolder = modal.querySelector('#useHostFolder');
@@ -165,14 +166,14 @@ class USBWorkflow extends Workflow {
 
         btnRequestSerialDevice.disabled = true;
         btnSelectHostFolder.disabled = true;
+        this.clearConnectStatus();
         let serialConnect = async (event) => {
             try {
+                this.clearConnectStatus();
                 await this.connectToSerial();
             } catch (e) {
-                //console.log(e);
-                //alert(e.message);
-                //alert("Unable to connect to device. Make sure it is not already in use.");
-                // TODO: I think this also occurs if the user cancels the requestPort dialog
+                console.log('connectToSerial() returned error: ', e);
+                this.showConnectStatus(this._suggestSerialConnectActions(e));
             }
         };
         btnRequestSerialDevice.removeEventListener('click', serialConnect);
@@ -180,7 +181,12 @@ class USBWorkflow extends Workflow {
 
         btnSelectHostFolder.removeEventListener('click', this._btnSelectHostFolderCallback)
         this._btnSelectHostFolderCallback = async (event) => {
-            await this._selectHostFolder();
+            try {
+                this.clearConnectStatus();
+                await this._selectHostFolder();
+            } catch (e) {
+                this.showConnectStatus(this._suggestFileConnectActions(e));
+        }
         };
         btnSelectHostFolder.addEventListener('click', this._btnSelectHostFolderCallback);
 
@@ -247,7 +253,11 @@ class USBWorkflow extends Workflow {
         console.log("New folder name:", folderName);
         if (folderName) {
             // Set the working folder label
-            lblWorkingfolder.innerHTML = folderName;
+            if (isMicrosoftWindows() || isChromeOs()) {
+                lblWorkingfolder.innerHTML = "OK";
+            } else {
+                lblWorkingfolder.innerHTML = `Use ${folderName}`;
+            }
             btnUseHostFolder.classList.remove("hidden");
             btnSelectHostFolder.innerHTML = "Select Different Folder";
             btnSelectHostFolder.classList.add("inverted");
@@ -269,9 +279,8 @@ class USBWorkflow extends Workflow {
 
         this._serialDevice = device;
         console.log("switch to", this._serialDevice);
-        await this._serialDevice.open({baudRate: 115200}); // TODO: Will fail if something else is already connected or it isn't found.
-
-        // Start the read loop
+        await this._serialDevice.open({baudRate: 115200}); // Throws if something else is already connected or it isn't found.
+        console.log("Starting Read Loop");
         this._readLoopPromise = this._readSerialLoop().catch(
             async function(error) {
                 await this.onDisconnected();
@@ -366,6 +375,29 @@ print(binascii.hexlify(microcontroller.cpu.uid).decode('ascii').upper())`
         }
 
         console.log("Read Loop Stopped. Closing Serial Port.");
+    }
+
+    // Analyzes the error returned from the WebSerial API and returns human readable feedback.
+    _suggestSerialConnectActions(error) {
+        if (error.name == "NetworkError" && error.message.includes("Failed to open serial port")) {
+            return "The serial port could not be opened. Make sure the correct port is selected and no other program is using it. For more information, see the JavaScript console.";
+        } else if (error.name == "NotFoundError" && error.message.includes("No port selected")) {
+            return "No serial port was selected. Press the 'Connect to Device' button to try again.";
+        } else if (error.name == "SecurityError") {
+            return "Permissions to access the serial port were not granted. Please check your browser settings and try again.";
+        }
+        return `Connect to Serial Port returned error: ${error}`;
+    }
+
+    // Analyzes the error from the FSAPI and returns human readable feedback
+    _suggestFileConnectActions(error) {
+        if (error.name == "SecurityError") {
+            return "Permissions to access the filesystem were not granted. Please check your browser settings and try again.";
+        } else if (error.name == "AbortError") {
+            return "No folder selected. Press the 'Select New Folder' button to try again.";
+        } else if (error.name == "TypeError")
+        return `Connect to Filesystem returned error: ${error}`;
+
     }
 
     async showInfo(documentState) {
