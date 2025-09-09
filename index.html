@@ -221,14 +221,21 @@
                 <div class="step-number"></div>
                 <div class="step-content">
                     <h1>Request Bluetooth Device</h1>
-                    <p>CircuitPython boards with <a href="https://circuitpython.org/downloads?features=Bluetooth%2FBTLE">nrf chips need
-                        CircuitPython 7.0.0 or newer</a>. The first time a device is connected to your host,
-                        you'll need to enable public broadcasting by pressing reset when the faster, blue blink
-                        is happening on start up. The device will reset and the second, blue blink will be solid
-                        when done successfully.</p>
-                    <p>
+                        <p> See the <a href="https://learn.adafruit.com/wirelessly-code-your-bluetooth-device-with-circuitpython/device-setup">online documentation</a>
+                            for platform specific notes on how to use Bluetooth. Note that CircuitPython boards with <a href="https://circuitpython.org/downloads?features=Bluetooth%2FBTLE">nrf chips need
+                            CircuitPython 7.0.0 or newer</a>.
+                        </p>
+                        <p> The first time a device is connected to your host, you'll need to enable
+                            public broadcasting by pressing reset (or bootsel on some devices) when the faster, blue blink
+                            is happening on start up. The device will reset and the second, blue blink will be solid
+                            when done successfully.</p>
                         <button class="purple-button" id="requestBluetoothDevice">Request Bluetooth Device</button>
                     </p>
+                </div>
+            </section>
+            <section>
+                <div class="connect-status" hidden>
+                    <div class="connect-status-content"></div>
                 </div>
             </section>
         </div>
@@ -262,6 +269,14 @@
                     <p>Once your device is connected to your Local Area Network, you can navigate to
                         <a id="device-link" href="http://circuitpython.local/code/">http://circuitpython.local/code/</a>. This opens
                         a page on your device that loads this website onto the device and to avoid any cross domain security issues.</p>
+                    <p> If your device doesn't support the .local domain or the connection times out, connect with serial to read the
+                        IP address assigned to your device, then open http://device-ip-address:80/code/ from another tab in your browser</p>
+                    </p>
+                </div>
+            </section>
+            <section>
+                <div class="connect-status" hidden>
+                    <div class="connect-status-content"></div>
                 </div>
             </section>
         </div>
@@ -299,6 +314,11 @@
                         <button class="purple-button hidden" id="useHostFolder"><span id="workingFolder"></span></button>
                         <button class="purple-button first-item" id="selectHostFolder">Select New Folder</button>
                     </p>
+                </div>
+            </section>
+            <section>
+                <div class="connect-status" hidden>
+                    <div class="connect-status-content"></div>
                 </div>
             </section>
         </div>
