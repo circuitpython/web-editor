@@ -170,7 +170,7 @@ class BLEWorkflow extends Workflow {
         this.debugLog("connecting to " + device.name);
         try {
             console.log('Watching advertisements from "' + device.name + '"...');
-            console.log('If no advertisements are received, make sure the device is powered on and in range. You can also try resetting the device');
+            console.log('If no advertisements are received, make sure the device is powered on and in range. You can also try resetting the device.');
             await device.watchAdvertisements({signal: abortController.signal});
         }
         catch (error) {
