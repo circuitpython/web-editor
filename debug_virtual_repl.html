@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Virtual REPL</title>
+</head>
+<body>
+    <h1>Debug Virtual CircuitPython REPL</h1>
+    <div>
+        <button id="connect-btn">Connect to Virtual CircuitPython</button>
+        <button id="test-output-btn" disabled>Test Output</button>
+        <button id="test-input-btn" disabled>Test Input (1+1)</button>
+    </div>
+    <div>
+        <h3>Console Output:</h3>
+        <div id="console" style="background: black; color: white; font-family: monospace; padding: 10px; height: 300px; overflow-y: scroll;"></div>
+    </div>
+
+    <script type="module">
+        import createCircuitPythonModule from './lib/circuitpython-wasm/circuitpython.mjs';
+        
+        let Module = null;
+        let isConnected = false;
+        
+        const consoleDiv = document.getElementById('console');
+        const connectBtn = document.getElementById('connect-btn');
+        const testOutputBtn = document.getElementById('test-output-btn');
+        const testInputBtn = document.getElementById('test-input-btn');
+        
+        function logToConsole(message) {
+            console.log(message);
+            consoleDiv.innerHTML += message + '<br>';
+            consoleDiv.scrollTop = consoleDiv.scrollHeight;
+        }
+        
+        connectBtn.addEventListener('click', async () => {
+            try {
+                logToConsole('Initializing CircuitPython WASM...');
+                
+                Module = await createCircuitPythonModule({
+                    print: (text) => {
+                        logToConsole('STDOUT: ' + JSON.stringify(text));
+                    },
+                    printErr: (text) => {
+                        logToConsole('STDERR: ' + JSON.stringify(text));
+                    }
+                });
+                
+                logToConsole('Module loaded successfully');
+                
+                // Initialize with 1MB heap
+                const heapSize = 1 * 1024 * 1024;
+                Module._mp_js_init_with_heap(heapSize);
+                logToConsole('Heap initialized');
+                
+                // Initialize REPL
+                Module._mp_js_repl_init();
+                logToConsole('REPL initialized');
+                
+                isConnected = true;
+                connectBtn.disabled = true;
+                testOutputBtn.disabled = false;
+                testInputBtn.disabled = false;
+                
+                logToConsole('✓ Connection successful!');
+                
+            } catch (error) {
+                logToConsole('❌ Connection failed: ' + error.message);
+            }
+        });
+        
+        testOutputBtn.addEventListener('click', () => {
+            if (!isConnected) return;
+            logToConsole('Testing direct output...');
+        });
+        
+        testInputBtn.addEventListener('click', () => {
+            if (!isConnected) return;
+            logToConsole('Sending "1+1" to REPL...');
+            
+            const command = "1+1\r";
+            for (const char of command) {
+                const result = Module._mp_js_repl_process_char(char.charCodeAt(0));
+                logToConsole(`Char '${char}' (${char.charCodeAt(0)}) -> result: ${result}`);
+            }
+        });
+    </script>
+</body>
+</html>

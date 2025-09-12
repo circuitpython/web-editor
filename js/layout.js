@@ -17,7 +17,6 @@ const UPDATE_TYPE_SERIAL = 2;
 
 const MINIMUM_COLS = 2;
 const MINIMUM_ROWS = 1;
-const MAXIMUM_COLS = 80;  // Cap at 80 columns to ensure banner fits
 
 function isEditorVisible() {
     return editorPage.classList.contains('active');
@@ -142,9 +141,6 @@ function refitTerminal() {
                     let rows = Math.floor(terminalHeight / TERMINAL_ROW_HEIGHT);
                     if (cols < MINIMUM_COLS) {
                         cols = MINIMUM_COLS;
-                    }
-                    if (cols > MAXIMUM_COLS) {
-                        cols = MAXIMUM_COLS;  // Cap columns to prevent text cutoff
                     }
                     if (rows < MINIMUM_ROWS) {
                         rows = MINIMUM_ROWS;

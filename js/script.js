@@ -547,16 +547,19 @@ async function setupXterm() {
             cursor: '#ddd',
         },
         convertEol: true,  // Convert line endings
-        wordWrap: true,    // Enable word wrapping
-        cols: 80,          // Set reasonable column width to match your max line length
     });
 
     state.terminal.loadAddon(new WebLinksAddon());
 
     state.terminal.open(document.getElementById('terminal'));
     state.terminal.onData(async (data) => {
-        if (await checkConnected()) {
-            workflow.serialTransmit(data);
+        try {
+            if (await checkConnected()) {
+                await workflow.serialTransmit(data);
+            }
+        } catch (error) {
+            console.error('Error in terminal onData handler:', error);
+            // Don't let terminal errors crash the entire application
         }
     });
 }
@@ -582,7 +585,7 @@ function loadParameterizedContent() {
 
 document.addEventListener('DOMContentLoaded', async () => {
     await setupXterm();
-    
+
     btnConnect.forEach((element) => {
         element.addEventListener('click', async function(e) {
             e.preventDefault();
@@ -600,7 +603,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Check backend param and load appropriate type if specified
     let backend = getBackend();
-    
+
     if (backend) {
         await loadWorkflow(backend);
         // If we don't have all the info we need to connect

@@ -97,13 +97,6 @@ for i, state in enumerate(pattern):
 
 ## 🔧 Architecture
 
-### CircuitPython Entry Points Available
-1. **Minimal** (default for web editor) - Fast, lightweight, virtual-only
-2. **Browser** - Full browser features with WebSerial/WebUSB
-3. **Worker** - Web Worker for parallel processing
-4. **Node.js** - Native serial port access
-5. **Universal** - Auto-detecting environment
-
 ### Virtual Hardware System
 - **Pin Management**: Tracks all virtual pins and their states
 - **Visual Feedback**: Real-time updates in hardware panel
@@ -136,16 +129,6 @@ for i, state in enumerate(pattern):
 - `time.sleep()` works for animations
 
 ## 🏗️ Development
-
-### Building CircuitPython WASM
-If you need to rebuild the CircuitPython WebAssembly module:
-
-```bash
-cd /path/to/circuitpython/ports/webassembly
-make VARIANT=minimal-interpreter
-cp build-minimal/*.wasm /path/to/web-editor/public/
-cp build-minimal/*.mjs /path/to/web-editor/public/
-```
 
 ### Extending the Integration
 The integration is modular and extensible:
