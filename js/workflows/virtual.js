@@ -15,6 +15,9 @@ export class VirtualWorkflow extends Workflow {
         this.virtualHardwarePanel = null;
         this.currentInputLine = '';  // Track current input line for echo management
         this.waitingForPrompt = false;  // Track if we're waiting to show a prompt
+        this.commandHistory = [];  // Store command history for arrow key navigation
+        this.historyIndex = -1;  // Current position in history (-1 = not browsing)
+        this.escapeSequence = '';  // Buffer for escape sequences (arrow keys)
     }
 
     async init(params) {
@@ -109,6 +112,7 @@ export class VirtualWorkflow extends Workflow {
         }
     }
 
+
     handleModuleOutput(text) {
         // Convert lone \r to \r\n for proper terminal display
         // CircuitPython outputs \r but xterm.js needs \r\n to advance lines
@@ -181,11 +185,13 @@ export class VirtualWorkflow extends Workflow {
             this.circuitPythonModule._mp_js_repl_init();
             console.log('CircuitPython REPL initialized');
             
+            // Help function is now available via selective feature enabling in WASM build
+            
             // Display the initial prompt since the REPL doesn't output it until first input
             // Wait a tiny bit for the banner to be displayed first
             setTimeout(() => {
                 this.terminal.write('>>> ');
-            }, 50);
+            }, 150);
 
         } catch (error) {
             console.error('Error initializing CircuitPython:', error);
@@ -208,6 +214,41 @@ export class VirtualWorkflow extends Workflow {
 
         this.updateConnected(CONNSTATE.disconnected);
         await super.disconnectButtonHandler(e);
+    }
+
+    navigateHistory(direction) {
+        if (this.commandHistory.length === 0) {
+            return; // No history available
+        }
+        
+        // Calculate new history index
+        if (this.historyIndex === -1) {
+            // Starting to navigate history
+            this.historyIndex = direction < 0 ? this.commandHistory.length - 1 : 0;
+        } else {
+            // Continue navigating
+            this.historyIndex += direction;
+            
+            // Clamp to valid range
+            if (this.historyIndex < 0) {
+                this.historyIndex = 0;
+            } else if (this.historyIndex >= this.commandHistory.length) {
+                this.historyIndex = this.commandHistory.length - 1;
+            }
+        }
+        
+        // Clear current input line and replace with history command
+        const charsToDelete = this.currentInputLine.length;
+        
+        // Delete current input
+        for (let i = 0; i < charsToDelete; i++) {
+            this.terminal.write('\b \b');
+        }
+        
+        // Get command from history and display it
+        const historyCommand = this.commandHistory[this.historyIndex];
+        this.terminal.write(historyCommand);
+        this.currentInputLine = historyCommand;
     }
 
     async restartDevice() {
@@ -279,8 +320,49 @@ export class VirtualWorkflow extends Workflow {
             
             // Echo the input immediately to the terminal for better UX
             // The REPL won't echo until Enter is pressed, so we do it here
+            // Handle escape sequences (arrow keys)
+            if (data === '\x1b') {
+                // Start of escape sequence
+                this.escapeSequence = '\x1b';
+                return; // Don't process further until sequence is complete
+            } else if (this.escapeSequence) {
+                // Continue building escape sequence
+                this.escapeSequence += data;
+                
+                // Check for complete arrow key sequences
+                if (this.escapeSequence === '\x1b[A') {
+                    // Up arrow - previous command in history
+                    this.navigateHistory(-1);
+                    this.escapeSequence = '';
+                    return;
+                } else if (this.escapeSequence === '\x1b[B') {
+                    // Down arrow - next command in history
+                    this.navigateHistory(1);
+                    this.escapeSequence = '';
+                    return;
+                } else if (this.escapeSequence.length > 3) {
+                    // Unknown escape sequence, clear it
+                    this.escapeSequence = '';
+                }
+                
+                // If sequence is not complete, wait for more characters
+                if (this.escapeSequence.length < 3) {
+                    return;
+                }
+            }
+            
             // Handle special characters appropriately
             if (data === '\r' || data === '\n') {
+                // Save command to history if it's not empty
+                if (this.currentInputLine.trim()) {
+                    this.commandHistory.push(this.currentInputLine.trim());
+                    // Limit history to last 50 commands
+                    if (this.commandHistory.length > 50) {
+                        this.commandHistory.shift();
+                    }
+                }
+                this.historyIndex = -1; // Reset history navigation
+                
                 // When Enter is pressed, clear the entire line (prompt + input)
                 // We've displayed: ">>> " (4 chars) + user's input
                 const charsToDelete = 4 + this.currentInputLine.length;
