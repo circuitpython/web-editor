@@ -87,6 +87,7 @@ class Workflow {
     }
 
     async connect() {
+        this.clearConnectStatus();
         return await this.available();
     }
 
@@ -336,6 +337,27 @@ class Workflow {
             if (!step.classList.contains('completed')) {
                 step.classList.add('completed');
             }
+        }
+    }
+
+     clearConnectStatus(modal) {
+        try {
+            const modal = this.connectDialog.getModal();
+            modal.querySelector('.connect-status').hidden = true;
+        } catch (e) {
+            console.log("Modal not active on clearStatus()", e);
+        }
+    }
+
+    showConnectStatus(message) {
+        try {
+            const modal = this.connectDialog.getModal();
+            const statusBox = modal.querySelector('.connect-status');
+            statusBox.hidden = false;
+            let statusContentBox = statusBox.querySelector('.connect-status-content');
+            statusContentBox.innerHTML = message;
+        } catch (e) {
+            console.log("Modal not active on showStatus()", e);
         }
     }
 }
