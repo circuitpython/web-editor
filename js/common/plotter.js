@@ -45,6 +45,7 @@ export function plotValues(chartObj, serialMessage, bufferSize) {
         }
 
         let valuesToPlot;
+        let textValues;
 
         // handle possible tuple in textLine
         if (textLine.startsWith("(") && textLine.endsWith(")")) {
