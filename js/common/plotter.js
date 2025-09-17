@@ -45,11 +45,10 @@ export function plotValues(chartObj, serialMessage, bufferSize) {
         }
 
         let valuesToPlot;
-        let textValues;
 
         // handle possible tuple in textLine
         if (textLine.startsWith("(") && textLine.endsWith(")")) {
-            textValues = textLine.substring(1, textLine.length - 1).trim();
+            let textValues = textLine.substring(1, textLine.length - 1).trim();
             // Python tuples can end with a comma, but JS arrays cannot
             if (textValues.endsWith(",")) {
                 textValues = textValues.substring(0, textValues.length - 1);
