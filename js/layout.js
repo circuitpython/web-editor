@@ -135,18 +135,24 @@ function refitTerminal() {
                 let viewportHeight = window.innerHeight;
                 let terminalHeight = viewportHeight - headerHeight - footerBarHeight - serialBarHeight;
                 let terminalWidth = document.getElementById('serial-page').offsetWidth;
-                let screen = document.querySelector('.xterm-screen');
-                if (screen) {
+                let xterm_screen = document.querySelector('.xterm-screen');
+                if (xterm_screen) {
                     let cols = Math.floor(terminalWidth / TERMINAL_COL_WIDTH);
                     let rows = Math.floor(terminalHeight / TERMINAL_ROW_HEIGHT);
+                    console.log(rows, cols, terminalHeight, terminalWidth, TERMINAL_ROW_HEIGHT, TERMINAL_COL_WIDTH);
                     if (cols < MINIMUM_COLS) {
                         cols = MINIMUM_COLS;
                     }
                     if (rows < MINIMUM_ROWS) {
                         rows = MINIMUM_ROWS;
                     }
-                    screen.style.width = (cols * TERMINAL_COL_WIDTH) + 'px';
-                    screen.style.height = (rows * TERMINAL_ROW_HEIGHT) + 'px';
+                    xterm_screen.style.width = (cols * TERMINAL_COL_WIDTH) + 'px';
+                    xterm_screen.style.height = (rows * TERMINAL_ROW_HEIGHT) + 'px';
+                    let xterm_rows = document.querySelector('.xterm-rows');
+                    if (xterm_rows) {
+                        xterm_rows.style.height = (rows * TERMINAL_ROW_HEIGHT) + 'px';
+                    }
+                    state.terminal.resize(cols, rows);
                 }
             });
         });

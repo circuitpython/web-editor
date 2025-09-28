@@ -289,7 +289,18 @@ class FileTransferClient {
         const [parentFolder, itemName] = this._splitPath(path);
         const parentFolderHandle = await this._getSubfolderHandle(parentFolder);
 
-        await parentFolderHandle.removeEntry(itemName);
+        try {
+            await parentFolderHandle.removeEntry(itemName, {recursive: true});
+        } catch (error) {
+            // If this was a folder with items inside, a NotFoundError is thrown due to a bug in the browser
+            if (error.name == 'NotFoundError') {
+                // Recursive items should be removed at this point,
+                // so attempt again without recursive
+                await parentFolderHandle.removeEntry(itemName);
+            } else {
+                throw error;
+            }
+        }
 
         return true;
     }

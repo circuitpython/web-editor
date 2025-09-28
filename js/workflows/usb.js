@@ -47,6 +47,7 @@ class USBWorkflow extends Workflow {
     async onConnected(e) {
         this.connectDialog.close();
         await this.loadEditor();
+        this.debugLog("connected");
         super.onConnected(e);
     }
 

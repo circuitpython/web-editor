@@ -103,6 +103,7 @@ class Workflow {
     }
 
     async onDisconnected(e, reconnect = true) {
+        console.log("onDisconnected called in workflow");
         this.debugLog("disconnected");
         this.updateConnected(CONNSTATE.disconnected);
         // Update Common UI Elements
@@ -115,7 +116,6 @@ class Workflow {
     }
 
     async onConnected(e) {
-        this.debugLog("connected");
         console.log("Connected!");
         this.updateConnected(CONNSTATE.connected);
         if (this.connectDialog) {
@@ -314,6 +314,11 @@ class Workflow {
 
     // Handle the different button states for various connection steps
     connectionStep(step) {
+        // Check if a dialog exists
+        if (!this.connectDialog.isOpen()) {
+            return;
+        }
+
         if (step < 0) step = 0;
         if (step > this.buttonStates.length - 1) step = this.buttonStates.length - 1;
 
@@ -340,6 +345,11 @@ class Workflow {
     }
 
      clearConnectStatus(modal) {
+        // Check if a dialog exists
+        if (!this.connectDialog.isOpen()) {
+            return;
+        }
+
         try {
             const modal = this.connectDialog.getModal();
             modal.querySelector('.connect-status').hidden = true;

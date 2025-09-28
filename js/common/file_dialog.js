@@ -444,13 +444,12 @@ class FileDialog extends GenericModal {
         }
 
         for (let filename of filenames) {
-            // Delete the item
-            await this._showBusy(this._fileHelper.delete(filename));
+            await this._showBusy(this._fileHelper.delete(this._currentPath + filename));
         }
 
         // Refresh the file list
         await this._openFolder();
-    };
+    }
 
     async _handleUploadButton() {
         if (this._readOnlyMode) return;
@@ -670,12 +669,16 @@ class FileDialog extends GenericModal {
         }
 
         // Rename the file, by moving in the same folder
-        await this._showBusy(
-            this._fileHelper.move(
-                this._currentPath + oldName,
-                this._currentPath + newName
-            )
-        );
+        try {
+            await this._showBusy(
+                this._fileHelper.move(
+                    this._currentPath + oldName,
+                    this._currentPath + newName
+                )
+            );
+        } catch (error) {
+            console.error(error);
+        }
 
         // Refresh the file list
         await this._openFolder();
