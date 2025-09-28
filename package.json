@@ -9,8 +9,8 @@
     "preview": "vite preview"
   },
   "devDependencies": {
-    "sass": "^1.92.1",
-    "vite": "^7.1.5",
+    "sass": "^1.93.2",
+    "vite": "^7.1.7",
     "vite-plugin-mkcert": "^1.17.8"
   },
   "dependencies": {
@@ -30,6 +30,6 @@
     "webbluetooth": "^3.3.2"
   },
   "optionalDependencies": {
-    "@rollup/rollup-linux-x64-gnu": "^4.50.1"
+    "@rollup/rollup-linux-x64-gnu": "^4.52.0"
   }
 }
