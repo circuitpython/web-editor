@@ -253,9 +253,14 @@ class BLEWorkflow extends Workflow {
         }
         // Is this a new connection?
         if (!this.bleDevice) {
-            let devices = await navigator.bluetooth.getDevices();
-            for (const device of devices) {
-                await this.connectToBluetoothDevice(device);
+            try {
+                let devices = await navigator.bluetooth.getDevices();
+                for (const device of devices) {
+                    await this.connectToBluetoothDevice(device);
+                }
+            } catch (error) {
+                console.error(error);
+                this.showConnectStatus(this._suggestBLEConnectActions(error));
             }
         }
     }
