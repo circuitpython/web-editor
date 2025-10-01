@@ -59,6 +59,7 @@ class WebWorkflow extends Workflow {
     }
 
     async onConnected(e) {
+        this.debugLog("connected");
         await super.onConnected(e);
         //this.connIntervalId = setInterval(this._checkConnection.bind(this), PING_INTERVAL_MS);
     }

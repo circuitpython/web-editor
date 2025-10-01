@@ -195,6 +195,10 @@ class GenericModal {
         this._closeModal();
     }
 
+    isOpen() {
+        return this._currentModal !== null;
+    }
+
     isVisible() {
         var style = window.getComputedStyle(this._currentModal);
         return style.display !== 'none';

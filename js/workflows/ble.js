@@ -7,7 +7,6 @@ import {CONNTYPE} from '../constants.js';
 import {Workflow} from './workflow.js';
 import {GenericModal, DeviceInfoModal} from '../common/dialogs.js';
 import {sleep} from '../common/utilities.js';
-import {bluetooth} from 'webbluetooth';
 
 const bleNusServiceUUID = 'adaf0001-4369-7263-7569-74507974686e';
 const bleNusCharRXUUID = 'adaf0002-4369-7263-7569-74507974686e';
@@ -72,8 +71,7 @@ class BLEWorkflow extends Workflow {
             }
             try {
                 this.clearConnectStatus();
-                const devices = await bluetooth.getDevices();
-                console.log(devices);
+                const devices = await navigator.bluetooth.getDevices();
                 this.connectionStep(devices.length > 0 ? 2 : 1);
             } catch (error) {
                 console.error(error);
@@ -119,7 +117,7 @@ class BLEWorkflow extends Workflow {
         if (!this.connectionStatus()) {
             try {
                 console.log('Getting existing permitted Bluetooth devices...');
-                const devices = await bluetooth.getDevices();
+                const devices = await navigator.bluetooth.getDevices();
 
                 console.log('> Found ' + devices.length + ' Bluetooth device(s).');
                 // These devices may not be powered on or in range, so scan for
@@ -137,7 +135,7 @@ class BLEWorkflow extends Workflow {
 
     // Bring up a dialog to request a device
     async requestDevice() {
-        return bluetooth.requestDevice({
+        return navigator.bluetooth.requestDevice({
             filters: [{services: [0xfebb]},], // <- Prefer filters to save energy & show relevant devices.
             optionalServices: [0xfebb, bleNusServiceUUID]
         });
@@ -171,11 +169,11 @@ class BLEWorkflow extends Workflow {
         device.removeEventListener('advertisementreceived', onAdvertisementReceived.bind(this));
         device.addEventListener('advertisementreceived', onAdvertisementReceived.bind(this));
 
-        this.debugLog("connecting to " + device.name);
+        this.debugLog("Attempting to connect to " + device.name + "...");
         try {
             this.clearConnectStatus();
             console.log('Watching advertisements from "' + device.name + '"...');
-            console.log('If no advertisements are received, make sure the device is powered on and in range. You can also try resetting the device');
+            console.log('If no advertisements are received, make sure the device is powered on and in range. You can also try resetting the device.');
             await device.watchAdvertisements({signal: abortController.signal});
         }
         catch (error) {
@@ -194,22 +192,24 @@ class BLEWorkflow extends Workflow {
         await this.connectToBluetoothDevice(device);
     }
 
+    async onConnected(e) {
+        this.debugLog("Connected to " + this.bleDevice.name);
+        await super.onConnected(e);
+    }
+
     async switchToDevice(device) {
-        console.log(device);
         this.bleDevice = device;
         this.bleDevice.removeEventListener("gattserverdisconnected", this.onDisconnected.bind(this));
         this.bleDevice.addEventListener("gattserverdisconnected", this.onDisconnected.bind(this));
-        //this.bleServer = this.bleDevice.gatt;
         console.log("connected", this.bleServer);
-        let services;
 
-        console.log(device.gatt.connected);
-        //try {
+        try {
+            let services;
             services = await this.bleServer.getPrimaryServices();
-        /*} catch (e) {
+            console.log(services);
+        } catch (e) {
             console.log(e, e.stack);
-        }*/
-        console.log(services);
+        }
 
         console.log('Initializing File Transfer Client...');
         this.initFileClient(new FileTransferClient(this.bleDevice, 65536));
@@ -253,7 +253,7 @@ class BLEWorkflow extends Workflow {
         }
         // Is this a new connection?
         if (!this.bleDevice) {
-            let devices = await bluetooth.getDevices();
+            let devices = await navigator.bluetooth.getDevices();
             for (const device of devices) {
                 await this.connectToBluetoothDevice(device);
             }

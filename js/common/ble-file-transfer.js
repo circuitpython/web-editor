@@ -1,9 +1,26 @@
 import {FileTransferClient as BLEFileTransferClient} from '@adafruit/ble-file-transfer-js';
+//import {FileTransferClient as BLEFileTransferClient} from '../../../ble-file-transfer-js/adafruit-ble-file-transfer.js';
 
 // Wrapper for BLEFileTransferClient to add additional functionality
 class FileTransferClient extends BLEFileTransferClient {
     constructor(bleDevice, bufferSize) {
         super(bleDevice, bufferSize);
+    }
+
+    async readOnly() {
+        let readonly = false;
+        return false;
+        // Check if the device is read only
+        console.log("Checking if device is read only");
+        // Attempt to write a 0-byte temp file and remove it
+        const testPath = '/._ble_readonly_check';
+        try {
+            await this.writeFile(testPath, 0, new Uint8Array(0));
+            await this.deleteFile(testPath);
+        } catch (e) {
+            readonly = true;
+        }
+        return readonly;
     }
 
     async versionInfo() {
