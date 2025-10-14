@@ -11,7 +11,7 @@
   "devDependencies": {
     "sass": "^1.93.2",
     "vite": "^7.1.9",
-    "vite-plugin-mkcert": "^1.17.8"
+    "vite-plugin-mkcert": "^1.17.9"
   },
   "dependencies": {
     "@adafruit/ble-file-transfer-js": "adafruit/ble-file-transfer-js#1.0.4",
