@@ -546,6 +546,7 @@ async function setupXterm() {
             foreground: '#ddd',
             cursor: '#ddd',
         },
+        fontFamily: '"FreeMono-Blinka", "Courier New", monospace',
         convertEol: true,  // Convert line endings
     });
 

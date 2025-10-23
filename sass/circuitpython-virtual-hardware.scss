@@ -12,7 +12,7 @@
     border: 1px solid var(--color-border, #404040);
     border-radius: 8px;
     padding: 15px;
-    font-family: var(--font-family-mono, 'Consolas', 'Monaco', 'Courier New', monospace);
+    font-family: var(--font-family-mono, 'FreeMono-Blinka','Consolas', 'Monaco', 'Courier New', monospace);
     color: var(--color-text, #ffffff);
     box-shadow: 0 4px 12px rgba(0,0,0,0.3);
     z-index: 100;
@@ -195,7 +195,7 @@
 // Terminal integration
 #terminal {
     .terminal-line {
-        font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+        font-family: 'FreeMono-Blinka', 'Consolas', 'Monaco', 'Courier New', monospace;
         font-size: 13px;
         line-height: 1.4;
         padding: 2px 0;
@@ -245,13 +245,6 @@
     opacity: 0.8;
 }
 
-// Virtual terminal output styling - minimal changes to match existing terminal
-.terminal-line.virtual-output {
-    // Keep existing terminal styling, just add prefix
-    &::before {
-        content: "🐍 ";
-    }
-}
 
 // Removed old banner styling - WASM handles its own output
 

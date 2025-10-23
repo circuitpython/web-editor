@@ -18,6 +18,8 @@ export class VirtualWorkflow extends Workflow {
         this.commandHistory = [];  // Store command history for arrow key navigation
         this.historyIndex = -1;  // Current position in history (-1 = not browsing)
         this.escapeSequence = '';  // Buffer for escape sequences (arrow keys)
+        this.blinkaInjected = false;  // Track if we've injected Blinka character into banner
+        this.bannerBuffer = '';  // Buffer to accumulate banner text character-by-character
     }
 
     async init(params) {
@@ -38,42 +40,24 @@ export class VirtualWorkflow extends Workflow {
         // Load CircuitPython WASM module during initialization
         console.log("Loading CircuitPython WASM module...");
         try {
-            const { default: _createCircuitPythonModule } = await import('../../lib/circuitpython-wasm/circuitpython.mjs');
+            const { loadCircuitPython } = await import('../../public/lib/circuitpython-wasm/circuitpython.mjs');
 
-            // Create the WASM module with proper callbacks
-            this.circuitPythonModule = await _createCircuitPythonModule({
-                locateFile: (path, prefix) => {
-                    // Ensure WASM file is loaded from the correct path
-                    if (path.endsWith('.wasm')) {
-                        return '../lib/circuitpython-wasm/' + path;
-                    }
-                    return prefix + path;
-                },
-
-                // Handle stdout - both from EM_ASM and write() calls
-                print: (text) => {
-                    console.log('CircuitPython stdout:', JSON.stringify(text));
-                    // Don't add extra newlines, CircuitPython handles them
+            // Load CircuitPython with the new API
+            // Note: url parameter omitted - .wasm file is in same directory as .mjs
+            this.circuitPython = await loadCircuitPython({
+                heapsize: 512 * 1024,  // 512KB - conservative size for browser
+                stdout: (charArray) => {
+                    // Handle stdout character-by-character for proper xterm output timing
+                    // charArray is a Uint8Array with single byte when linebuffer:false
+                    const text = new TextDecoder().decode(charArray);
                     this.handleModuleOutput(text);
                 },
-
-                printErr: (text) => {
-                    console.log('CircuitPython stderr:', JSON.stringify(text));
-                    this.handleModuleOutput(`\x1b[31m${text}\x1b[0m`); // Red for errors
-                },
-
-                // Runtime initialization complete
-                onRuntimeInitialized: () => {
-                    console.log('CircuitPython WASM runtime initialized');
-                    
-                    // Skip FS setup for now as it's causing issues in browser
-                    // The print/printErr callbacks above should handle all output
-                    console.log('Skipping FS setup, using print callbacks only');
-                }
+                linebuffer: false, // Character-by-character for proper REPL output timing
+                verbose: false     // Clean output - no infrastructure messages
             });
 
-            // No longer using EM_ASM output callbacks - using standard POSIX write(1)
-            // Output will come through the print() callback above
+            // Store reference to underlying module for compatibility
+            this.circuitPythonModule = this.circuitPython._module;
 
             console.log("CircuitPython WASM module loaded successfully");
             
@@ -114,84 +98,80 @@ export class VirtualWorkflow extends Workflow {
 
 
     handleModuleOutput(text) {
-        // Convert lone \r to \r\n for proper terminal display
-        // CircuitPython outputs \r but xterm.js needs \r\n to advance lines
-        let convertedText = text.replace(/\r(?!\n)/g, '\r\n');
-        
-        // Create a message event like other workflows do for serial data
-        const messageEvent = {
-            data: convertedText
-        };
-        
         // Check if we have terminal before processing
         if (!this.terminal) {
             console.error('No terminal available in handleModuleOutput');
             return;
         }
-        
+
+        // Buffer the entire banner line until we see a newline
+        if (!this.blinkaInjected) {
+            this.bannerBuffer += text;
+
+            // Check if we've received the end of the banner line
+            // Look for "Emscripten" followed by a newline (end of banner)
+            const hasFullBanner = this.bannerBuffer.includes('Emscripten');
+            const hasEndingNewline = /Emscripten[\r\n]/.test(this.bannerBuffer);
+
+            if (hasFullBanner && hasEndingNewline) {
+                const blinkaChar = String.fromCharCode(0xE000); // U+E000 Blinka character
+
+                // Trim any leading whitespace from banner
+                let bannerTrimmed = this.bannerBuffer.trimStart();
+
+                // Clean up banner: remove git hash and add newline after semicolon
+                // Remove git hash pattern: -2-g6f273e72f9-dirty or -2-g6f273e72f9
+                bannerTrimmed = bannerTrimmed
+                    .replace(/-\d+-g[0-9a-fA-F]+(-dirty)?/g, '')  // Remove git hash
+                    .replace(/; /g, ';\r\n');                     // Replace "; " with ";\r\n"
+
+                // Convert any remaining \r to \r\n for xterm
+                const bannerConverted = bannerTrimmed.replace(/\r(?!\n)/g, '\r\n');
+
+                // Write complete banner with Blinka DIRECTLY to terminal (bypass REPL)
+                this.terminal.write(blinkaChar + ' ' + bannerConverted);
+
+                this.blinkaInjected = true;
+                this.bannerBuffer = '';
+                return;
+            }
+
+            // Still buffering, don't output yet
+            return;
+        }
+
+        // Normal output processing (after banner)
+        // Convert lone \r to \r\n for proper terminal display
+        let convertedText = text.replace(/\r(?!\n)/g, '\r\n');
+
+        // Create a message event like other workflows do for serial data
+        const messageEvent = {
+            data: convertedText
+        };
+
         // Process through the standard REPL system like other workflows
         this.onSerialReceive(messageEvent);
-        
-        // Detect when to show a new prompt
-        // The REPL outputs in this pattern:
-        // - Command echo: ">>> command\r"
-        // - Result (if any): "result\r"
-        // - Then nothing more until next input
-        
-        if (text.startsWith('>>> ')) {
-            // This is a command echo
-            this.waitingForPrompt = true;
-            
-            // Check if this is just ">>> \r" (empty command)
-            if (text === '>>> \r') {
-                // Empty command, show prompt immediately
-                this.waitingForPrompt = false;
-                setTimeout(() => {
-                    this.terminal.write('>>> ');
-                }, 10);
-            }
-        } else if (this.waitingForPrompt && text.endsWith('\r')) {
-            // This is the result after a command, show prompt after it
-            this.waitingForPrompt = false;
-            setTimeout(() => {
-                this.terminal.write('>>> ');
-            }, 10);
-        }
     }
 
     initializeCircuitPython() {
-        console.log('initializeCircuitPython() called, module:', !!this.circuitPythonModule);
-        if (!this.circuitPythonModule) {
-            console.log('No circuitPythonModule available');
+        console.log('initializeCircuitPython() called, module:', !!this.circuitPython);
+        if (!this.circuitPython) {
+            console.log('No circuitPython available');
             return;
         }
 
         try {
-            console.log('Available WASM functions:', Object.keys(this.circuitPythonModule).filter(k => k.startsWith('_mp') || k.startsWith('_hal')));
-            
-            // Initialize CircuitPython with conservative heap to avoid OOM issues
-            const heapSize = 512 * 1024; // 512KB - very conservative size
-            console.log('About to call _mp_js_init_with_heap...');
-            try {
-                this.circuitPythonModule._mp_js_init_with_heap(heapSize);
-            } catch (initError) {
-                console.error('Failed to initialize WASM heap:', initError);
-                throw new Error(`WASM initialization failed: ${initError.message}`);
-            }
-            console.log(`CircuitPython initialized with ${heapSize} byte heap`);
+            // Note: CircuitPython heap is already initialized by loadCircuitPython()
+            // We just need to initialize the REPL system here
 
             // Initialize REPL system - this should send the welcome message
-            console.log('About to call _mp_js_repl_init...');
-            this.circuitPythonModule._mp_js_repl_init();
+            console.log('About to call replInit...');
+            this.circuitPython.replInit();
             console.log('CircuitPython REPL initialized');
-            
+
             // Help function is now available via selective feature enabling in WASM build
-            
-            // Display the initial prompt since the REPL doesn't output it until first input
-            // Wait a tiny bit for the banner to be displayed first
-            setTimeout(() => {
-                this.terminal.write('>>> ');
-            }, 150);
+
+            // Don't manually add prompt - REPL outputs it automatically
 
         } catch (error) {
             console.error('Error initializing CircuitPython:', error);
@@ -206,6 +186,10 @@ export class VirtualWorkflow extends Workflow {
             // Clean up WASM module
             this.circuitPythonModule = null;
         }
+
+        // Reset flags for next connection
+        this.blinkaInjected = false;
+        this.bannerBuffer = '';
 
         // Hide virtual hardware panel
         if (this.virtualHardwarePanel) {
@@ -237,26 +221,32 @@ export class VirtualWorkflow extends Workflow {
             }
         }
         
-        // Clear current input line and replace with history command
+        // Clear current input line by sending backspaces to REPL
         const charsToDelete = this.currentInputLine.length;
-        
-        // Delete current input
+
+        // Send backspace characters to REPL to clear the line
         for (let i = 0; i < charsToDelete; i++) {
-            this.terminal.write('\b \b');
+            this.circuitPython.replProcessChar(0x08); // Backspace
         }
-        
-        // Get command from history and display it
+
+        // Get command from history and send it to REPL
         const historyCommand = this.commandHistory[this.historyIndex];
-        this.terminal.write(historyCommand);
+        for (let i = 0; i < historyCommand.length; i++) {
+            this.circuitPython.replProcessChar(historyCommand.charCodeAt(i));
+        }
         this.currentInputLine = historyCommand;
     }
 
     async restartDevice() {
-        if (this.circuitPythonModule) {
+        if (this.circuitPython) {
             // Reset CircuitPython REPL - the WASM will output its own banner
-            this.handleModuleOutput('\r\n--- Virtual device restart ---\r\n');
+            this.handleModuleOutput('\r\n--- Virtual device restart ---\r\n\r\n');
+            
+            // Reset flags so Blinka appears on the new banner
+            this.blinkaInjected = false;
+            this.bannerBuffer = '';
             try {
-                this.circuitPythonModule._mp_js_repl_init();
+                this.circuitPython.replInit();
             } catch (error) {
                 console.error('Error restarting CircuitPython:', error);
                 this.handleModuleOutput(`\r\nError: ${error.message}\r\n>>> `);
@@ -265,7 +255,7 @@ export class VirtualWorkflow extends Workflow {
     }
 
     async runCurrentCode() {
-        if (!this.circuitPythonModule) {
+        if (!this.circuitPython) {
             console.error("Virtual CircuitPython not connected");
             return false;
         }
@@ -292,10 +282,10 @@ export class VirtualWorkflow extends Workflow {
             // Execute code by sending it through the REPL character by character
             for (let i = 0; i < editorContent.length; i++) {
                 const charCode = editorContent.charCodeAt(i);
-                this.circuitPythonModule._mp_js_repl_process_char(charCode);
+                this.circuitPython.replProcessChar(charCode);
             }
             // Send enter to execute
-            this.circuitPythonModule._mp_js_repl_process_char(10); // \n
+            this.circuitPython.replProcessChar(10); // \n
             return true;
         } catch (error) {
             this.handleModuleOutput(`Error executing code: ${error.message}\r\n`);
@@ -305,15 +295,15 @@ export class VirtualWorkflow extends Workflow {
 
     async serialTransmit(data) {
         // Send input data directly to WASM REPL - treat it like sending serial data to a device
-        if (!this.circuitPythonModule) {
+        if (!this.circuitPython) {
             console.error('No CircuitPython module available');
             return;
         }
-        
+
         try {
             // Check if module is still valid
-            if (typeof this.circuitPythonModule._mp_js_repl_process_char !== 'function') {
-                console.error('_mp_js_repl_process_char function not available - module may be corrupted');
+            if (typeof this.circuitPython.replProcessChar !== 'function') {
+                console.error('replProcessChar function not available - module may be corrupted');
                 this.handleModuleOutput('\r\nError: WASM module corrupted, please reconnect\r\n');
                 return;
             }
@@ -362,46 +352,28 @@ export class VirtualWorkflow extends Workflow {
                     }
                 }
                 this.historyIndex = -1; // Reset history navigation
-                
-                // When Enter is pressed, clear the entire line (prompt + input)
-                // We've displayed: ">>> " (4 chars) + user's input
-                const charsToDelete = 4 + this.currentInputLine.length;
-                
-                // Clear the line using backspace-space-backspace pattern
-                for (let i = 0; i < charsToDelete; i++) {
-                    this.terminal.write('\b \b');
-                }
-                
-                this.currentInputLine = '';
-                
-                // For commands that don't produce output (like x = 5),
-                // we need to ensure a prompt appears after the command echo
-                // Set a timeout to display prompt if we're still waiting
-                setTimeout(() => {
-                    if (this.waitingForPrompt) {
-                        // No output received after command echo, show prompt
-                        this.waitingForPrompt = false;
-                        this.terminal.write('>>> ');
-                    }
-                }, 50);
+                this.currentInputLine = ''; // Reset for next input
+
+                // Don't clear the terminal - REPL handles all display
+                // Don't manually add prompts - handleModuleOutput manages them
             } else if (data === '\x7f' || data === '\b') {
-                // Handle backspace - move cursor back and clear character
+                // Handle backspace - let REPL handle echo and visual feedback
                 if (this.currentInputLine.length > 0) {
-                    this.terminal.write('\b \b');
                     this.currentInputLine = this.currentInputLine.slice(0, -1);
                 }
+                // Don't manually write to terminal - REPL echoes backspace
             } else {
-                // Echo normal characters immediately
-                this.terminal.write(data);
+                // Don't manually echo - CircuitPython's readline handles echoing
+                // Just track the input for history
                 this.currentInputLine += data;
             }
             
             // Send each character directly to the WASM REPL for processing
             for (let i = 0; i < data.length; i++) {
                 const charCode = data.charCodeAt(i);
-                
+
                 try {
-                    const result = this.circuitPythonModule._mp_js_repl_process_char(charCode);
+                    const result = this.circuitPython.replProcessChar(charCode);
                 } catch (wasmError) {
                     console.error('WASM function call failed:', wasmError);
                     this.handleModuleOutput(`\r\nError: WASM execution failed: ${wasmError.message}\r\n>>> `);
