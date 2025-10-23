@@ -4904,7 +4904,7 @@ function assignWasmExports(wasmExports) {
   __indirect_function_table = wasmTable = wasmExports['__indirect_function_table'];
 }
 
-var _virtual_hardware = Module['_virtual_hardware'] = 141424;
+var _virtual_hardware = Module['_virtual_hardware'] = 145376;
 
 var wasmImports = {
   /** @export */
