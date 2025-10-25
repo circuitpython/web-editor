@@ -91,20 +91,11 @@ export class VirtualWorkflow extends Workflow {
                 if (await this.fileExists('/code.py')) {
                     const savedCode = await this.readFile('/code.py');
                     console.log('Found saved code.py on virtual board, loading into editor...');
-                    // Update the editor with the saved code
-                    // Note: This assumes the editor is available. In practice, you may need
-                    // to check if the editor exists first or handle this in the UI layer
-                    const editorContent = document.querySelector('.cm-content');
-                    if (editorContent) {
-                        // CodeMirror 6 way to update content
-                        const view = editorContent.cmView?.view;
-                        if (view) {
-                            view.dispatch({
-                                changes: { from: 0, to: view.state.doc.length, insert: savedCode }
-                            });
-                            this.currentFilename = '/code.py';
-                            console.log('Loaded code.py into editor');
-                        }
+
+                    // Use the provided load mechanism which properly updates the editor
+                    if (this._loadFileContents) {
+                        this._loadFileContents('/code.py', savedCode, true);
+                        console.log('Loaded code.py into editor');
                     }
                 }
             } catch (error) {
@@ -288,8 +279,15 @@ export class VirtualWorkflow extends Workflow {
 
         let path = this.currentFilename;
         if (!path) {
-            console.log("File has not been saved");
-            return false;
+            console.log("File has not been saved, using default /code.py");
+            path = '/code.py';
+            this.currentFilename = path;
+        }
+
+        // Ensure path starts with / for VFS
+        if (!path.startsWith('/')) {
+            path = '/' + path;
+            this.currentFilename = path;
         }
 
         let extension = path.split('.').pop();
@@ -300,25 +298,31 @@ export class VirtualWorkflow extends Workflow {
 
         await this._showSerial();
 
-        // Get the current file content from the editor
-        const editorContent = document.querySelector('.cm-content').textContent || '';
-
         try {
-            // Save to virtual board filesystem first (VFS + IndexedDB)
-            await this.writeFile(path, editorContent);
-            console.log(`Saved ${path} to virtual board before running`);
-
-            this.handleModuleOutput(`\r\n>>> # Running ${path} from VFS\r\n`);
-
-            // Execute from the filesystem using the WASM's runFile() method
-            // This is more authentic to how CircuitPython actually works
-            if (this.circuitPython.runFile) {
-                const result = this.circuitPython.runFile(path);
-                console.log('runFile result:', result);
-            } else {
-                // Fallback: execute code via runPython
-                this.circuitPython.runPython(editorContent);
+            // First save the current editor content to the virtual board
+            // This uses _saveFileContents which properly gets content from editor
+            if (this._saveFileContents) {
+                await this._saveFileContents(path);
+                console.log(`Saved ${path} to virtual board before running`);
             }
+
+            // Read the saved file back from VFS to execute it
+            const savedContent = await this.readFile(path);
+
+            if (!savedContent || savedContent.trim() === '') {
+                this.handleModuleOutput(`\r\nError: No code to run\r\n`);
+                return false;
+            }
+
+            this.handleModuleOutput(`\r\n`);
+
+            // Execute the code using runPython
+            // Note: Output will appear all at once after execution completes
+            // This is a limitation of synchronous WASM execution without Asyncify
+            // For real-time interaction, use the REPL terminal directly
+            this.circuitPython.runPython(savedContent);
+
+            this.handleModuleOutput(`\r\n`);
 
             return true;
         } catch (error) {
@@ -479,21 +483,33 @@ export class VirtualWorkflow extends Workflow {
 
     // Virtual file operations - using WASM filesystem with IndexedDB persistence
     async saveFile(path = null) {
-        // Save current editor content to both local storage AND virtual board filesystem
-        const saved = await super.saveFile(path);
-
-        // Also save to virtual board's filesystem if we have a path
-        if (saved && this.currentFilename && this.circuitPython) {
-            try {
-                const editorContent = document.querySelector('.cm-content').textContent || '';
-                await this.writeFile(this.currentFilename, editorContent);
-                console.log(`Saved to virtual board: ${this.currentFilename}`);
-            } catch (error) {
-                console.error('Failed to save to virtual board:', error);
+        // For virtual workflow, default to /code.py if no path specified
+        if (path === null) {
+            if (this.currentFilename !== null) {
+                path = this.currentFilename;
+            } else {
+                // Default to code.py for virtual board
+                path = '/code.py';
+                this.currentFilename = path;
             }
         }
 
-        return saved;
+        // Ensure path starts with / for VFS
+        if (!path.startsWith('/')) {
+            path = '/' + path;
+            this.currentFilename = path;
+        }
+
+        // Use the parent's save mechanism which calls this.writeFile()
+        // The parent's _saveFileContents already gets editor content properly
+        if (this._saveFileContents) {
+            await this._saveFileContents(path);
+            console.log(`Saved to virtual board: ${path}`);
+            return true;
+        }
+
+        console.error('No save mechanism available');
+        return false;
     }
 
     async readFile(path) {
