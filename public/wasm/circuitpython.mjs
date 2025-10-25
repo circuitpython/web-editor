@@ -4765,14 +4765,14 @@ function create_promise(out_set,out_promise) { const out_set_js = proxy_convert_
 
 // Imports from the Wasm binary.
 var _mp_sched_keyboard_interrupt = Module['_mp_sched_keyboard_interrupt'] = makeInvalidEarlyAccess('_mp_sched_keyboard_interrupt');
-var _virtual_gpio_get_direction = Module['_virtual_gpio_get_direction'] = makeInvalidEarlyAccess('_virtual_gpio_get_direction');
-var _virtual_gpio_get_pull = Module['_virtual_gpio_get_pull'] = makeInvalidEarlyAccess('_virtual_gpio_get_pull');
 var _board_serial_write_input = Module['_board_serial_write_input'] = makeInvalidEarlyAccess('_board_serial_write_input');
 var _board_serial_write_input_char = Module['_board_serial_write_input_char'] = makeInvalidEarlyAccess('_board_serial_write_input_char');
 var _board_serial_clear_input = Module['_board_serial_clear_input'] = makeInvalidEarlyAccess('_board_serial_clear_input');
 var _board_serial_input_available = Module['_board_serial_input_available'] = makeInvalidEarlyAccess('_board_serial_input_available');
 var _board_serial_set_output_callback = Module['_board_serial_set_output_callback'] = makeInvalidEarlyAccess('_board_serial_set_output_callback');
 var _board_serial_repl_process_string = Module['_board_serial_repl_process_string'] = makeInvalidEarlyAccess('_board_serial_repl_process_string');
+var _virtual_gpio_get_direction = Module['_virtual_gpio_get_direction'] = makeInvalidEarlyAccess('_virtual_gpio_get_direction');
+var _virtual_gpio_get_pull = Module['_virtual_gpio_get_pull'] = makeInvalidEarlyAccess('_virtual_gpio_get_pull');
 var _mp_js_init = Module['_mp_js_init'] = makeInvalidEarlyAccess('_mp_js_init');
 var _malloc = Module['_malloc'] = makeInvalidEarlyAccess('_malloc');
 var _mp_js_register_js_module = Module['_mp_js_register_js_module'] = makeInvalidEarlyAccess('_mp_js_register_js_module');
@@ -4831,10 +4831,6 @@ var wasmTable = makeInvalidEarlyAccess('wasmTable');
 function assignWasmExports(wasmExports) {
   assert(wasmExports['mp_sched_keyboard_interrupt'], 'missing Wasm export: mp_sched_keyboard_interrupt');
   _mp_sched_keyboard_interrupt = Module['_mp_sched_keyboard_interrupt'] = createExportWrapper('mp_sched_keyboard_interrupt', 0);
-  assert(wasmExports['virtual_gpio_get_direction'], 'missing Wasm export: virtual_gpio_get_direction');
-  _virtual_gpio_get_direction = Module['_virtual_gpio_get_direction'] = createExportWrapper('virtual_gpio_get_direction', 1);
-  assert(wasmExports['virtual_gpio_get_pull'], 'missing Wasm export: virtual_gpio_get_pull');
-  _virtual_gpio_get_pull = Module['_virtual_gpio_get_pull'] = createExportWrapper('virtual_gpio_get_pull', 1);
   assert(wasmExports['board_serial_write_input'], 'missing Wasm export: board_serial_write_input');
   _board_serial_write_input = Module['_board_serial_write_input'] = createExportWrapper('board_serial_write_input', 2);
   assert(wasmExports['board_serial_write_input_char'], 'missing Wasm export: board_serial_write_input_char');
@@ -4847,6 +4843,10 @@ function assignWasmExports(wasmExports) {
   _board_serial_set_output_callback = Module['_board_serial_set_output_callback'] = createExportWrapper('board_serial_set_output_callback', 1);
   assert(wasmExports['board_serial_repl_process_string'], 'missing Wasm export: board_serial_repl_process_string');
   _board_serial_repl_process_string = Module['_board_serial_repl_process_string'] = createExportWrapper('board_serial_repl_process_string', 2);
+  assert(wasmExports['virtual_gpio_get_direction'], 'missing Wasm export: virtual_gpio_get_direction');
+  _virtual_gpio_get_direction = Module['_virtual_gpio_get_direction'] = createExportWrapper('virtual_gpio_get_direction', 1);
+  assert(wasmExports['virtual_gpio_get_pull'], 'missing Wasm export: virtual_gpio_get_pull');
+  _virtual_gpio_get_pull = Module['_virtual_gpio_get_pull'] = createExportWrapper('virtual_gpio_get_pull', 1);
   assert(wasmExports['mp_js_init'], 'missing Wasm export: mp_js_init');
   _mp_js_init = Module['_mp_js_init'] = createExportWrapper('mp_js_init', 2);
   assert(wasmExports['malloc'], 'missing Wasm export: malloc');
@@ -6144,16 +6144,20 @@ export async function loadCircuitPython(options) {
     let persistentFS = null;
     if (filesystem === 'indexeddb') {
         try {
-            // Import filesystem module dynamically
-            const { CircuitPythonFilesystem } = await import('./filesystem.js');
-            persistentFS = new CircuitPythonFilesystem(verbose);
-            await persistentFS.init();
+            // CircuitPythonFilesystem is available globally after concatenation
+            // (filesystem.js is concatenated into the .mjs file)
+            if (typeof CircuitPythonFilesystem !== 'undefined') {
+                persistentFS = new CircuitPythonFilesystem(verbose);
+                await persistentFS.init();
 
-            // Sync files from IndexedDB to VFS before running any code
-            await persistentFS.syncToVFS(Module);
+                // Sync files from IndexedDB to VFS before running any code
+                await persistentFS.syncToVFS(Module);
 
-            if (verbose) {
-                console.log('[CircuitPython] Persistent filesystem initialized');
+                if (verbose) {
+                    console.log('[CircuitPython] Persistent filesystem initialized');
+                }
+            } else {
+                throw new Error('CircuitPythonFilesystem not available');
             }
         } catch (e) {
             if (verbose) {

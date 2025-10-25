@@ -40,7 +40,7 @@ export class VirtualWorkflow extends Workflow {
         // Load CircuitPython WASM module during initialization
         console.log("Loading CircuitPython WASM module...");
         try {
-            const { loadCircuitPython } = await import('../../public/lib/circuitpython-wasm/circuitpython.mjs');
+            const { loadCircuitPython } = await import('../../public/wasm/circuitpython.mjs');
 
             // Load CircuitPython with the new API
             // Note: url parameter omitted - .wasm file is in same directory as .mjs
@@ -53,7 +53,8 @@ export class VirtualWorkflow extends Workflow {
                     this.handleModuleOutput(text);
                 },
                 linebuffer: false, // Character-by-character for proper REPL output timing
-                verbose: false     // Clean output - no infrastructure messages
+                verbose: false,    // Clean output - no infrastructure messages
+                filesystem: 'indexeddb'  // Enable persistent filesystem with IndexedDB
             });
 
             // Store reference to underlying module for compatibility
@@ -84,6 +85,31 @@ export class VirtualWorkflow extends Workflow {
             // Initialize CircuitPython and start the REPL
             console.log('About to call initializeCircuitPython() after module assignment...');
             this.initializeCircuitPython();
+
+            // Try to load saved code.py from the virtual board if it exists
+            try {
+                if (await this.fileExists('/code.py')) {
+                    const savedCode = await this.readFile('/code.py');
+                    console.log('Found saved code.py on virtual board, loading into editor...');
+                    // Update the editor with the saved code
+                    // Note: This assumes the editor is available. In practice, you may need
+                    // to check if the editor exists first or handle this in the UI layer
+                    const editorContent = document.querySelector('.cm-content');
+                    if (editorContent) {
+                        // CodeMirror 6 way to update content
+                        const view = editorContent.cmView?.view;
+                        if (view) {
+                            view.dispatch({
+                                changes: { from: 0, to: view.state.doc.length, insert: savedCode }
+                            });
+                            this.currentFilename = '/code.py';
+                            console.log('Loaded code.py into editor');
+                        }
+                    }
+                }
+            } catch (error) {
+                console.log('No saved code.py found or error loading:', error.message);
+            }
 
             this.updateConnected(CONNSTATE.connected);
             console.log("CircuitPython WASM connected successfully");
@@ -278,17 +304,26 @@ export class VirtualWorkflow extends Workflow {
         const editorContent = document.querySelector('.cm-content').textContent || '';
 
         try {
-            this.handleModuleOutput(`\r\n>>> # Running ${path}\r\n`);
-            // Execute code by sending it through the REPL character by character
-            for (let i = 0; i < editorContent.length; i++) {
-                const charCode = editorContent.charCodeAt(i);
-                this.circuitPython.replProcessChar(charCode);
+            // Save to virtual board filesystem first (VFS + IndexedDB)
+            await this.writeFile(path, editorContent);
+            console.log(`Saved ${path} to virtual board before running`);
+
+            this.handleModuleOutput(`\r\n>>> # Running ${path} from VFS\r\n`);
+
+            // Execute from the filesystem using the WASM's runFile() method
+            // This is more authentic to how CircuitPython actually works
+            if (this.circuitPython.runFile) {
+                const result = this.circuitPython.runFile(path);
+                console.log('runFile result:', result);
+            } else {
+                // Fallback: execute code via runPython
+                this.circuitPython.runPython(editorContent);
             }
-            // Send enter to execute
-            this.circuitPython.replProcessChar(10); // \n
+
             return true;
         } catch (error) {
-            this.handleModuleOutput(`Error executing code: ${error.message}\r\n`);
+            this.handleModuleOutput(`\r\nError executing code: ${error.message}\r\n`);
+            console.error('Run error:', error);
             return false;
         }
     }
@@ -442,28 +477,82 @@ export class VirtualWorkflow extends Workflow {
         }
     }
 
-    // Virtual file operations - simulate file system
+    // Virtual file operations - using WASM filesystem with IndexedDB persistence
     async saveFile(path = null) {
-        // For virtual workflow, we just save to browser storage or handle normally
-        return await super.saveFile(path);
+        // Save current editor content to both local storage AND virtual board filesystem
+        const saved = await super.saveFile(path);
+
+        // Also save to virtual board's filesystem if we have a path
+        if (saved && this.currentFilename && this.circuitPython) {
+            try {
+                const editorContent = document.querySelector('.cm-content').textContent || '';
+                await this.writeFile(this.currentFilename, editorContent);
+                console.log(`Saved to virtual board: ${this.currentFilename}`);
+            } catch (error) {
+                console.error('Failed to save to virtual board:', error);
+            }
+        }
+
+        return saved;
     }
 
     async readFile(path) {
-        // Virtual file system would be implemented here
-        // For now, delegate to parent
-        throw new Error("Virtual file system not yet implemented");
+        // Read file from virtual board's VFS
+        if (!this.circuitPython || !this.circuitPython.FS) {
+            throw new Error("Virtual CircuitPython not connected");
+        }
+
+        try {
+            // Check if file exists first
+            const pathInfo = this.circuitPython.FS.analyzePath(path);
+            if (!pathInfo.exists) {
+                throw new Error(`File not found: ${path}`);
+            }
+
+            // Read file from VFS
+            const content = this.circuitPython.FS.readFile(path, { encoding: 'utf8' });
+            return content;
+        } catch (error) {
+            console.error(`Error reading file ${path}:`, error);
+            throw error;
+        }
     }
 
-    async writeFile(path, contents, offset = 0) {
-        // Virtual file system would be implemented here
-        // For now, just log the operation
-        console.log(`Virtual file write: ${path}`);
-        return true;
+    async writeFile(path, contents) {
+        // Write file to virtual board's VFS and persist to IndexedDB
+        if (!this.circuitPython) {
+            throw new Error("Virtual CircuitPython not connected");
+        }
+
+        try {
+            // Use the WASM's saveFile helper which handles both VFS and IndexedDB
+            if (this.circuitPython.saveFile) {
+                await this.circuitPython.saveFile(path, contents);
+                console.log(`Wrote to virtual board VFS and IndexedDB: ${path}`);
+            } else {
+                // Fallback: just write to VFS (won't persist across reloads)
+                this.circuitPython.FS.writeFile(path, contents);
+                console.log(`Wrote to virtual board VFS (not persisted): ${path}`);
+            }
+            return true;
+        } catch (error) {
+            console.error(`Error writing file ${path}:`, error);
+            throw error;
+        }
     }
 
     async fileExists(path) {
-        // Virtual file system check
-        return false; // For now, assume files don't exist in virtual FS
+        // Check if file exists in virtual board's VFS
+        if (!this.circuitPython || !this.circuitPython.FS) {
+            return false;
+        }
+
+        try {
+            const pathInfo = this.circuitPython.FS.analyzePath(path);
+            return pathInfo.exists;
+        } catch (error) {
+            return false;
+        }
     }
 
     async parseParams() {
