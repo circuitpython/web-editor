@@ -214,7 +214,9 @@ class Workflow {
         } else {
             path = path.slice(1, -3);
             path = path.replace(/\//g, ".");
-            await (this.repl.runCode("import " + path));
+            this.repl.writeToTerminal("\r\nRunning 'import " + path + "'...\r\n");
+            this.repl.writeToTerminal(await (this.repl.runCode("import " + path)));
+            this.repl.writeToTerminal("\r\nCode done running.\r\n");
         }
     }
 
