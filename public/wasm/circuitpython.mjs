@@ -4251,7 +4251,7 @@ if (globalThis.crypto === undefined) { globalThis.crypto = require('crypto'); };
           function initVirtualHardware() {
               if (virtualHardwarePtr === null) {
                   try {
-                      virtualHardwarePtr = Module.ccall('get_virtual_hardware_ptr', 'number', [], []);
+                      virtualHardwarePtr = Module.ccall('get_virtual_clock_hw_ptr', 'number', [], []);
                   } catch (e) {
                       console.warn('Virtual hardware not available, falling back to Date.now():', e);
                   }
@@ -4736,6 +4736,7 @@ unexportedSymbols.forEach(unexportedRuntimeSymbol);
 function checkIncomingModuleAPI() {
   ignoredModuleProp('fetchSettings');
 }
+function register_serial_output_callback_internal() { }
 function js_send_request(request_id,type,params,params_size) { if (Module.onWASMRequest) { const paramsArray = new Uint8Array(Module.HEAPU8.buffer, params, params_size); Module.onWASMRequest(request_id, type, paramsArray); } }
 function proxy_convert_mp_to_js_then_js_to_mp_obj_jsside(out) { const ret = proxy_convert_mp_to_js_obj_jsside(out); proxy_convert_js_to_mp_obj_jsside_force_double_proxy(ret, out); }
 function proxy_convert_mp_to_js_then_js_to_js_then_js_to_mp_obj_jsside(out) { const ret = proxy_convert_mp_to_js_obj_jsside(out); const js_obj = PyProxy.toJs(ret); proxy_convert_js_to_mp_obj_jsside(js_obj, out); }
@@ -4764,6 +4765,14 @@ function create_promise(out_set,out_promise) { const out_set_js = proxy_convert_
 
 // Imports from the Wasm binary.
 var _mp_sched_keyboard_interrupt = Module['_mp_sched_keyboard_interrupt'] = makeInvalidEarlyAccess('_mp_sched_keyboard_interrupt');
+var _virtual_gpio_get_direction = Module['_virtual_gpio_get_direction'] = makeInvalidEarlyAccess('_virtual_gpio_get_direction');
+var _virtual_gpio_get_pull = Module['_virtual_gpio_get_pull'] = makeInvalidEarlyAccess('_virtual_gpio_get_pull');
+var _board_serial_write_input = Module['_board_serial_write_input'] = makeInvalidEarlyAccess('_board_serial_write_input');
+var _board_serial_write_input_char = Module['_board_serial_write_input_char'] = makeInvalidEarlyAccess('_board_serial_write_input_char');
+var _board_serial_clear_input = Module['_board_serial_clear_input'] = makeInvalidEarlyAccess('_board_serial_clear_input');
+var _board_serial_input_available = Module['_board_serial_input_available'] = makeInvalidEarlyAccess('_board_serial_input_available');
+var _board_serial_set_output_callback = Module['_board_serial_set_output_callback'] = makeInvalidEarlyAccess('_board_serial_set_output_callback');
+var _board_serial_repl_process_string = Module['_board_serial_repl_process_string'] = makeInvalidEarlyAccess('_board_serial_repl_process_string');
 var _mp_js_init = Module['_mp_js_init'] = makeInvalidEarlyAccess('_mp_js_init');
 var _malloc = Module['_malloc'] = makeInvalidEarlyAccess('_malloc');
 var _mp_js_register_js_module = Module['_mp_js_register_js_module'] = makeInvalidEarlyAccess('_mp_js_register_js_module');
@@ -4795,7 +4804,15 @@ var _proxy_c_to_js_get_dict = Module['_proxy_c_to_js_get_dict'] = makeInvalidEar
 var _proxy_c_to_js_get_iter = Module['_proxy_c_to_js_get_iter'] = makeInvalidEarlyAccess('_proxy_c_to_js_get_iter');
 var _proxy_c_to_js_iternext = Module['_proxy_c_to_js_iternext'] = makeInvalidEarlyAccess('_proxy_c_to_js_iternext');
 var _proxy_c_to_js_resume = Module['_proxy_c_to_js_resume'] = makeInvalidEarlyAccess('_proxy_c_to_js_resume');
-var _get_virtual_hardware_ptr = Module['_get_virtual_hardware_ptr'] = makeInvalidEarlyAccess('_get_virtual_hardware_ptr');
+var _get_virtual_clock_hw_ptr = Module['_get_virtual_clock_hw_ptr'] = makeInvalidEarlyAccess('_get_virtual_clock_hw_ptr');
+var _virtual_gpio_set_input_value = Module['_virtual_gpio_set_input_value'] = makeInvalidEarlyAccess('_virtual_gpio_set_input_value');
+var _virtual_gpio_get_output_value = Module['_virtual_gpio_get_output_value'] = makeInvalidEarlyAccess('_virtual_gpio_get_output_value');
+var _virtual_analog_set_input_value = Module['_virtual_analog_set_input_value'] = makeInvalidEarlyAccess('_virtual_analog_set_input_value');
+var _virtual_analog_get_output_value = Module['_virtual_analog_get_output_value'] = makeInvalidEarlyAccess('_virtual_analog_get_output_value');
+var _virtual_analog_is_enabled = Module['_virtual_analog_is_enabled'] = makeInvalidEarlyAccess('_virtual_analog_is_enabled');
+var _virtual_analog_is_output = Module['_virtual_analog_is_output'] = makeInvalidEarlyAccess('_virtual_analog_is_output');
+var _virtual_gpio_get_state_array = Module['_virtual_gpio_get_state_array'] = makeInvalidEarlyAccess('_virtual_gpio_get_state_array');
+var _virtual_analog_get_state_array = Module['_virtual_analog_get_state_array'] = makeInvalidEarlyAccess('_virtual_analog_get_state_array');
 var _fflush = makeInvalidEarlyAccess('_fflush');
 var _strerror = makeInvalidEarlyAccess('_strerror');
 var _emscripten_stack_get_end = makeInvalidEarlyAccess('_emscripten_stack_get_end');
@@ -4814,6 +4831,22 @@ var wasmTable = makeInvalidEarlyAccess('wasmTable');
 function assignWasmExports(wasmExports) {
   assert(wasmExports['mp_sched_keyboard_interrupt'], 'missing Wasm export: mp_sched_keyboard_interrupt');
   _mp_sched_keyboard_interrupt = Module['_mp_sched_keyboard_interrupt'] = createExportWrapper('mp_sched_keyboard_interrupt', 0);
+  assert(wasmExports['virtual_gpio_get_direction'], 'missing Wasm export: virtual_gpio_get_direction');
+  _virtual_gpio_get_direction = Module['_virtual_gpio_get_direction'] = createExportWrapper('virtual_gpio_get_direction', 1);
+  assert(wasmExports['virtual_gpio_get_pull'], 'missing Wasm export: virtual_gpio_get_pull');
+  _virtual_gpio_get_pull = Module['_virtual_gpio_get_pull'] = createExportWrapper('virtual_gpio_get_pull', 1);
+  assert(wasmExports['board_serial_write_input'], 'missing Wasm export: board_serial_write_input');
+  _board_serial_write_input = Module['_board_serial_write_input'] = createExportWrapper('board_serial_write_input', 2);
+  assert(wasmExports['board_serial_write_input_char'], 'missing Wasm export: board_serial_write_input_char');
+  _board_serial_write_input_char = Module['_board_serial_write_input_char'] = createExportWrapper('board_serial_write_input_char', 1);
+  assert(wasmExports['board_serial_clear_input'], 'missing Wasm export: board_serial_clear_input');
+  _board_serial_clear_input = Module['_board_serial_clear_input'] = createExportWrapper('board_serial_clear_input', 0);
+  assert(wasmExports['board_serial_input_available'], 'missing Wasm export: board_serial_input_available');
+  _board_serial_input_available = Module['_board_serial_input_available'] = createExportWrapper('board_serial_input_available', 0);
+  assert(wasmExports['board_serial_set_output_callback'], 'missing Wasm export: board_serial_set_output_callback');
+  _board_serial_set_output_callback = Module['_board_serial_set_output_callback'] = createExportWrapper('board_serial_set_output_callback', 1);
+  assert(wasmExports['board_serial_repl_process_string'], 'missing Wasm export: board_serial_repl_process_string');
+  _board_serial_repl_process_string = Module['_board_serial_repl_process_string'] = createExportWrapper('board_serial_repl_process_string', 2);
   assert(wasmExports['mp_js_init'], 'missing Wasm export: mp_js_init');
   _mp_js_init = Module['_mp_js_init'] = createExportWrapper('mp_js_init', 2);
   assert(wasmExports['malloc'], 'missing Wasm export: malloc');
@@ -4876,8 +4909,24 @@ function assignWasmExports(wasmExports) {
   _proxy_c_to_js_iternext = Module['_proxy_c_to_js_iternext'] = createExportWrapper('proxy_c_to_js_iternext', 2);
   assert(wasmExports['proxy_c_to_js_resume'], 'missing Wasm export: proxy_c_to_js_resume');
   _proxy_c_to_js_resume = Module['_proxy_c_to_js_resume'] = createExportWrapper('proxy_c_to_js_resume', 2);
-  assert(wasmExports['get_virtual_hardware_ptr'], 'missing Wasm export: get_virtual_hardware_ptr');
-  _get_virtual_hardware_ptr = Module['_get_virtual_hardware_ptr'] = createExportWrapper('get_virtual_hardware_ptr', 0);
+  assert(wasmExports['get_virtual_clock_hw_ptr'], 'missing Wasm export: get_virtual_clock_hw_ptr');
+  _get_virtual_clock_hw_ptr = Module['_get_virtual_clock_hw_ptr'] = createExportWrapper('get_virtual_clock_hw_ptr', 0);
+  assert(wasmExports['virtual_gpio_set_input_value'], 'missing Wasm export: virtual_gpio_set_input_value');
+  _virtual_gpio_set_input_value = Module['_virtual_gpio_set_input_value'] = createExportWrapper('virtual_gpio_set_input_value', 2);
+  assert(wasmExports['virtual_gpio_get_output_value'], 'missing Wasm export: virtual_gpio_get_output_value');
+  _virtual_gpio_get_output_value = Module['_virtual_gpio_get_output_value'] = createExportWrapper('virtual_gpio_get_output_value', 1);
+  assert(wasmExports['virtual_analog_set_input_value'], 'missing Wasm export: virtual_analog_set_input_value');
+  _virtual_analog_set_input_value = Module['_virtual_analog_set_input_value'] = createExportWrapper('virtual_analog_set_input_value', 2);
+  assert(wasmExports['virtual_analog_get_output_value'], 'missing Wasm export: virtual_analog_get_output_value');
+  _virtual_analog_get_output_value = Module['_virtual_analog_get_output_value'] = createExportWrapper('virtual_analog_get_output_value', 1);
+  assert(wasmExports['virtual_analog_is_enabled'], 'missing Wasm export: virtual_analog_is_enabled');
+  _virtual_analog_is_enabled = Module['_virtual_analog_is_enabled'] = createExportWrapper('virtual_analog_is_enabled', 1);
+  assert(wasmExports['virtual_analog_is_output'], 'missing Wasm export: virtual_analog_is_output');
+  _virtual_analog_is_output = Module['_virtual_analog_is_output'] = createExportWrapper('virtual_analog_is_output', 1);
+  assert(wasmExports['virtual_gpio_get_state_array'], 'missing Wasm export: virtual_gpio_get_state_array');
+  _virtual_gpio_get_state_array = Module['_virtual_gpio_get_state_array'] = createExportWrapper('virtual_gpio_get_state_array', 0);
+  assert(wasmExports['virtual_analog_get_state_array'], 'missing Wasm export: virtual_analog_get_state_array');
+  _virtual_analog_get_state_array = Module['_virtual_analog_get_state_array'] = createExportWrapper('virtual_analog_get_state_array', 0);
   assert(wasmExports['fflush'], 'missing Wasm export: fflush');
   _fflush = createExportWrapper('fflush', 1);
   assert(wasmExports['strerror'], 'missing Wasm export: strerror');
@@ -4904,7 +4953,7 @@ function assignWasmExports(wasmExports) {
   __indirect_function_table = wasmTable = wasmExports['__indirect_function_table'];
 }
 
-var _virtual_hardware = Module['_virtual_hardware'] = 145376;
+var _virtual_clock_hw = Module['_virtual_clock_hw'] = 134864;
 
 var wasmImports = {
   /** @export */
@@ -5335,8 +5384,8 @@ class VirtualClock {
         this.wasmMemory = wasmMemory;
         this.verbose = verbose;
 
-        // Get pointer to shared virtual_hardware struct
-        this.virtualHardwarePtr = wasmInstance.exports.get_virtual_hardware_ptr();
+        // Get pointer to shared virtual_clock_hw struct
+        this.virtualHardwarePtr = wasmInstance.exports.get_virtual_clock_hw_ptr();
 
         // Create DataView for direct memory access
         this.hardware = new DataView(wasmMemory.buffer, this.virtualHardwarePtr);
@@ -5614,6 +5663,370 @@ export { VirtualClock, TimeMode };
  * clock.setFastForwardMode();
  * // time.sleep(10) completes instantly!
  */
+/**
+ * CircuitPython WASM Filesystem
+ *
+ * Provides persistent storage for CircuitPython files using IndexedDB.
+ * Syncs with Emscripten's virtual filesystem (VFS) to provide seamless
+ * file operations from Python code.
+ */
+
+const DB_NAME = 'circuitpython';
+const DB_VERSION = 1;
+const STORE_NAME = 'files';
+
+export class CircuitPythonFilesystem {
+    constructor(verbose = false) {
+        this.db = null;
+        this.verbose = verbose;
+    }
+
+    /**
+     * Initialize the IndexedDB database
+     */
+    async init() {
+        return new Promise((resolve, reject) => {
+            const request = indexedDB.open(DB_NAME, DB_VERSION);
+
+            request.onerror = () => {
+                reject(new Error(`Failed to open IndexedDB: ${request.error}`));
+            };
+
+            request.onsuccess = () => {
+                this.db = request.result;
+                if (this.verbose) {
+                    console.log('[CircuitPython FS] IndexedDB initialized');
+                }
+                resolve();
+            };
+
+            request.onupgradeneeded = (event) => {
+                const db = event.target.result;
+
+                // Create files store if it doesn't exist
+                if (!db.objectStoreNames.contains(STORE_NAME)) {
+                    const store = db.createObjectStore(STORE_NAME, { keyPath: 'path' });
+                    store.createIndex('modified', 'modified', { unique: false });
+                    store.createIndex('size', 'size', { unique: false });
+
+                    if (this.verbose) {
+                        console.log('[CircuitPython FS] Created files object store');
+                    }
+                }
+            };
+        });
+    }
+
+    /**
+     * Write a file to IndexedDB
+     */
+    async writeFile(path, content) {
+        if (!this.db) {
+            throw new Error('Database not initialized');
+        }
+
+        // Convert content to Uint8Array if it's a string
+        const data = typeof content === 'string'
+            ? new TextEncoder().encode(content)
+            : content;
+
+        const fileRecord = {
+            path: path,
+            content: data,
+            modified: Date.now(),
+            size: data.length,
+            isDirectory: false
+        };
+
+        return new Promise((resolve, reject) => {
+            const transaction = this.db.transaction([STORE_NAME], 'readwrite');
+            const store = transaction.objectStore(STORE_NAME);
+            const request = store.put(fileRecord);
+
+            request.onsuccess = () => {
+                if (this.verbose) {
+                    console.log(`[CircuitPython FS] Wrote ${path} (${data.length} bytes)`);
+                }
+                resolve();
+            };
+
+            request.onerror = () => {
+                reject(new Error(`Failed to write ${path}: ${request.error}`));
+            };
+        });
+    }
+
+    /**
+     * Read a file from IndexedDB
+     */
+    async readFile(path) {
+        if (!this.db) {
+            throw new Error('Database not initialized');
+        }
+
+        return new Promise((resolve, reject) => {
+            const transaction = this.db.transaction([STORE_NAME], 'readonly');
+            const store = transaction.objectStore(STORE_NAME);
+            const request = store.get(path);
+
+            request.onsuccess = () => {
+                if (request.result) {
+                    if (this.verbose) {
+                        console.log(`[CircuitPython FS] Read ${path} (${request.result.size} bytes)`);
+                    }
+                    resolve(request.result.content);
+                } else {
+                    reject(new Error(`File not found: ${path}`));
+                }
+            };
+
+            request.onerror = () => {
+                reject(new Error(`Failed to read ${path}: ${request.error}`));
+            };
+        });
+    }
+
+    /**
+     * Delete a file from IndexedDB
+     */
+    async deleteFile(path) {
+        if (!this.db) {
+            throw new Error('Database not initialized');
+        }
+
+        return new Promise((resolve, reject) => {
+            const transaction = this.db.transaction([STORE_NAME], 'readwrite');
+            const store = transaction.objectStore(STORE_NAME);
+            const request = store.delete(path);
+
+            request.onsuccess = () => {
+                if (this.verbose) {
+                    console.log(`[CircuitPython FS] Deleted ${path}`);
+                }
+                resolve();
+            };
+
+            request.onerror = () => {
+                reject(new Error(`Failed to delete ${path}: ${request.error}`));
+            };
+        });
+    }
+
+    /**
+     * Check if a file exists
+     */
+    async exists(path) {
+        if (!this.db) {
+            throw new Error('Database not initialized');
+        }
+
+        return new Promise((resolve, reject) => {
+            const transaction = this.db.transaction([STORE_NAME], 'readonly');
+            const store = transaction.objectStore(STORE_NAME);
+            const request = store.get(path);
+
+            request.onsuccess = () => {
+                resolve(request.result !== undefined);
+            };
+
+            request.onerror = () => {
+                reject(new Error(`Failed to check ${path}: ${request.error}`));
+            };
+        });
+    }
+
+    /**
+     * List all files (optionally filtered by directory)
+     */
+    async listFiles(dirPath = '') {
+        if (!this.db) {
+            throw new Error('Database not initialized');
+        }
+
+        return new Promise((resolve, reject) => {
+            const transaction = this.db.transaction([STORE_NAME], 'readonly');
+            const store = transaction.objectStore(STORE_NAME);
+            const request = store.getAll();
+
+            request.onsuccess = () => {
+                let files = request.result;
+
+                // Filter by directory if specified
+                if (dirPath) {
+                    const prefix = dirPath.endsWith('/') ? dirPath : dirPath + '/';
+                    files = files.filter(f => f.path.startsWith(prefix));
+                }
+
+                const fileList = files.map(f => ({
+                    path: f.path,
+                    size: f.size,
+                    modified: f.modified,
+                    isDirectory: f.isDirectory
+                }));
+
+                if (this.verbose) {
+                    console.log(`[CircuitPython FS] Listed ${fileList.length} files in ${dirPath || '/'}`);
+                }
+
+                resolve(fileList);
+            };
+
+            request.onerror = () => {
+                reject(new Error(`Failed to list files: ${request.error}`));
+            };
+        });
+    }
+
+    /**
+     * Sync IndexedDB to Emscripten VFS
+     * Loads all files from IndexedDB into the VFS
+     */
+    async syncToVFS(Module) {
+        if (!this.db) {
+            throw new Error('Database not initialized');
+        }
+
+        const files = await this.listFiles();
+
+        for (const fileInfo of files) {
+            try {
+                const content = await this.readFile(fileInfo.path);
+
+                // Create directory structure if needed
+                const parts = fileInfo.path.split('/').filter(p => p);
+                if (parts.length > 1) {
+                    let currentPath = '';
+                    for (let i = 0; i < parts.length - 1; i++) {
+                        currentPath += '/' + parts[i];
+                        try {
+                            if (!Module.FS.analyzePath(currentPath).exists) {
+                                Module.FS.mkdir(currentPath);
+                            }
+                        } catch (e) {
+                            // Directory might already exist
+                        }
+                    }
+                }
+
+                // Write file to VFS
+                Module.FS.writeFile(fileInfo.path, content);
+
+                if (this.verbose) {
+                    console.log(`[CircuitPython FS] Synced to VFS: ${fileInfo.path}`);
+                }
+            } catch (error) {
+                console.error(`[CircuitPython FS] Failed to sync ${fileInfo.path}:`, error);
+            }
+        }
+
+        if (this.verbose) {
+            console.log(`[CircuitPython FS] Synced ${files.length} files to VFS`);
+        }
+    }
+
+    /**
+     * Sync Emscripten VFS to IndexedDB
+     * Saves specified files from VFS to IndexedDB
+     */
+    async syncFromVFS(Module, paths) {
+        if (!this.db) {
+            throw new Error('Database not initialized');
+        }
+
+        for (const path of paths) {
+            try {
+                if (Module.FS.analyzePath(path).exists) {
+                    const content = Module.FS.readFile(path);
+                    await this.writeFile(path, content);
+
+                    if (this.verbose) {
+                        console.log(`[CircuitPython FS] Synced from VFS: ${path}`);
+                    }
+                }
+            } catch (error) {
+                console.error(`[CircuitPython FS] Failed to sync ${path}:`, error);
+            }
+        }
+    }
+
+    /**
+     * Export all files as a JSON blob
+     */
+    async exportProject() {
+        const files = await this.listFiles();
+        const project = {
+            version: 1,
+            exported: Date.now(),
+            files: {}
+        };
+
+        for (const fileInfo of files) {
+            const content = await this.readFile(fileInfo.path);
+            // Convert Uint8Array to base64 for JSON serialization
+            project.files[fileInfo.path] = {
+                content: btoa(String.fromCharCode(...content)),
+                modified: fileInfo.modified,
+                size: fileInfo.size
+            };
+        }
+
+        const json = JSON.stringify(project, null, 2);
+        return new Blob([json], { type: 'application/json' });
+    }
+
+    /**
+     * Import files from a JSON blob
+     */
+    async importProject(blob) {
+        const text = await blob.text();
+        const project = JSON.parse(text);
+
+        if (project.version !== 1) {
+            throw new Error(`Unsupported project version: ${project.version}`);
+        }
+
+        for (const [path, fileData] of Object.entries(project.files)) {
+            // Convert base64 back to Uint8Array
+            const binaryString = atob(fileData.content);
+            const content = new Uint8Array(binaryString.length);
+            for (let i = 0; i < binaryString.length; i++) {
+                content[i] = binaryString.charCodeAt(i);
+            }
+
+            await this.writeFile(path, content);
+        }
+
+        if (this.verbose) {
+            console.log(`[CircuitPython FS] Imported ${Object.keys(project.files).length} files`);
+        }
+    }
+
+    /**
+     * Clear all files from IndexedDB
+     */
+    async clear() {
+        if (!this.db) {
+            throw new Error('Database not initialized');
+        }
+
+        return new Promise((resolve, reject) => {
+            const transaction = this.db.transaction([STORE_NAME], 'readwrite');
+            const store = transaction.objectStore(STORE_NAME);
+            const request = store.clear();
+
+            request.onsuccess = () => {
+                if (this.verbose) {
+                    console.log('[CircuitPython FS] Cleared all files');
+                }
+                resolve();
+            };
+
+            request.onerror = () => {
+                reject(new Error(`Failed to clear files: ${request.error}`));
+            };
+        });
+    }
+}
 /*
  * This file is part of the MicroPython project, http://micropython.org/
  *
@@ -5651,12 +6064,13 @@ export { VirtualClock, TimeMode };
 // - stderr: same behaviour as stdout but for error output.
 // - linebuffer: whether to buffer line-by-line to stdout/stderr.
 // - verbose: whether to log infrastructure messages (VirtualClock, init). Default: false
+// - autoRun: whether to automatically run boot.py and code.py on load. Default: false
 // CIRCUITPY_CHANGE: export function name change
 // - virtual clock: initialize virtual clock for timing control
 export async function loadCircuitPython(options) {
-    const { pystack, heapsize, url, stdin, stdout, stderr, linebuffer, verbose } =
+    const { pystack, heapsize, url, stdin, stdout, stderr, linebuffer, verbose, autoRun, filesystem } =
         Object.assign(
-            { pystack: 2 * 1024, heapsize: 1024 * 1024, linebuffer: true, verbose: false },
+            { pystack: 2 * 1024, heapsize: 1024 * 1024, linebuffer: true, verbose: false, autoRun: false, filesystem: 'memory' },
             options,
         );
     let Module = {};
@@ -5726,16 +6140,38 @@ export async function loadCircuitPython(options) {
     );
     Module.ccall("proxy_c_init", "null", [], []);
 
+    // CIRCUITPY-CHANGE: Initialize persistent filesystem if requested
+    let persistentFS = null;
+    if (filesystem === 'indexeddb') {
+        try {
+            // Import filesystem module dynamically
+            const { CircuitPythonFilesystem } = await import('./filesystem.js');
+            persistentFS = new CircuitPythonFilesystem(verbose);
+            await persistentFS.init();
+
+            // Sync files from IndexedDB to VFS before running any code
+            await persistentFS.syncToVFS(Module);
+
+            if (verbose) {
+                console.log('[CircuitPython] Persistent filesystem initialized');
+            }
+        } catch (e) {
+            if (verbose) {
+                console.warn('[CircuitPython] Persistent filesystem initialization failed:', e);
+            }
+        }
+    }
+
     // CIRCUITPY-CHANGE: Initialize virtual clock for timing control
     let virtualClock = null;
     try {
-        // Get pointer to virtual hardware
-        const virtualHardwarePtr = Module._get_virtual_hardware_ptr();
-        if (virtualHardwarePtr) {
+        // Get pointer to virtual clock hardware (timing, not I/O)
+        const virtualClockHwPtr = Module._get_virtual_clock_hw_ptr();
+        if (virtualClockHwPtr) {
             // Create a simple object that looks like WASM instance for VirtualClock
             const wasmInstance = {
                 exports: {
-                    get_virtual_hardware_ptr: () => virtualHardwarePtr
+                    get_virtual_clock_hw_ptr: () => virtualClockHwPtr
                 }
             };
             const wasmMemory = {
@@ -5754,11 +6190,138 @@ export async function loadCircuitPython(options) {
         }
     }
 
+    // Helper function to run a file if it exists
+    const runFile = (filepath) => {
+        try {
+            if (Module.FS.analyzePath(filepath).exists) {
+                const content = Module.FS.readFile(filepath, { encoding: 'utf8' });
+                const len = Module.lengthBytesUTF8(content);
+                const buf = Module._malloc(len + 1);
+                Module.stringToUTF8(content, buf, len + 1);
+                const value = Module._malloc(3 * 4);
+                Module.ccall(
+                    "mp_js_do_exec",
+                    "number",
+                    ["pointer", "number", "pointer"],
+                    [buf, len, value],
+                );
+                Module._free(buf);
+                const ret = proxy_convert_mp_to_js_obj_jsside_with_free(value);
+                return ret;
+            }
+            return null;
+        } catch (error) {
+            if (verbose) {
+                console.error(`[CircuitPython] Error running ${filepath}:`, error);
+            }
+            throw error;
+        }
+    };
+
+    // Run CircuitPython boot workflow (boot.py then code.py)
+    const runWorkflow = () => {
+        try {
+            // Run boot.py if it exists
+            if (Module.FS.analyzePath('/boot.py').exists) {
+                if (verbose) {
+                    console.log('[CircuitPython] Running /boot.py');
+                }
+                runFile('/boot.py');
+            }
+
+            // Run code.py if it exists
+            if (Module.FS.analyzePath('/code.py').exists) {
+                if (verbose) {
+                    console.log('[CircuitPython] Running /code.py');
+                }
+                runFile('/code.py');
+            } else if (verbose) {
+                console.log('[CircuitPython] No code.py found');
+            }
+        } catch (error) {
+            if (verbose) {
+                console.error('[CircuitPython] Workflow error:', error);
+            }
+            throw error;
+        }
+    };
+
+    // Helper to save a file to both VFS and IndexedDB
+    const saveFile = async (filepath, content) => {
+        // Write to VFS
+        Module.FS.writeFile(filepath, content);
+
+        // Also persist to IndexedDB if available
+        if (persistentFS) {
+            await persistentFS.writeFile(filepath, content);
+        }
+    };
+
+    // Helper to save binary data from various sources
+    const saveBinaryFile = async (filepath, data) => {
+        let uint8Array;
+
+        // Convert different data types to Uint8Array
+        if (data instanceof Uint8Array) {
+            uint8Array = data;
+        } else if (data instanceof ArrayBuffer) {
+            uint8Array = new Uint8Array(data);
+        } else if (data instanceof Blob) {
+            const arrayBuffer = await data.arrayBuffer();
+            uint8Array = new Uint8Array(arrayBuffer);
+        } else if (typeof data === 'string') {
+            // Assume base64 encoded string
+            const binaryString = atob(data);
+            uint8Array = new Uint8Array(binaryString.length);
+            for (let i = 0; i < binaryString.length; i++) {
+                uint8Array[i] = binaryString.charCodeAt(i);
+            }
+        } else {
+            throw new Error('Unsupported data type for saveBinaryFile');
+        }
+
+        await saveFile(filepath, uint8Array);
+    };
+
+    // Helper to fetch and save a remote file (e.g., fonts, images)
+    const fetchAndSaveFile = async (filepath, url) => {
+        const response = await fetch(url);
+        if (!response.ok) {
+            throw new Error(`Failed to fetch ${url}: ${response.statusText}`);
+        }
+        const data = await response.arrayBuffer();
+        await saveBinaryFile(filepath, data);
+        if (verbose) {
+            console.log(`[CircuitPython] Fetched and saved ${filepath} (${data.byteLength} bytes)`);
+        }
+    };
+
+    // Auto-run boot.py and code.py if requested
+    if (autoRun) {
+        if (verbose) {
+            console.log('[CircuitPython] Auto-running boot/code workflow');
+        }
+        try {
+            runWorkflow();
+        } catch (error) {
+            if (verbose) {
+                console.error('[CircuitPython] Auto-run failed:', error);
+            }
+            // Don't throw - let the runtime continue
+        }
+    }
+
     return {
         _module: Module,
         virtualClock: virtualClock,
+        filesystem: persistentFS,
         PyProxy: PyProxy,
         FS: Module.FS,
+        runFile: runFile,
+        runWorkflow: runWorkflow,
+        saveFile: saveFile,
+        saveBinaryFile: saveBinaryFile,
+        fetchAndSaveFile: fetchAndSaveFile,
         globals: {
             __dict__: pyimport("__main__").__dict__,
             get(key) {
@@ -5836,6 +6399,83 @@ export async function loadCircuitPython(options) {
                 { async: true },
             );
         },
+        // CIRCUITPY-CHANGE: String-based REPL helpers for easier xterm.js integration
+        serial: {
+            // Write a string to the REPL input buffer
+            writeInput(text) {
+                const len = Module.lengthBytesUTF8(text);
+                const buf = Module._malloc(len + 1);
+                Module.stringToUTF8(text, buf, len + 1);
+                const written = Module.ccall(
+                    "board_serial_write_input",
+                    "number",
+                    ["pointer", "number"],
+                    [buf, len]
+                );
+                Module._free(buf);
+                return written;
+            },
+            // Write a single character to the REPL input buffer
+            writeChar(char) {
+                const charCode = typeof char === 'string' ? char.charCodeAt(0) : char;
+                return Module.ccall(
+                    "board_serial_write_input_char",
+                    "number",
+                    ["number"],
+                    [charCode]
+                );
+            },
+            // Clear the input buffer
+            clearInput() {
+                Module.ccall("board_serial_clear_input", "null", []);
+            },
+            // Get number of bytes available in input buffer
+            inputAvailable() {
+                return Module.ccall("board_serial_input_available", "number", []);
+            },
+            // Process a string through the REPL (writes to buffer)
+            processString(text) {
+                const len = Module.lengthBytesUTF8(text);
+                const buf = Module._malloc(len + 1);
+                Module.stringToUTF8(text, buf, len + 1);
+                const result = Module.ccall(
+                    "board_serial_repl_process_string",
+                    "number",
+                    ["pointer", "number"],
+                    [buf, len]
+                );
+                Module._free(buf);
+                return result;
+            },
+            // Set output callback for REPL output (easier than hooking stdout)
+            onOutput(callback) {
+                // Store callback in Module for C code to call
+                Module._serialOutputCallback = callback;
+
+                // Create a wrapper function that C can call
+                const wrapperPtr = Module.addFunction((textPtr, length) => {
+                    const text = Module.UTF8ToString(textPtr, length);
+                    callback(text);
+                }, 'vii');
+
+                Module.ccall(
+                    "board_serial_set_output_callback",
+                    "null",
+                    ["number"],
+                    [wrapperPtr]
+                );
+            }
+        },
+        // CIRCUITPY-CHANGE: Virtual hardware interface for input simulation and output observation
+        // Allows JavaScript to interact with the WASM runtime like the physical world interacts with a board
+        _virtual_gpio_set_input_value: Module._virtual_gpio_set_input_value,
+        _virtual_gpio_get_output_value: Module._virtual_gpio_get_output_value,
+        _virtual_gpio_get_direction: Module._virtual_gpio_get_direction,
+        _virtual_gpio_get_pull: Module._virtual_gpio_get_pull,
+        _virtual_analog_set_input_value: Module._virtual_analog_set_input_value,
+        _virtual_analog_get_output_value: Module._virtual_analog_get_output_value,
+        _virtual_analog_is_enabled: Module._virtual_analog_is_enabled,
+        _virtual_analog_is_output: Module._virtual_analog_is_output,
     };
 }
 
@@ -5878,17 +6518,29 @@ async function runCLI() {
 
     if (repl) {
         ctpy.replInit();
-        process.stdin.setRawMode(true);
+        if (process.stdin.setRawMode) {
+            process.stdin.setRawMode(true);
+        }
+
+        // Process input character by character through the REPL
+        // The event-driven REPL expects characters to be pushed to it
         process.stdin.on("data", (data) => {
-            for (let i = 0; i < data.length; i++) {
-                ctpy.replProcessCharWithAsyncify(data[i]).then((result) => {
-                    if (result) {
-                        process.exit();
-                    }
-                });
+            const text = data.toString('utf8');
+
+            // Check for Ctrl+D to exit
+            for (let i = 0; i < text.length; i++) {
+                const charCode = text.charCodeAt(i);
+                if (charCode === 0x04) {  // Ctrl+D
+                    process.exit();
+                }
+                // Pass each character to the REPL
+                const result = ctpy.replProcessChar(charCode);
+                if (result !== 0) {
+                    process.exit();
+                }
             }
         });
-    } else {
+    } else{
         // If the script to run ends with a running of the asyncio main loop, then inject
         // a simple `asyncio.run` hook that starts the main task.  This is primarily to
         // support running the standard asyncio tests.
