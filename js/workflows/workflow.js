@@ -183,6 +183,7 @@ class Workflow {
         }
 
         this.terminalTitle.textContent = title;
+        this.terminalTitle.title = title;
     }
 
     async showConnect(documentState) {
