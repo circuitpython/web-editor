@@ -53,16 +53,28 @@ class USBWorkflow extends Workflow {
 
     async onDisconnected(e, reconnect = true) {
         if (this.reader) {
-            await this.reader.cancel();
+            try {
+                await this.reader.cancel();
+            } catch (error) {
+                console.warn("Error calling reader.cancel:", error);
+            }
             this.reader = null;
         }
         if (this.writer) {
-            await this.writer.releaseLock();
+            try {
+                await this.writer.releaseLock();
+            } catch (error) {
+                console.warn("Error calling writer.releaseLock:", error);
+            }
             this.writer = null;
         }
 
         if (this._serialDevice) {
-            await this._serialDevice.close();
+            try {
+                await this._serialDevice.close();
+            } catch (error) {
+                console.warn("Error calling _serialDevice.close:", error);
+            }
             this._serialDevice = null;
         }
 
@@ -273,7 +285,11 @@ class USBWorkflow extends Workflow {
         device.addEventListener("message", this._messageCallback);
 
         let onDisconnect = async (e) => {
-            await this.onDisconnected(e, false);
+            try {
+                await this.onDisconnected(e, false);
+            } catch (error) {
+                console.warn("Error calling onDisconnected (maybe already disconnected):", error);
+            }
         };
         device.removeEventListener("disconnect", onDisconnect);
         device.addEventListener("disconnect", onDisconnect);
