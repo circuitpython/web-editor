@@ -138,6 +138,9 @@
     flex: auto;
     overflow: hidden;
     text-overflow: ellipsis;
+    white-space: nowrap;
+    flex-shrink: 1;
+    max-width: fit-content;
 }
 
 @media (max-width: $screen-xs-max) {
