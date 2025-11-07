@@ -1,6 +1,121 @@
 import {Workflow} from './workflow.js';
 import {CONNTYPE, CONNSTATE} from '../constants.js';
 import {GenericModal} from '../common/dialogs.js';
+import {HardwarePanel} from '../common/hardware-panel.js';
+
+/**
+ * VirtualFileClient
+ * Provides file system access for the virtual workflow
+ * Compatible with FileHelper interface for use with FileDialog
+ */
+class VirtualFileClient {
+    constructor(circuitPython) {
+        this.circuitPython = circuitPython;
+    }
+
+    async readOnly() {
+        return false; // Virtual filesystem is always writable
+    }
+
+    async readFile(path, raw = false) {
+        if (!this.circuitPython || !this.circuitPython.FS) {
+            throw new Error("CircuitPython not initialized");
+        }
+
+        const pathInfo = await this.circuitPython.FS.analyzePath(path);
+        if (!pathInfo.exists) {
+            return raw ? null : "";
+        }
+
+        const content = await this.circuitPython.FS.readFile(path, { encoding: raw ? undefined : 'utf8' });
+        if (raw) {
+            // Convert to Blob for compatibility
+            return new Blob([content]);
+        }
+        return content;
+    }
+
+    async writeFile(path, offset, contents, modificationTime = Date.now(), raw = false) {
+        if (!this.circuitPython) {
+            throw new Error("CircuitPython not initialized");
+        }
+
+        // For virtual filesystem, we ignore offset and modificationTime
+        // Convert contents to appropriate format
+        let data = contents;
+        if (raw && contents instanceof ArrayBuffer) {
+            data = new Uint8Array(contents);
+        } else if (raw && contents instanceof Blob) {
+            data = new Uint8Array(await contents.arrayBuffer());
+        } else if (typeof contents !== 'string') {
+            data = new TextDecoder().decode(contents);
+        }
+
+        if (this.circuitPython.saveFile) {
+            await this.circuitPython.saveFile(path, data);
+        } else {
+            await this.circuitPython.FS.writeFile(path, data);
+        }
+        return true;
+    }
+
+    async listDir(path) {
+        if (!this.circuitPython) {
+            throw new Error("CircuitPython not initialized");
+        }
+
+        // Remove trailing slash for consistency with worker
+        const checkPath = path.endsWith('/') && path !== '/' ? path.slice(0, -1) : path;
+
+        // Check if path exists
+        const pathInfo = await this.circuitPython.FS.analyzePath(checkPath);
+        if (!pathInfo.exists) {
+            return [];
+        }
+
+        // Use proxied listDir method which calls into the worker
+        const results = await this.circuitPython.listDir(checkPath);
+        return results;
+    }
+
+    async makeDir(path, modificationTime = Date.now()) {
+        if (!this.circuitPython) {
+            throw new Error("CircuitPython not initialized");
+        }
+
+        // Remove trailing slash for mkdir
+        const dirPath = path.endsWith('/') ? path.slice(0, -1) : path;
+
+        // Use proxied makeDir method which calls into the worker
+        await this.circuitPython.makeDir(dirPath);
+        return true;
+    }
+
+    async delete(path) {
+        if (!this.circuitPython) {
+            throw new Error("CircuitPython not initialized");
+        }
+
+        const pathInfo = await this.circuitPython.FS.analyzePath(path);
+        if (!pathInfo.exists) {
+            return false;
+        }
+
+        // Use proxied deleteFile method which calls into the worker
+        await this.circuitPython.deleteFile(path);
+        return true;
+    }
+
+    async move(oldPath, newPath) {
+        if (!this.circuitPython) {
+            throw new Error("CircuitPython not initialized");
+        }
+
+        // Use proxied moveFile method which calls into the worker
+        await this.circuitPython.moveFile(oldPath, newPath);
+        return true;
+    }
+}
 
 /**
  * Virtual CircuitPython Workflow
@@ -24,8 +139,9 @@ export class VirtualWorkflow extends Workflow {
 
     async init(params) {
         await super.init(params);
+
         this.setTerminalTitle("Virtual CircuitPython REPL");
-        
+
         // Add global error handler for WASM issues to prevent page resets
         window.addEventListener('unhandledrejection', (event) => {
             if (event.reason && (event.reason.toString().includes('WASM') || 
@@ -40,16 +156,19 @@ export class VirtualWorkflow extends Workflow {
         // Load CircuitPython WASM module during initialization
         console.log("Loading CircuitPython WASM module...");
         try {
-            const { loadCircuitPython } = await import('../../public/wasm/circuitpython.mjs');
+            // Use worker-based loader for real-time output during time.sleep()
+            // Import directly from worker-proxy to avoid instantiating in main thread
+            const { loadCircuitPythonWorker } = await import('../../public/wasm/circuitpython-worker-proxy.js');
 
-            // Load CircuitPython with the new API
-            // Note: url parameter omitted - .wasm file is in same directory as .mjs
-            this.circuitPython = await loadCircuitPython({
+            // Load CircuitPython in a Web Worker to prevent blocking the UI thread
+            // This enables real-time output during execution (e.g., during time.sleep())
+            this.circuitPython = await loadCircuitPythonWorker({
                 heapsize: 512 * 1024,  // 512KB - conservative size for browser
-                stdout: (charArray) => {
-                    // Handle stdout character-by-character for proper xterm output timing
-                    // charArray is a Uint8Array with single byte when linebuffer:false
-                    const text = new TextDecoder().decode(charArray);
+                pystack: 8 * 1024,     // 8K words for Python stack (default is 2K, too small for user code)
+                stdout: (data) => {
+                    // When using worker, data is already decoded to string by worker
+                    // (worker does the TextDecoder conversion before posting message)
+                    const text = typeof data === 'string' ? data : new TextDecoder().decode(data);
                     this.handleModuleOutput(text);
                 },
                 linebuffer: false, // Character-by-character for proper REPL output timing
@@ -57,10 +176,11 @@ export class VirtualWorkflow extends Workflow {
                 filesystem: 'indexeddb'  // Enable persistent filesystem with IndexedDB
             });
 
-            // Store reference to underlying module for compatibility
-            this.circuitPythonModule = this.circuitPython._module;
+            // Note: When using worker, the underlying module runs in a separate thread
+            // We can't access _module directly, but the API is proxied
+            this.circuitPythonModule = this.circuitPython; // For compatibility checks
 
-            console.log("CircuitPython WASM module loaded successfully");
+            console.log("CircuitPython WASM module loaded successfully in worker");
             
         } catch (error) {
             console.error("Failed to load CircuitPython WASM module:", error);
@@ -82,19 +202,32 @@ export class VirtualWorkflow extends Workflow {
                 return new Error("CircuitPython WASM module not loaded. Did init() complete successfully?");
             }
 
+            // Initialize file client for file browser support
+            const fileClient = new VirtualFileClient(this.circuitPython);
+            await this.initFileClient(fileClient);
+            console.log("Virtual file client initialized");
+
+            // Initialize hardware panel
+            if (!this.virtualHardwarePanel) {
+                this.virtualHardwarePanel = new HardwarePanel();
+                this.virtualHardwarePanel.init();
+                this.virtualHardwarePanel.setCircuitPython(this.circuitPython);
+                console.log("Virtual hardware panel initialized");
+            }
+
             // Initialize CircuitPython and start the REPL
             console.log('About to call initializeCircuitPython() after module assignment...');
             this.initializeCircuitPython();
 
             // Try to load saved code.py from the virtual board if it exists
             try {
-                if (await this.fileExists('/code.py')) {
-                    const savedCode = await this.readFile('/code.py');
+                if (await this.fileExists('/home/code.py')) {
+                    const savedCode = await this.readFile('/home/code.py');
                     console.log('Found saved code.py on virtual board, loading into editor...');
 
                     // Use the provided load mechanism which properly updates the editor
                     if (this._loadFileContents) {
-                        this._loadFileContents('/code.py', savedCode, true);
+                        this._loadFileContents('/home/code.py', savedCode, true);
                         console.log('Loaded code.py into editor');
                     }
                 }
@@ -208,9 +341,10 @@ export class VirtualWorkflow extends Workflow {
         this.blinkaInjected = false;
         this.bannerBuffer = '';
 
-        // Hide virtual hardware panel
+        // Clean up virtual hardware panel
         if (this.virtualHardwarePanel) {
-            this.virtualHardwarePanel.classList.add('hidden');
+            this.virtualHardwarePanel.destroy();
+            this.virtualHardwarePanel = null;
         }
 
         this.updateConnected(CONNSTATE.disconnected);
@@ -277,50 +411,25 @@ export class VirtualWorkflow extends Workflow {
             return false;
         }
 
-        let path = this.currentFilename;
-        if (!path) {
-            console.log("File has not been saved, using default /code.py");
-            path = '/code.py';
-            this.currentFilename = path;
-        }
-
-        // Ensure path starts with / for VFS
-        if (!path.startsWith('/')) {
-            path = '/' + path;
-            this.currentFilename = path;
-        }
-
-        let extension = path.split('.').pop();
-        if (String(extension).toLowerCase() !== "py") {
-            console.log("Extension not .py, it was ." + String(extension).toLowerCase());
-            return false;
-        }
-
         await this._showSerial();
 
         try {
-            // First save the current editor content to the virtual board
-            // This uses _saveFileContents which properly gets content from editor
-            if (this._saveFileContents) {
-                await this._saveFileContents(path);
-                console.log(`Saved ${path} to virtual board before running`);
-            }
+            // Determine the file path to run
+            // Use current filename or default to /home/code.py
+            const filePath = this.currentFilename || '/home/code.py';
 
-            // Read the saved file back from VFS to execute it
-            const savedContent = await this.readFile(path);
-
-            if (!savedContent || savedContent.trim() === '') {
-                this.handleModuleOutput(`\r\nError: No code to run\r\n`);
+            // Check if file exists in VFS (should be synced from IndexedDB)
+            const pathInfo = await this.circuitPython.FS.analyzePath(filePath);
+            if (!pathInfo.exists) {
+                this.handleModuleOutput(`\r\nError: File not found: ${filePath}\r\n`);
                 return false;
             }
 
             this.handleModuleOutput(`\r\n`);
 
-            // Execute the code using runPython
-            // Note: Output will appear all at once after execution completes
-            // This is a limitation of synchronous WASM execution without Asyncify
-            // For real-time interaction, use the REPL terminal directly
-            this.circuitPython.runPython(savedContent);
+            // Execute the file from VFS
+            // The file should already be saved to IndexedDB and synced to VFS
+            await this.circuitPython.runFile(filePath);
 
             this.handleModuleOutput(`\r\n`);
 
@@ -483,13 +592,13 @@ export class VirtualWorkflow extends Workflow {
 
     // Virtual file operations - using WASM filesystem with IndexedDB persistence
     async saveFile(path = null) {
-        // For virtual workflow, default to /code.py if no path specified
+        // For virtual workflow, default to /home/code.py if no path specified
         if (path === null) {
             if (this.currentFilename !== null) {
                 path = this.currentFilename;
             } else {
                 // Default to code.py for virtual board
-                path = '/code.py';
+                path = '/home/code.py';
                 this.currentFilename = path;
             }
         }
@@ -519,14 +628,14 @@ export class VirtualWorkflow extends Workflow {
         }
 
         try {
-            // Check if file exists first
-            const pathInfo = this.circuitPython.FS.analyzePath(path);
+            // Check if file exists first (worker proxy FS methods are async)
+            const pathInfo = await this.circuitPython.FS.analyzePath(path);
             if (!pathInfo.exists) {
                 throw new Error(`File not found: ${path}`);
             }
 
-            // Read file from VFS
-            const content = this.circuitPython.FS.readFile(path, { encoding: 'utf8' });
+            // Read file from VFS (worker proxy FS methods are async)
+            const content = await this.circuitPython.FS.readFile(path, { encoding: 'utf8' });
             return content;
         } catch (error) {
             console.error(`Error reading file ${path}:`, error);
@@ -547,7 +656,8 @@ export class VirtualWorkflow extends Workflow {
                 console.log(`Wrote to virtual board VFS and IndexedDB: ${path}`);
             } else {
                 // Fallback: just write to VFS (won't persist across reloads)
-                this.circuitPython.FS.writeFile(path, contents);
+                // Worker proxy FS methods are async
+                await this.circuitPython.FS.writeFile(path, contents);
                 console.log(`Wrote to virtual board VFS (not persisted): ${path}`);
             }
             return true;
@@ -564,7 +674,8 @@ export class VirtualWorkflow extends Workflow {
         }
 
         try {
-            const pathInfo = this.circuitPython.FS.analyzePath(path);
+            // Worker proxy FS methods are async
+            const pathInfo = await this.circuitPython.FS.analyzePath(path);
             return pathInfo.exists;
         } catch (error) {
             return false;

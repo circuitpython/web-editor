@@ -60,11 +60,24 @@
 
 #editor-bar, #serial-bar {
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;  // Prevent wrapping - keep all buttons on one line
     align-items: center;
-    padding: 0 10px;
+    padding: 0 5px;
     min-height: 60px;
     height: 4em;
+    overflow-x: auto;  // Add horizontal scroll if needed
+
+    // All buttons should not shrink
+    button, a {
+        flex-shrink: 0;
+        white-space: nowrap;
+        margin: 0 3px;  // Override default button margins - tighter spacing
+    }
+
+    // First button has no left margin
+    button:first-child, a:first-child {
+        margin-left: 0;
+    }
 }
 
 #editor-page {

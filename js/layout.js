@@ -112,7 +112,7 @@ function updatePageLayout(updateType) {
     }
 }
 
-function refitTerminal() {
+export function refitTerminal() {
     // Custom function to replace the terminal refit function as it was a bit buggy
 
     // Re-fitting the terminal requires a full re-layout of the DOM which can be tricky to time right.
@@ -133,7 +133,18 @@ function refitTerminal() {
                 let footerBarHeight = document.getElementById('footer-bar').offsetHeight;
                 let serialBarHeight = document.getElementById('serial-bar').offsetHeight;
                 let viewportHeight = window.innerHeight;
-                let terminalHeight = viewportHeight - headerHeight - footerBarHeight - serialBarHeight;
+
+                // Account for hardware panel or plotter if visible
+                let panelHeight = 0;
+                const hardwarePanel = document.getElementById('hardware-panel');
+                const plotter = document.getElementById('plotter');
+                if (hardwarePanel && !hardwarePanel.classList.contains('hidden')) {
+                    panelHeight = hardwarePanel.offsetHeight;
+                } else if (plotter && !plotter.classList.contains('hidden')) {
+                    panelHeight = plotter.offsetHeight;
+                }
+
+                let terminalHeight = viewportHeight - headerHeight - footerBarHeight - serialBarHeight - panelHeight;
                 let terminalWidth = document.getElementById('serial-page').offsetWidth - 20; // Account for scrollbar width and padding
                 let screen = document.querySelector('.xterm-screen');
                 if (screen) {

@@ -438,8 +438,8 @@ function updateMemoryViews() {
   HEAP16 = new Int16Array(b);
   Module['HEAPU8'] = HEAPU8 = new Uint8Array(b);
   HEAPU16 = new Uint16Array(b);
-  HEAP32 = new Int32Array(b);
-  HEAPU32 = new Uint32Array(b);
+  Module['HEAP32'] = HEAP32 = new Int32Array(b);
+  Module['HEAPU32'] = HEAPU32 = new Uint32Array(b);
   HEAPF32 = new Float32Array(b);
   HEAPF64 = new Float64Array(b);
   HEAP64 = new BigInt64Array(b);
@@ -481,6 +481,11 @@ TTY.init();
   // Begin ATPOSTCTORS hooks
   FS.ignorePermissions = false;
   // End ATPOSTCTORS hooks
+}
+
+function preMain() {
+  checkStackCookie();
+  // No ATMAINS hooks
 }
 
 function postRun() {
@@ -1467,6 +1472,13 @@ async function createWasm() {
   write(stream, buffer, offset, length, position, canOwn) {
           // The data buffer should be a typed array view
           assert(!(buffer instanceof ArrayBuffer));
+          // If the buffer is located in main memory (HEAP), and if
+          // memory can grow, we can't hold on to references of the
+          // memory buffer, as they may get invalidated. That means we
+          // need to do copy its contents.
+          if (buffer.buffer === HEAP8.buffer) {
+            canOwn = false;
+          }
   
           if (!length) return 0;
           var node = stream.node;
@@ -3973,14 +3985,384 @@ async function createWasm() {
 
   var _emscripten_get_now = () => performance.now();
 
-  var abortOnCannotGrowMemory = (requestedSize) => {
-      abort(`Cannot enlarge memory arrays to size ${requestedSize} bytes (OOM). Either (1) compile with -sINITIAL_MEMORY=X with X higher than the current value ${HEAP8.length}, (2) compile with -sALLOW_MEMORY_GROWTH which allows increasing the size at runtime, or (3) if you want malloc to return NULL (0) instead of this abort, compile with -sABORTING_MALLOC=0`);
+  var getHeapMax = () =>
+      // Stay one Wasm page short of 4GB: while e.g. Chrome is able to allocate
+      // full 4GB Wasm memories, the size will wrap back to 0 bytes in Wasm side
+      // for any code that deals with heap sizes, which would require special
+      // casing all heap size related code to treat 0 specially.
+      2147483648;
+  
+  var alignMemory = (size, alignment) => {
+      assert(alignment, "alignment argument is required");
+      return Math.ceil(size / alignment) * alignment;
+    };
+  
+  var growMemory = (size) => {
+      var oldHeapSize = wasmMemory.buffer.byteLength;
+      var pages = ((size - oldHeapSize + 65535) / 65536) | 0;
+      try {
+        // round size grow request up to wasm page size (fixed 64KB per spec)
+        wasmMemory.grow(pages); // .grow() takes a delta compared to the previous size
+        updateMemoryViews();
+        return 1 /*success*/;
+      } catch(e) {
+        err(`growMemory: Attempted to grow heap from ${oldHeapSize} bytes to ${size} bytes, but got error: ${e}`);
+      }
+      // implicit 0 return to save code size (caller will cast "undefined" into 0
+      // anyhow)
     };
   var _emscripten_resize_heap = (requestedSize) => {
       var oldSize = HEAPU8.length;
       // With CAN_ADDRESS_2GB or MEMORY64, pointers are already unsigned.
       requestedSize >>>= 0;
-      abortOnCannotGrowMemory(requestedSize);
+      // With multithreaded builds, races can happen (another thread might increase the size
+      // in between), so return a failure, and let the caller retry.
+      assert(requestedSize > oldSize);
+  
+      // Memory resize rules:
+      // 1.  Always increase heap size to at least the requested size, rounded up
+      //     to next page multiple.
+      // 2a. If MEMORY_GROWTH_LINEAR_STEP == -1, excessively resize the heap
+      //     geometrically: increase the heap size according to
+      //     MEMORY_GROWTH_GEOMETRIC_STEP factor (default +20%), At most
+      //     overreserve by MEMORY_GROWTH_GEOMETRIC_CAP bytes (default 96MB).
+      // 2b. If MEMORY_GROWTH_LINEAR_STEP != -1, excessively resize the heap
+      //     linearly: increase the heap size by at least
+      //     MEMORY_GROWTH_LINEAR_STEP bytes.
+      // 3.  Max size for the heap is capped at 2048MB-WASM_PAGE_SIZE, or by
+      //     MAXIMUM_MEMORY, or by ASAN limit, depending on which is smallest
+      // 4.  If we were unable to allocate as much memory, it may be due to
+      //     over-eager decision to excessively reserve due to (3) above.
+      //     Hence if an allocation fails, cut down on the amount of excess
+      //     growth, in an attempt to succeed to perform a smaller allocation.
+  
+      // A limit is set for how much we can grow. We should not exceed that
+      // (the wasm binary specifies it, so if we tried, we'd fail anyhow).
+      var maxHeapSize = getHeapMax();
+      if (requestedSize > maxHeapSize) {
+        err(`Cannot enlarge memory, requested ${requestedSize} bytes, but the limit is ${maxHeapSize} bytes!`);
+        return false;
+      }
+  
+      // Loop through potential heap size increases. If we attempt a too eager
+      // reservation that fails, cut down on the attempted size and reserve a
+      // smaller bump instead. (max 3 times, chosen somewhat arbitrarily)
+      for (var cutDown = 1; cutDown <= 4; cutDown *= 2) {
+        var overGrownHeapSize = oldSize * (1 + 0.2 / cutDown); // ensure geometric growth
+        // but limit overreserving (default to capping at +96MB overgrowth at most)
+        overGrownHeapSize = Math.min(overGrownHeapSize, requestedSize + 100663296 );
+  
+        var newSize = Math.min(maxHeapSize, alignMemory(Math.max(requestedSize, overGrownHeapSize), 65536));
+  
+        var replacement = growMemory(newSize);
+        if (replacement) {
+  
+          return true;
+        }
+      }
+      err(`Failed to grow the heap from ${oldSize} bytes to ${newSize} bytes, not enough memory!`);
+      return false;
+    };
+
+  
+  var handleException = (e) => {
+      // Certain exception types we do not treat as errors since they are used for
+      // internal control flow.
+      // 1. ExitStatus, which is thrown by exit()
+      // 2. "unwind", which is thrown by emscripten_unwind_to_js_event_loop() and others
+      //    that wish to return to JS event loop.
+      if (e instanceof ExitStatus || e == 'unwind') {
+        return EXITSTATUS;
+      }
+      checkStackCookie();
+      if (e instanceof WebAssembly.RuntimeError) {
+        if (_emscripten_stack_get_current() <= 0) {
+          err('Stack overflow detected.  You can try increasing -sSTACK_SIZE (currently set to 65536)');
+        }
+      }
+      quit_(1, e);
+    };
+  
+  
+  
+  var maybeExit = () => {
+      if (!keepRuntimeAlive()) {
+        try {
+          _exit(EXITSTATUS);
+        } catch (e) {
+          handleException(e);
+        }
+      }
+    };
+  var callUserCallback = (func) => {
+      if (ABORT) {
+        err('user callback triggered after runtime exited or application aborted.  Ignoring.');
+        return;
+      }
+      try {
+        func();
+        maybeExit();
+      } catch (e) {
+        handleException(e);
+      }
+    };
+  
+  var _emscripten_set_main_loop_timing = (mode, value) => {
+      MainLoop.timingMode = mode;
+      MainLoop.timingValue = value;
+  
+      if (!MainLoop.func) {
+        err('emscripten_set_main_loop_timing: Cannot set timing mode for main loop since a main loop does not exist! Call emscripten_set_main_loop first to set one up.');
+        return 1; // Return non-zero on failure, can't set timing mode when there is no main loop.
+      }
+  
+      if (!MainLoop.running) {
+        
+        MainLoop.running = true;
+      }
+      if (mode == 0) {
+        MainLoop.scheduler = function MainLoop_scheduler_setTimeout() {
+          var timeUntilNextTick = Math.max(0, MainLoop.tickStartTime + value - _emscripten_get_now())|0;
+          setTimeout(MainLoop.runner, timeUntilNextTick); // doing this each time means that on exception, we stop
+        };
+        MainLoop.method = 'timeout';
+      } else if (mode == 1) {
+        MainLoop.scheduler = function MainLoop_scheduler_rAF() {
+          MainLoop.requestAnimationFrame(MainLoop.runner);
+        };
+        MainLoop.method = 'rAF';
+      } else if (mode == 2) {
+        if (!MainLoop.setImmediate) {
+          if (globalThis.setImmediate) {
+            MainLoop.setImmediate = setImmediate;
+          } else {
+            // Emulate setImmediate. (note: not a complete polyfill, we don't emulate clearImmediate() to keep code size to minimum, since not needed)
+            var setImmediates = [];
+            var emscriptenMainLoopMessageId = 'setimmediate';
+            /** @param {Event} event */
+            var MainLoop_setImmediate_messageHandler = (event) => {
+              // When called in current thread or Worker, the main loop ID is structured slightly different to accommodate for --proxy-to-worker runtime listening to Worker events,
+              // so check for both cases.
+              if (event.data === emscriptenMainLoopMessageId || event.data.target === emscriptenMainLoopMessageId) {
+                event.stopPropagation();
+                setImmediates.shift()();
+              }
+            };
+            addEventListener("message", MainLoop_setImmediate_messageHandler, true);
+            MainLoop.setImmediate = /** @type{function(function(): ?, ...?): number} */((func) => {
+              setImmediates.push(func);
+              if (ENVIRONMENT_IS_WORKER) {
+                Module['setImmediates'] ??= [];
+                Module['setImmediates'].push(func);
+                postMessage({target: emscriptenMainLoopMessageId}); // In --proxy-to-worker, route the message via proxyClient.js
+              } else postMessage(emscriptenMainLoopMessageId, "*"); // On the main thread, can just send the message to itself.
+            });
+          }
+        }
+        MainLoop.scheduler = function MainLoop_scheduler_setImmediate() {
+          MainLoop.setImmediate(MainLoop.runner);
+        };
+        MainLoop.method = 'immediate';
+      }
+      return 0;
+    };
+  var MainLoop = {
+  running:false,
+  scheduler:null,
+  method:"",
+  currentlyRunningMainloop:0,
+  func:null,
+  arg:0,
+  timingMode:0,
+  timingValue:0,
+  currentFrameNumber:0,
+  queue:[],
+  preMainLoop:[],
+  postMainLoop:[],
+  pause() {
+        MainLoop.scheduler = null;
+        // Incrementing this signals the previous main loop that it's now become old, and it must return.
+        MainLoop.currentlyRunningMainloop++;
+      },
+  resume() {
+        MainLoop.currentlyRunningMainloop++;
+        var timingMode = MainLoop.timingMode;
+        var timingValue = MainLoop.timingValue;
+        var func = MainLoop.func;
+        MainLoop.func = null;
+        // do not set timing and call scheduler, we will do it on the next lines
+        setMainLoop(func, 0, false, MainLoop.arg, true);
+        _emscripten_set_main_loop_timing(timingMode, timingValue);
+        MainLoop.scheduler();
+      },
+  updateStatus() {
+        if (Module['setStatus']) {
+          var message = Module['statusMessage'] || 'Please wait...';
+          var remaining = MainLoop.remainingBlockers ?? 0;
+          var expected = MainLoop.expectedBlockers ?? 0;
+          if (remaining) {
+            if (remaining < expected) {
+              Module['setStatus'](`{message} ({expected - remaining}/{expected})`);
+            } else {
+              Module['setStatus'](message);
+            }
+          } else {
+            Module['setStatus']('');
+          }
+        }
+      },
+  init() {
+        Module['preMainLoop'] && MainLoop.preMainLoop.push(Module['preMainLoop']);
+        Module['postMainLoop'] && MainLoop.postMainLoop.push(Module['postMainLoop']);
+      },
+  runIter(func) {
+        if (ABORT) return;
+        for (var pre of MainLoop.preMainLoop) {
+          if (pre() === false) {
+            return; // |return false| skips a frame
+          }
+        }
+        callUserCallback(func);
+        for (var post of MainLoop.postMainLoop) {
+          post();
+        }
+        checkStackCookie();
+      },
+  nextRAF:0,
+  fakeRequestAnimationFrame(func) {
+        // try to keep 60fps between calls to here
+        var now = Date.now();
+        if (MainLoop.nextRAF === 0) {
+          MainLoop.nextRAF = now + 1000/60;
+        } else {
+          while (now + 2 >= MainLoop.nextRAF) { // fudge a little, to avoid timer jitter causing us to do lots of delay:0
+            MainLoop.nextRAF += 1000/60;
+          }
+        }
+        var delay = Math.max(MainLoop.nextRAF - now, 0);
+        setTimeout(func, delay);
+      },
+  requestAnimationFrame(func) {
+        if (globalThis.requestAnimationFrame) {
+          requestAnimationFrame(func);
+        } else {
+          MainLoop.fakeRequestAnimationFrame(func);
+        }
+      },
+  };
+  
+  
+  
+  
+    /**
+     * @param {number=} arg
+     * @param {boolean=} noSetTiming
+     */
+  var setMainLoop = (iterFunc, fps, simulateInfiniteLoop, arg, noSetTiming) => {
+      assert(!MainLoop.func, 'emscripten_set_main_loop: there can only be one main loop function at once: call emscripten_cancel_main_loop to cancel the previous one before setting a new one with different parameters.');
+      MainLoop.func = iterFunc;
+      MainLoop.arg = arg;
+  
+      var thisMainLoopId = MainLoop.currentlyRunningMainloop;
+      function checkIsRunning() {
+        if (thisMainLoopId < MainLoop.currentlyRunningMainloop) {
+          
+          maybeExit();
+          return false;
+        }
+        return true;
+      }
+  
+      // We create the loop runner here but it is not actually running until
+      // _emscripten_set_main_loop_timing is called (which might happen a
+      // later time).  This member signifies that the current runner has not
+      // yet been started so that we can call runtimeKeepalivePush when it
+      // gets it timing set for the first time.
+      MainLoop.running = false;
+      MainLoop.runner = function MainLoop_runner() {
+        if (ABORT) return;
+        if (MainLoop.queue.length > 0) {
+          var start = Date.now();
+          var blocker = MainLoop.queue.shift();
+          blocker.func(blocker.arg);
+          if (MainLoop.remainingBlockers) {
+            var remaining = MainLoop.remainingBlockers;
+            var next = remaining%1 == 0 ? remaining-1 : Math.floor(remaining);
+            if (blocker.counted) {
+              MainLoop.remainingBlockers = next;
+            } else {
+              // not counted, but move the progress along a tiny bit
+              next = next + 0.5; // do not steal all the next one's progress
+              MainLoop.remainingBlockers = (8*remaining + next)/9;
+            }
+          }
+          MainLoop.updateStatus();
+  
+          // catches pause/resume main loop from blocker execution
+          if (!checkIsRunning()) return;
+  
+          setTimeout(MainLoop.runner, 0);
+          return;
+        }
+  
+        // catch pauses from non-main loop sources
+        if (!checkIsRunning()) return;
+  
+        // Implement very basic swap interval control
+        MainLoop.currentFrameNumber = MainLoop.currentFrameNumber + 1 | 0;
+        if (MainLoop.timingMode == 1 && MainLoop.timingValue > 1 && MainLoop.currentFrameNumber % MainLoop.timingValue != 0) {
+          // Not the scheduled time to render this frame - skip.
+          MainLoop.scheduler();
+          return;
+        } else if (MainLoop.timingMode == 0) {
+          MainLoop.tickStartTime = _emscripten_get_now();
+        }
+  
+        if (MainLoop.method === 'timeout' && Module['ctx']) {
+          warnOnce('Looks like you are rendering without using requestAnimationFrame for the main loop. You should use 0 for the frame rate in emscripten_set_main_loop in order to use requestAnimationFrame, as that can greatly improve your frame rates!');
+          MainLoop.method = ''; // just warn once per call to set main loop
+        }
+  
+        MainLoop.runIter(iterFunc);
+  
+        // catch pauses from the main loop itself
+        if (!checkIsRunning()) return;
+  
+        MainLoop.scheduler();
+      }
+  
+      if (!noSetTiming) {
+        if (fps > 0) {
+          _emscripten_set_main_loop_timing(0, 1000.0 / fps);
+        } else {
+          // Do rAF by rendering each frame (no decimating)
+          _emscripten_set_main_loop_timing(1, 1);
+        }
+  
+        MainLoop.scheduler();
+      }
+  
+      if (simulateInfiniteLoop) {
+        throw 'unwind';
+      }
+    };
+  
+  var wasmTableMirror = [];
+  
+  
+  var getWasmTableEntry = (funcPtr) => {
+      var func = wasmTableMirror[funcPtr];
+      if (!func) {
+        /** @suppress {checkTypes} */
+        wasmTableMirror[funcPtr] = func = wasmTable.get(funcPtr);
+      }
+      /** @suppress {checkTypes} */
+      assert(wasmTable.get(funcPtr) == func, 'JavaScript-side Wasm function table mirror is out of date!');
+      return func;
+    };
+  var _emscripten_set_main_loop_arg = (func, arg, fps, simulateInfiniteLoop) => {
+      var iterFunc = () => getWasmTableEntry(func)(arg);
+      setMainLoop(iterFunc, fps, simulateInfiniteLoop, arg);
     };
 
   function _fd_close(fd) {
@@ -4098,47 +4480,21 @@ async function createWasm() {
           globalThis.crypto.getRandomValues(new Uint32Array(1))[0];
 
   var _mp_js_ticks_ms = () => {
-          // Lazy initialization
-          if (virtualHardwarePtr === null) {
-              initVirtualHardware();
-          }
-  
-          // If virtual hardware is available, read from it
-          if (virtualHardwarePtr !== null) {
-              try {
-                  const view = getVirtualHardwareView();
-                  if (view !== null) {
-                      // Read uint64_t ticks_32khz (8 bytes, little-endian)
-                      const ticks32kHzLow = view.getUint32(0, true);
-                      const ticks32kHzHigh = view.getUint32(4, true);
-                      const ticks32kHz = (BigInt(ticks32kHzHigh) << 32n) | BigInt(ticks32kHzLow);
-  
-                      // Convert 32kHz ticks to milliseconds (ticks / 32)
-                      const milliseconds = Number(ticks32kHz / 32n);
-                      return milliseconds;
-                  }
-              } catch (e) {
-                  console.warn('Error reading virtual hardware, falling back to Date.now():', e);
-              }
-          }
-  
-          // Fallback to real time if virtual hardware not available
           return Date.now() - MP_JS_EPOCH;
       };
 
-  var wasmTableMirror = [];
+
+
   
   
-  var getWasmTableEntry = (funcPtr) => {
-      var func = wasmTableMirror[funcPtr];
-      if (!func) {
-        /** @suppress {checkTypes} */
-        wasmTableMirror[funcPtr] = func = wasmTable.get(funcPtr);
-      }
-      /** @suppress {checkTypes} */
-      assert(wasmTable.get(funcPtr) == func, 'JavaScript-side Wasm function table mirror is out of date!');
-      return func;
+  var stackAlloc = (sz) => __emscripten_stack_alloc(sz);
+  var stringToUTF8OnStack = (str) => {
+      var size = lengthBytesUTF8(str) + 1;
+      var ret = stackAlloc(size);
+      stringToUTF8(str, ret, size);
+      return ret;
     };
+
 
   var getCFunc = (ident) => {
       var func = Module['_' + ident]; // closure exported function
@@ -4151,15 +4507,6 @@ async function createWasm() {
       HEAP8.set(array, buffer);
     };
   
-  
-  
-  var stackAlloc = (sz) => __emscripten_stack_alloc(sz);
-  var stringToUTF8OnStack = (str) => {
-      var size = lengthBytesUTF8(str) + 1;
-      var ret = stackAlloc(size);
-      stringToUTF8(str, ret, size);
-      return ret;
-    };
   
   
   
@@ -4242,36 +4589,13 @@ async function createWasm() {
   FS.createPreloadedFile = FS_createPreloadedFile;
   FS.preloadFile = FS_preloadFile;
   FS.staticInit();;
+
+      Module['requestAnimationFrame'] = MainLoop.requestAnimationFrame;
+      Module['pauseMainLoop'] = MainLoop.pause;
+      Module['resumeMainLoop'] = MainLoop.resume;
+      MainLoop.init();;
 if (globalThis.crypto === undefined) { globalThis.crypto = require('crypto'); };
 
-          var virtualHardwarePtr = null;
-          var cachedHeapBuffer = null;
-  
-          // Initialize virtual hardware access
-          function initVirtualHardware() {
-              if (virtualHardwarePtr === null) {
-                  try {
-                      virtualHardwarePtr = Module.ccall('get_virtual_clock_hw_ptr', 'number', [], []);
-                  } catch (e) {
-                      console.warn('Virtual hardware not available, falling back to Date.now():', e);
-                  }
-              }
-          }
-  
-          // Get a fresh DataView (handles WASM memory growth)
-          function getVirtualHardwareView() {
-              if (virtualHardwarePtr === null) {
-                  return null;
-              }
-              // Check if heap buffer changed (memory grew)
-              if (cachedHeapBuffer !== Module.HEAPU8.buffer) {
-                  cachedHeapBuffer = Module.HEAPU8.buffer;
-              }
-              // Always create fresh DataView from current buffer
-              // Structure size: uint64_t (8) + uint32_t (4) + uint8_t (1) + padding (3) = 16 bytes
-              return new DataView(cachedHeapBuffer, virtualHardwarePtr, 16);
-          }
-  
           var MP_JS_EPOCH = Date.now();
       ;
 // End JS library code
@@ -4346,8 +4670,6 @@ if (Module['wasmBinary']) wasmBinary = Module['wasmBinary'];
   'setTempRet0',
   'createNamedFunction',
   'zeroMemory',
-  'getHeapMax',
-  'growMemory',
   'withStackSave',
   'inetPton4',
   'inetNtop4',
@@ -4361,13 +4683,9 @@ if (Module['wasmBinary']) wasmBinary = Module['wasmBinary'];
   'autoResumeAudioContext',
   'getDynCaller',
   'dynCall',
-  'handleException',
   'runtimeKeepalivePush',
   'runtimeKeepalivePop',
-  'callUserCallback',
-  'maybeExit',
   'asmjsMangle',
-  'alignMemory',
   'HandleAllocator',
   'addOnInit',
   'addOnPostCtor',
@@ -4508,8 +4826,6 @@ missingLibrarySymbols.forEach(missingLibrarySymbol)
   'HEAP8',
   'HEAP16',
   'HEAPU16',
-  'HEAP32',
-  'HEAPU32',
   'HEAP64',
   'HEAPU64',
   'writeStackCookie',
@@ -4522,7 +4838,8 @@ missingLibrarySymbols.forEach(missingLibrarySymbol)
   'stackAlloc',
   'ptrToString',
   'exitJS',
-  'abortOnCannotGrowMemory',
+  'getHeapMax',
+  'growMemory',
   'ENV',
   'ERRNO_CODES',
   'strError',
@@ -4532,8 +4849,12 @@ missingLibrarySymbols.forEach(missingLibrarySymbol)
   'timers',
   'warnOnce',
   'readEmAsmArgsArray',
+  'handleException',
   'keepRuntimeAlive',
+  'callUserCallback',
+  'maybeExit',
   'asyncLoad',
+  'alignMemory',
   'mmapAlloc',
   'wasmTable',
   'wasmMemory',
@@ -4736,8 +5057,7 @@ unexportedSymbols.forEach(unexportedRuntimeSymbol);
 function checkIncomingModuleAPI() {
   ignoredModuleProp('fetchSettings');
 }
-function register_serial_output_callback_internal() { }
-function js_send_request(request_id,type,params,params_size) { if (Module.onWASMRequest) { const paramsArray = new Uint8Array(Module.HEAPU8.buffer, params, params_size); Module.onWASMRequest(request_id, type, paramsArray); } }
+function mp_js_write_js(buf,len) { if (len > 0) { const text = UTF8ToString(buf, len); if (Module.onStdout) { Module.onStdout(text); } else { console.log(text); } } }
 function proxy_convert_mp_to_js_then_js_to_mp_obj_jsside(out) { const ret = proxy_convert_mp_to_js_obj_jsside(out); proxy_convert_js_to_mp_obj_jsside_force_double_proxy(ret, out); }
 function proxy_convert_mp_to_js_then_js_to_js_then_js_to_mp_obj_jsside(out) { const ret = proxy_convert_mp_to_js_obj_jsside(out); const js_obj = PyProxy.toJs(ret); proxy_convert_js_to_mp_obj_jsside(js_obj, out); }
 function js_get_proxy_js_ref_info(out) { let used = 0; for (const elem of proxy_js_ref) { if (elem !== undefined) { ++used; } } Module.setValue(out, proxy_js_ref.length, "i32"); Module.setValue(out + 4, used, "i32"); }
@@ -4762,17 +5082,24 @@ function js_then_resolve(ret_value,resolve) { const ret_value_js = proxy_convert
 function js_then_reject(ret_value,reject) { let ret_value_js; try { ret_value_js = proxy_convert_mp_to_js_obj_jsside(ret_value); } catch(error) { ret_value_js = error; } const reject_js = proxy_convert_mp_to_js_obj_jsside(reject); reject_js(ret_value_js); }
 function js_then_continue(jsref,py_resume,resolve,reject,out) { const py_resume_js = proxy_convert_mp_to_js_obj_jsside(py_resume); const resolve_js = proxy_convert_mp_to_js_obj_jsside(resolve); const reject_js = proxy_convert_mp_to_js_obj_jsside(reject); const ret = proxy_js_ref[jsref].then( (result) => { py_resume_js(result, null, resolve_js, reject_js); }, (reason) => { py_resume_js(null, reason, resolve_js, reject_js); }, ); proxy_convert_js_to_mp_obj_jsside(ret, out); }
 function create_promise(out_set,out_promise) { const out_set_js = proxy_convert_mp_to_js_obj_jsside(out_set); const promise = new Promise(out_set_js); proxy_convert_js_to_mp_obj_jsside(promise, out_promise); }
+function register_serial_output_callback_internal() { }
+function i2c_create_js_bus_proxy(bus_index) { if (Module.hasPeripheral && Module.hasPeripheral('i2c')) { const i2cPeripheral = Module.getPeripheral('i2c'); if (i2cPeripheral && typeof i2cPeripheral.getBus === 'function') { const bus = i2cPeripheral.getBus(bus_index); if (bus) { return proxy_js_add_obj(bus); } } } if (Module._circuitPythonBoard && Module._circuitPythonBoard.i2c) { const bus = Module._circuitPythonBoard.i2c.getBus(bus_index); if (bus) { return proxy_js_add_obj(bus); } } return -1; }
+function i2c_get_timestamp_ms() { return Date.now(); }
+function i2c_peripheral_probe(bus_index,addr) { if (Module.hasPeripheral && Module.hasPeripheral('i2c')) { const i2cPeripheral = Module.getPeripheral('i2c'); if (i2cPeripheral && typeof i2cPeripheral.probe === 'function') { return i2cPeripheral.probe(addr) ? 1 : 0; } } if (Module._circuitPythonBoard && Module._circuitPythonBoard.i2c) { const bus = Module._circuitPythonBoard.i2c.getBus(bus_index); if (bus && typeof bus._notifyProbe === 'function') { return -1; } } return -1; }
+function i2c_peripheral_read(bus_index,addr,buffer,len) { if (Module.hasPeripheral && Module.hasPeripheral('i2c')) { const i2cPeripheral = Module.getPeripheral('i2c'); if (i2cPeripheral && typeof i2cPeripheral.read === 'function') { try { const data = i2cPeripheral.read(addr, 0, len); if (data && data.length > 0) { const heapView = new Uint8Array(Module.HEAPU8.buffer, buffer, len); heapView.set(data.subarray(0, Math.min(len, data.length))); return 0; } return 1; } catch (e) { console.error('[I2C] Peripheral read error:', e); return 2; } } } return -1; }
+function i2c_peripheral_write(bus_index,addr,data,len) { if (Module.hasPeripheral && Module.hasPeripheral('i2c')) { const i2cPeripheral = Module.getPeripheral('i2c'); if (i2cPeripheral && typeof i2cPeripheral.write === 'function') { try { const buffer = new Uint8Array(Module.HEAPU8.buffer, data, len); const dataCopy = new Uint8Array(buffer); const register = len > 0 ? dataCopy[0] : 0; const writeData = len > 1 ? dataCopy.subarray(1) : new Uint8Array(0); i2cPeripheral.write(addr, register, writeData); return 0; } catch (e) { console.error('[I2C] Peripheral write error:', e); return 2; } } } return -1; }
+function i2c_peripheral_write_read(bus_index,addr,out_data,out_len,in_data,in_len) { if (Module.hasPeripheral && Module.hasPeripheral('i2c')) { const i2cPeripheral = Module.getPeripheral('i2c'); if (i2cPeripheral && typeof i2cPeripheral.read === 'function') { try { const outBuffer = new Uint8Array(Module.HEAPU8.buffer, out_data, out_len); const register = out_len > 0 ? outBuffer[0] : 0; const data = i2cPeripheral.read(addr, register, in_len); if (data && data.length > 0) { const inBuffer = new Uint8Array(Module.HEAPU8.buffer, in_data, in_len); inBuffer.set(data.subarray(0, Math.min(in_len, data.length))); return 0; } return 1; } catch (e) { console.error('[I2C] Peripheral write_read error:', e); return 2; } } } return -1; }
+function spi_create_js_bus_proxy(bus_index) { if (Module.hasPeripheral && Module.hasPeripheral('spi')) { const spiPeripheral = Module.getPeripheral('spi'); if (spiPeripheral && typeof spiPeripheral.getBus === 'function') { const bus = spiPeripheral.getBus(bus_index); if (bus) { return proxy_js_add_obj(bus); } } } if (Module._circuitPythonBoard && Module._circuitPythonBoard.spi) { const bus = Module._circuitPythonBoard.spi.getBus(bus_index); if (bus) { return proxy_js_add_obj(bus); } } return -1; }
+function spi_get_timestamp_ms() { return Date.now(); }
+function spi_peripheral_transfer(bus_index,write_data,read_data,len) { if (Module.hasPeripheral && Module.hasPeripheral('spi')) { const spiPeripheral = Module.getPeripheral('spi'); if (spiPeripheral && typeof spiPeripheral.transfer === 'function') { try { const writeBuffer = new Uint8Array(Module.HEAPU8.buffer, write_data, len); const writeData = new Uint8Array(writeBuffer); const readDataJS = spiPeripheral.transfer(writeData); if (readDataJS && readDataJS.length > 0) { const readBuffer = new Uint8Array(Module.HEAPU8.buffer, read_data, len); readBuffer.set(readDataJS.subarray(0, Math.min(len, readDataJS.length))); return 0; } return 1; } catch (e) { console.error('[SPI] Peripheral transfer error:', e); return 2; } } } return -1; }
+function spi_peripheral_configure(bus_index,baudrate,polarity,phase,bits) { if (Module.hasPeripheral && Module.hasPeripheral('spi')) { const spiPeripheral = Module.getPeripheral('spi'); if (spiPeripheral && typeof spiPeripheral.configure === 'function') { try { spiPeripheral.configure({ frequency: baudrate, polarity: polarity, phase: phase, bits: bits }); return 0; } catch (e) { console.error('[SPI] Peripheral configure error:', e); return 2; } } } return -1; }
+function uart_peripheral_write(port_index,data,len) { if (Module.hasPeripheral && Module.hasPeripheral('serial')) { const serialPeripheral = Module.getPeripheral('serial'); if (serialPeripheral && typeof serialPeripheral.write === 'function') { try { const buffer = new Uint8Array(Module.HEAPU8.buffer, data, len); const dataCopy = new Uint8Array(buffer); serialPeripheral.write(dataCopy); return 0; } catch (e) { console.error('[UART] Peripheral write error:', e); return 2; } } } if (Module._circuitPythonBoard && Module._circuitPythonBoard.serial) { try { const buffer = new Uint8Array(Module.HEAPU8.buffer, data, len); const dataCopy = new Uint8Array(buffer); Module._circuitPythonBoard.serial.write(dataCopy); return 0; } catch (e) { console.error('[UART] Legacy serial write error:', e); } } return -1; }
+function uart_peripheral_available(port_index) { if (Module.hasPeripheral && Module.hasPeripheral('serial')) { const serialPeripheral = Module.getPeripheral('serial'); if (serialPeripheral && typeof serialPeripheral.available === 'function') { try { return serialPeripheral.available(); } catch (e) { console.error('[UART] Peripheral available error:', e); return -1; } } } return -1; }
+function gpio_create_js_pin_proxy(pin_number) { const isWorker = typeof WorkerGlobalScope !== 'undefined' && self instanceof WorkerGlobalScope; const context = isWorker ? 'WORKER' : 'MAIN'; console.log(`[${context}] gpio_create_js_pin_proxy called for pin ${pin_number}`); const gpio = Module.getPeripheral('gpio'); if (!gpio) { console.warn(`[${context}] GPIO peripheral not initialized`); return -1; } const pin = gpio.getPin(pin_number); return proxy_js_add_obj(pin); }
+function gpio_post_state_update(pin_number,direction,value) { if (typeof WorkerGlobalScope !== 'undefined' && self instanceof WorkerGlobalScope) { self.postMessage({ type: 'gpio-update', pin: pin_number, direction: direction === 0 ? 'input' : 'output', value: value !== 0 }); } }
 
 // Imports from the Wasm binary.
 var _mp_sched_keyboard_interrupt = Module['_mp_sched_keyboard_interrupt'] = makeInvalidEarlyAccess('_mp_sched_keyboard_interrupt');
-var _board_serial_write_input = Module['_board_serial_write_input'] = makeInvalidEarlyAccess('_board_serial_write_input');
-var _board_serial_write_input_char = Module['_board_serial_write_input_char'] = makeInvalidEarlyAccess('_board_serial_write_input_char');
-var _board_serial_clear_input = Module['_board_serial_clear_input'] = makeInvalidEarlyAccess('_board_serial_clear_input');
-var _board_serial_input_available = Module['_board_serial_input_available'] = makeInvalidEarlyAccess('_board_serial_input_available');
-var _board_serial_set_output_callback = Module['_board_serial_set_output_callback'] = makeInvalidEarlyAccess('_board_serial_set_output_callback');
-var _board_serial_repl_process_string = Module['_board_serial_repl_process_string'] = makeInvalidEarlyAccess('_board_serial_repl_process_string');
-var _virtual_gpio_get_direction = Module['_virtual_gpio_get_direction'] = makeInvalidEarlyAccess('_virtual_gpio_get_direction');
-var _virtual_gpio_get_pull = Module['_virtual_gpio_get_pull'] = makeInvalidEarlyAccess('_virtual_gpio_get_pull');
 var _mp_js_init = Module['_mp_js_init'] = makeInvalidEarlyAccess('_mp_js_init');
 var _malloc = Module['_malloc'] = makeInvalidEarlyAccess('_malloc');
 var _mp_js_register_js_module = Module['_mp_js_register_js_module'] = makeInvalidEarlyAccess('_mp_js_register_js_module');
@@ -4782,12 +5109,8 @@ var _mp_js_do_exec = Module['_mp_js_do_exec'] = makeInvalidEarlyAccess('_mp_js_d
 var _mp_js_do_exec_async = Module['_mp_js_do_exec_async'] = makeInvalidEarlyAccess('_mp_js_do_exec_async');
 var _mp_js_repl_init = Module['_mp_js_repl_init'] = makeInvalidEarlyAccess('_mp_js_repl_init');
 var _mp_js_repl_process_char = Module['_mp_js_repl_process_char'] = makeInvalidEarlyAccess('_mp_js_repl_process_char');
-var _wasm_complete_request = Module['_wasm_complete_request'] = makeInvalidEarlyAccess('_wasm_complete_request');
-var _wasm_error_request = Module['_wasm_error_request'] = makeInvalidEarlyAccess('_wasm_error_request');
-var _wasm_get_request_ptr = Module['_wasm_get_request_ptr'] = makeInvalidEarlyAccess('_wasm_get_request_ptr');
-var _wasm_get_queue_base_ptr = Module['_wasm_get_queue_base_ptr'] = makeInvalidEarlyAccess('_wasm_get_queue_base_ptr');
-var _wasm_get_queue_size = Module['_wasm_get_queue_size'] = makeInvalidEarlyAccess('_wasm_get_queue_size');
-var _wasm_get_request_struct_size = Module['_wasm_get_request_struct_size'] = makeInvalidEarlyAccess('_wasm_get_request_struct_size');
+var _wasm_reset_yield_state = Module['_wasm_reset_yield_state'] = makeInvalidEarlyAccess('_wasm_reset_yield_state');
+var _main = Module['_main'] = makeInvalidEarlyAccess('_main');
 var _mp_hal_get_interrupt_char = Module['_mp_hal_get_interrupt_char'] = makeInvalidEarlyAccess('_mp_hal_get_interrupt_char');
 var _proxy_c_init = Module['_proxy_c_init'] = makeInvalidEarlyAccess('_proxy_c_init');
 var _proxy_c_free_obj = Module['_proxy_c_free_obj'] = makeInvalidEarlyAccess('_proxy_c_free_obj');
@@ -4804,15 +5127,26 @@ var _proxy_c_to_js_get_dict = Module['_proxy_c_to_js_get_dict'] = makeInvalidEar
 var _proxy_c_to_js_get_iter = Module['_proxy_c_to_js_get_iter'] = makeInvalidEarlyAccess('_proxy_c_to_js_get_iter');
 var _proxy_c_to_js_iternext = Module['_proxy_c_to_js_iternext'] = makeInvalidEarlyAccess('_proxy_c_to_js_iternext');
 var _proxy_c_to_js_resume = Module['_proxy_c_to_js_resume'] = makeInvalidEarlyAccess('_proxy_c_to_js_resume');
-var _get_virtual_clock_hw_ptr = Module['_get_virtual_clock_hw_ptr'] = makeInvalidEarlyAccess('_get_virtual_clock_hw_ptr');
-var _virtual_gpio_set_input_value = Module['_virtual_gpio_set_input_value'] = makeInvalidEarlyAccess('_virtual_gpio_set_input_value');
-var _virtual_gpio_get_output_value = Module['_virtual_gpio_get_output_value'] = makeInvalidEarlyAccess('_virtual_gpio_get_output_value');
-var _virtual_analog_set_input_value = Module['_virtual_analog_set_input_value'] = makeInvalidEarlyAccess('_virtual_analog_set_input_value');
-var _virtual_analog_get_output_value = Module['_virtual_analog_get_output_value'] = makeInvalidEarlyAccess('_virtual_analog_get_output_value');
-var _virtual_analog_is_enabled = Module['_virtual_analog_is_enabled'] = makeInvalidEarlyAccess('_virtual_analog_is_enabled');
-var _virtual_analog_is_output = Module['_virtual_analog_is_output'] = makeInvalidEarlyAccess('_virtual_analog_is_output');
-var _virtual_gpio_get_state_array = Module['_virtual_gpio_get_state_array'] = makeInvalidEarlyAccess('_virtual_gpio_get_state_array');
-var _virtual_analog_get_state_array = Module['_virtual_analog_get_state_array'] = makeInvalidEarlyAccess('_virtual_analog_get_state_array');
+var _wasm_get_yield_state = Module['_wasm_get_yield_state'] = makeInvalidEarlyAccess('_wasm_get_yield_state');
+var _supervisor_tick_from_js = Module['_supervisor_tick_from_js'] = makeInvalidEarlyAccess('_supervisor_tick_from_js');
+var _wasm_get_yield_count = Module['_wasm_get_yield_count'] = makeInvalidEarlyAccess('_wasm_get_yield_count');
+var _wasm_get_bytecode_count = Module['_wasm_get_bytecode_count'] = makeInvalidEarlyAccess('_wasm_get_bytecode_count');
+var _wasm_get_last_yield_time = Module['_wasm_get_last_yield_time'] = makeInvalidEarlyAccess('_wasm_get_last_yield_time');
+var _board_serial_write_input = Module['_board_serial_write_input'] = makeInvalidEarlyAccess('_board_serial_write_input');
+var _board_serial_write_input_char = Module['_board_serial_write_input_char'] = makeInvalidEarlyAccess('_board_serial_write_input_char');
+var _board_serial_clear_input = Module['_board_serial_clear_input'] = makeInvalidEarlyAccess('_board_serial_clear_input');
+var _board_serial_input_available = Module['_board_serial_input_available'] = makeInvalidEarlyAccess('_board_serial_input_available');
+var _board_serial_set_output_callback = Module['_board_serial_set_output_callback'] = makeInvalidEarlyAccess('_board_serial_set_output_callback');
+var _board_serial_repl_process_string = Module['_board_serial_repl_process_string'] = makeInvalidEarlyAccess('_board_serial_repl_process_string');
+var _get_analog_state_ptr = Module['_get_analog_state_ptr'] = makeInvalidEarlyAccess('_get_analog_state_ptr');
+var _get_i2c_state_ptr = Module['_get_i2c_state_ptr'] = makeInvalidEarlyAccess('_get_i2c_state_ptr');
+var _get_spi_state_ptr = Module['_get_spi_state_ptr'] = makeInvalidEarlyAccess('_get_spi_state_ptr');
+var _get_uart_state_ptr = Module['_get_uart_state_ptr'] = makeInvalidEarlyAccess('_get_uart_state_ptr');
+var _get_gpio_state_ptr = Module['_get_gpio_state_ptr'] = makeInvalidEarlyAccess('_get_gpio_state_ptr');
+var _get_neopixel_state_ptr = Module['_get_neopixel_state_ptr'] = makeInvalidEarlyAccess('_get_neopixel_state_ptr');
+var _get_pwm_state_ptr = Module['_get_pwm_state_ptr'] = makeInvalidEarlyAccess('_get_pwm_state_ptr');
+var _get_rotaryio_state_ptr = Module['_get_rotaryio_state_ptr'] = makeInvalidEarlyAccess('_get_rotaryio_state_ptr');
+var _rotaryio_update_encoder = Module['_rotaryio_update_encoder'] = makeInvalidEarlyAccess('_rotaryio_update_encoder');
 var _fflush = makeInvalidEarlyAccess('_fflush');
 var _strerror = makeInvalidEarlyAccess('_strerror');
 var _emscripten_stack_get_end = makeInvalidEarlyAccess('_emscripten_stack_get_end');
@@ -4831,22 +5165,6 @@ var wasmTable = makeInvalidEarlyAccess('wasmTable');
 function assignWasmExports(wasmExports) {
   assert(wasmExports['mp_sched_keyboard_interrupt'], 'missing Wasm export: mp_sched_keyboard_interrupt');
   _mp_sched_keyboard_interrupt = Module['_mp_sched_keyboard_interrupt'] = createExportWrapper('mp_sched_keyboard_interrupt', 0);
-  assert(wasmExports['board_serial_write_input'], 'missing Wasm export: board_serial_write_input');
-  _board_serial_write_input = Module['_board_serial_write_input'] = createExportWrapper('board_serial_write_input', 2);
-  assert(wasmExports['board_serial_write_input_char'], 'missing Wasm export: board_serial_write_input_char');
-  _board_serial_write_input_char = Module['_board_serial_write_input_char'] = createExportWrapper('board_serial_write_input_char', 1);
-  assert(wasmExports['board_serial_clear_input'], 'missing Wasm export: board_serial_clear_input');
-  _board_serial_clear_input = Module['_board_serial_clear_input'] = createExportWrapper('board_serial_clear_input', 0);
-  assert(wasmExports['board_serial_input_available'], 'missing Wasm export: board_serial_input_available');
-  _board_serial_input_available = Module['_board_serial_input_available'] = createExportWrapper('board_serial_input_available', 0);
-  assert(wasmExports['board_serial_set_output_callback'], 'missing Wasm export: board_serial_set_output_callback');
-  _board_serial_set_output_callback = Module['_board_serial_set_output_callback'] = createExportWrapper('board_serial_set_output_callback', 1);
-  assert(wasmExports['board_serial_repl_process_string'], 'missing Wasm export: board_serial_repl_process_string');
-  _board_serial_repl_process_string = Module['_board_serial_repl_process_string'] = createExportWrapper('board_serial_repl_process_string', 2);
-  assert(wasmExports['virtual_gpio_get_direction'], 'missing Wasm export: virtual_gpio_get_direction');
-  _virtual_gpio_get_direction = Module['_virtual_gpio_get_direction'] = createExportWrapper('virtual_gpio_get_direction', 1);
-  assert(wasmExports['virtual_gpio_get_pull'], 'missing Wasm export: virtual_gpio_get_pull');
-  _virtual_gpio_get_pull = Module['_virtual_gpio_get_pull'] = createExportWrapper('virtual_gpio_get_pull', 1);
   assert(wasmExports['mp_js_init'], 'missing Wasm export: mp_js_init');
   _mp_js_init = Module['_mp_js_init'] = createExportWrapper('mp_js_init', 2);
   assert(wasmExports['malloc'], 'missing Wasm export: malloc');
@@ -4865,18 +5183,10 @@ function assignWasmExports(wasmExports) {
   _mp_js_repl_init = Module['_mp_js_repl_init'] = createExportWrapper('mp_js_repl_init', 0);
   assert(wasmExports['mp_js_repl_process_char'], 'missing Wasm export: mp_js_repl_process_char');
   _mp_js_repl_process_char = Module['_mp_js_repl_process_char'] = createExportWrapper('mp_js_repl_process_char', 1);
-  assert(wasmExports['wasm_complete_request'], 'missing Wasm export: wasm_complete_request');
-  _wasm_complete_request = Module['_wasm_complete_request'] = createExportWrapper('wasm_complete_request', 3);
-  assert(wasmExports['wasm_error_request'], 'missing Wasm export: wasm_error_request');
-  _wasm_error_request = Module['_wasm_error_request'] = createExportWrapper('wasm_error_request', 2);
-  assert(wasmExports['wasm_get_request_ptr'], 'missing Wasm export: wasm_get_request_ptr');
-  _wasm_get_request_ptr = Module['_wasm_get_request_ptr'] = createExportWrapper('wasm_get_request_ptr', 1);
-  assert(wasmExports['wasm_get_queue_base_ptr'], 'missing Wasm export: wasm_get_queue_base_ptr');
-  _wasm_get_queue_base_ptr = Module['_wasm_get_queue_base_ptr'] = createExportWrapper('wasm_get_queue_base_ptr', 0);
-  assert(wasmExports['wasm_get_queue_size'], 'missing Wasm export: wasm_get_queue_size');
-  _wasm_get_queue_size = Module['_wasm_get_queue_size'] = createExportWrapper('wasm_get_queue_size', 0);
-  assert(wasmExports['wasm_get_request_struct_size'], 'missing Wasm export: wasm_get_request_struct_size');
-  _wasm_get_request_struct_size = Module['_wasm_get_request_struct_size'] = createExportWrapper('wasm_get_request_struct_size', 0);
+  assert(wasmExports['wasm_reset_yield_state'], 'missing Wasm export: wasm_reset_yield_state');
+  _wasm_reset_yield_state = Module['_wasm_reset_yield_state'] = createExportWrapper('wasm_reset_yield_state', 0);
+  assert(wasmExports['__main_argc_argv'], 'missing Wasm export: __main_argc_argv');
+  _main = Module['_main'] = createExportWrapper('__main_argc_argv', 2);
   assert(wasmExports['mp_hal_get_interrupt_char'], 'missing Wasm export: mp_hal_get_interrupt_char');
   _mp_hal_get_interrupt_char = Module['_mp_hal_get_interrupt_char'] = createExportWrapper('mp_hal_get_interrupt_char', 0);
   assert(wasmExports['proxy_c_init'], 'missing Wasm export: proxy_c_init');
@@ -4909,24 +5219,46 @@ function assignWasmExports(wasmExports) {
   _proxy_c_to_js_iternext = Module['_proxy_c_to_js_iternext'] = createExportWrapper('proxy_c_to_js_iternext', 2);
   assert(wasmExports['proxy_c_to_js_resume'], 'missing Wasm export: proxy_c_to_js_resume');
   _proxy_c_to_js_resume = Module['_proxy_c_to_js_resume'] = createExportWrapper('proxy_c_to_js_resume', 2);
-  assert(wasmExports['get_virtual_clock_hw_ptr'], 'missing Wasm export: get_virtual_clock_hw_ptr');
-  _get_virtual_clock_hw_ptr = Module['_get_virtual_clock_hw_ptr'] = createExportWrapper('get_virtual_clock_hw_ptr', 0);
-  assert(wasmExports['virtual_gpio_set_input_value'], 'missing Wasm export: virtual_gpio_set_input_value');
-  _virtual_gpio_set_input_value = Module['_virtual_gpio_set_input_value'] = createExportWrapper('virtual_gpio_set_input_value', 2);
-  assert(wasmExports['virtual_gpio_get_output_value'], 'missing Wasm export: virtual_gpio_get_output_value');
-  _virtual_gpio_get_output_value = Module['_virtual_gpio_get_output_value'] = createExportWrapper('virtual_gpio_get_output_value', 1);
-  assert(wasmExports['virtual_analog_set_input_value'], 'missing Wasm export: virtual_analog_set_input_value');
-  _virtual_analog_set_input_value = Module['_virtual_analog_set_input_value'] = createExportWrapper('virtual_analog_set_input_value', 2);
-  assert(wasmExports['virtual_analog_get_output_value'], 'missing Wasm export: virtual_analog_get_output_value');
-  _virtual_analog_get_output_value = Module['_virtual_analog_get_output_value'] = createExportWrapper('virtual_analog_get_output_value', 1);
-  assert(wasmExports['virtual_analog_is_enabled'], 'missing Wasm export: virtual_analog_is_enabled');
-  _virtual_analog_is_enabled = Module['_virtual_analog_is_enabled'] = createExportWrapper('virtual_analog_is_enabled', 1);
-  assert(wasmExports['virtual_analog_is_output'], 'missing Wasm export: virtual_analog_is_output');
-  _virtual_analog_is_output = Module['_virtual_analog_is_output'] = createExportWrapper('virtual_analog_is_output', 1);
-  assert(wasmExports['virtual_gpio_get_state_array'], 'missing Wasm export: virtual_gpio_get_state_array');
-  _virtual_gpio_get_state_array = Module['_virtual_gpio_get_state_array'] = createExportWrapper('virtual_gpio_get_state_array', 0);
-  assert(wasmExports['virtual_analog_get_state_array'], 'missing Wasm export: virtual_analog_get_state_array');
-  _virtual_analog_get_state_array = Module['_virtual_analog_get_state_array'] = createExportWrapper('virtual_analog_get_state_array', 0);
+  assert(wasmExports['wasm_get_yield_state'], 'missing Wasm export: wasm_get_yield_state');
+  _wasm_get_yield_state = Module['_wasm_get_yield_state'] = createExportWrapper('wasm_get_yield_state', 0);
+  assert(wasmExports['supervisor_tick_from_js'], 'missing Wasm export: supervisor_tick_from_js');
+  _supervisor_tick_from_js = Module['_supervisor_tick_from_js'] = createExportWrapper('supervisor_tick_from_js', 0);
+  assert(wasmExports['wasm_get_yield_count'], 'missing Wasm export: wasm_get_yield_count');
+  _wasm_get_yield_count = Module['_wasm_get_yield_count'] = createExportWrapper('wasm_get_yield_count', 0);
+  assert(wasmExports['wasm_get_bytecode_count'], 'missing Wasm export: wasm_get_bytecode_count');
+  _wasm_get_bytecode_count = Module['_wasm_get_bytecode_count'] = createExportWrapper('wasm_get_bytecode_count', 0);
+  assert(wasmExports['wasm_get_last_yield_time'], 'missing Wasm export: wasm_get_last_yield_time');
+  _wasm_get_last_yield_time = Module['_wasm_get_last_yield_time'] = createExportWrapper('wasm_get_last_yield_time', 0);
+  assert(wasmExports['board_serial_write_input'], 'missing Wasm export: board_serial_write_input');
+  _board_serial_write_input = Module['_board_serial_write_input'] = createExportWrapper('board_serial_write_input', 2);
+  assert(wasmExports['board_serial_write_input_char'], 'missing Wasm export: board_serial_write_input_char');
+  _board_serial_write_input_char = Module['_board_serial_write_input_char'] = createExportWrapper('board_serial_write_input_char', 1);
+  assert(wasmExports['board_serial_clear_input'], 'missing Wasm export: board_serial_clear_input');
+  _board_serial_clear_input = Module['_board_serial_clear_input'] = createExportWrapper('board_serial_clear_input', 0);
+  assert(wasmExports['board_serial_input_available'], 'missing Wasm export: board_serial_input_available');
+  _board_serial_input_available = Module['_board_serial_input_available'] = createExportWrapper('board_serial_input_available', 0);
+  assert(wasmExports['board_serial_set_output_callback'], 'missing Wasm export: board_serial_set_output_callback');
+  _board_serial_set_output_callback = Module['_board_serial_set_output_callback'] = createExportWrapper('board_serial_set_output_callback', 1);
+  assert(wasmExports['board_serial_repl_process_string'], 'missing Wasm export: board_serial_repl_process_string');
+  _board_serial_repl_process_string = Module['_board_serial_repl_process_string'] = createExportWrapper('board_serial_repl_process_string', 2);
+  assert(wasmExports['get_analog_state_ptr'], 'missing Wasm export: get_analog_state_ptr');
+  _get_analog_state_ptr = Module['_get_analog_state_ptr'] = createExportWrapper('get_analog_state_ptr', 0);
+  assert(wasmExports['get_i2c_state_ptr'], 'missing Wasm export: get_i2c_state_ptr');
+  _get_i2c_state_ptr = Module['_get_i2c_state_ptr'] = createExportWrapper('get_i2c_state_ptr', 0);
+  assert(wasmExports['get_spi_state_ptr'], 'missing Wasm export: get_spi_state_ptr');
+  _get_spi_state_ptr = Module['_get_spi_state_ptr'] = createExportWrapper('get_spi_state_ptr', 0);
+  assert(wasmExports['get_uart_state_ptr'], 'missing Wasm export: get_uart_state_ptr');
+  _get_uart_state_ptr = Module['_get_uart_state_ptr'] = createExportWrapper('get_uart_state_ptr', 0);
+  assert(wasmExports['get_gpio_state_ptr'], 'missing Wasm export: get_gpio_state_ptr');
+  _get_gpio_state_ptr = Module['_get_gpio_state_ptr'] = createExportWrapper('get_gpio_state_ptr', 0);
+  assert(wasmExports['get_neopixel_state_ptr'], 'missing Wasm export: get_neopixel_state_ptr');
+  _get_neopixel_state_ptr = Module['_get_neopixel_state_ptr'] = createExportWrapper('get_neopixel_state_ptr', 0);
+  assert(wasmExports['get_pwm_state_ptr'], 'missing Wasm export: get_pwm_state_ptr');
+  _get_pwm_state_ptr = Module['_get_pwm_state_ptr'] = createExportWrapper('get_pwm_state_ptr', 0);
+  assert(wasmExports['get_rotaryio_state_ptr'], 'missing Wasm export: get_rotaryio_state_ptr');
+  _get_rotaryio_state_ptr = Module['_get_rotaryio_state_ptr'] = createExportWrapper('get_rotaryio_state_ptr', 0);
+  assert(wasmExports['rotaryio_update_encoder'], 'missing Wasm export: rotaryio_update_encoder');
+  _rotaryio_update_encoder = Module['_rotaryio_update_encoder'] = createExportWrapper('rotaryio_update_encoder', 3);
   assert(wasmExports['fflush'], 'missing Wasm export: fflush');
   _fflush = createExportWrapper('fflush', 1);
   assert(wasmExports['strerror'], 'missing Wasm export: strerror');
@@ -4952,8 +5284,6 @@ function assignWasmExports(wasmExports) {
   assert(wasmExports['__indirect_function_table'], 'missing Wasm export: __indirect_function_table');
   __indirect_function_table = wasmTable = wasmExports['__indirect_function_table'];
 }
-
-var _virtual_clock_hw = Module['_virtual_clock_hw'] = 134864;
 
 var wasmImports = {
   /** @export */
@@ -5013,6 +5343,8 @@ var wasmImports = {
   /** @export */
   emscripten_resize_heap: _emscripten_resize_heap,
   /** @export */
+  emscripten_set_main_loop_arg: _emscripten_set_main_loop_arg,
+  /** @export */
   fd_close: _fd_close,
   /** @export */
   fd_read: _fd_read,
@@ -5023,7 +5355,23 @@ var wasmImports = {
   /** @export */
   fd_write: _fd_write,
   /** @export */
+  gpio_create_js_pin_proxy,
+  /** @export */
+  gpio_post_state_update,
+  /** @export */
   has_attr,
+  /** @export */
+  i2c_create_js_bus_proxy,
+  /** @export */
+  i2c_get_timestamp_ms,
+  /** @export */
+  i2c_peripheral_probe,
+  /** @export */
+  i2c_peripheral_read,
+  /** @export */
+  i2c_peripheral_write,
+  /** @export */
+  i2c_peripheral_write_read,
   /** @export */
   invoke_i,
   /** @export */
@@ -5059,8 +5407,6 @@ var wasmImports = {
   /** @export */
   js_reflect_construct,
   /** @export */
-  js_send_request,
-  /** @export */
   js_subscr_load,
   /** @export */
   js_subscr_store,
@@ -5083,7 +5429,17 @@ var wasmImports = {
   /** @export */
   proxy_js_free_obj,
   /** @export */
-  store_attr
+  spi_create_js_bus_proxy,
+  /** @export */
+  spi_get_timestamp_ms,
+  /** @export */
+  spi_peripheral_configure,
+  /** @export */
+  spi_peripheral_transfer,
+  /** @export */
+  store_attr,
+  /** @export */
+  uart_peripheral_write
 };
 
 function invoke_v(index) {
@@ -5213,6 +5569,35 @@ function invoke_iiiiii(index,a1,a2,a3,a4,a5) {
 
 var calledRun;
 
+function callMain(args = []) {
+  assert(runDependencies == 0, 'cannot call main when async dependencies remain! (listen on Module["onRuntimeInitialized"])');
+  assert(typeof onPreRuns === 'undefined' || onPreRuns.length == 0, 'cannot call main when preRun functions remain to be called');
+
+  var entryFunction = _main;
+
+  args.unshift(thisProgram);
+
+  var argc = args.length;
+  var argv = stackAlloc((argc + 1) * 4);
+  var argv_ptr = argv;
+  args.forEach((arg) => {
+    HEAPU32[((argv_ptr)>>2)] = stringToUTF8OnStack(arg);
+    argv_ptr += 4;
+  });
+  HEAPU32[((argv_ptr)>>2)] = 0;
+
+  try {
+
+    var ret = entryFunction(argc, argv);
+
+    // if we're not running an evented main loop, it's time to exit
+    exitJS(ret, /* implicit = */ true);
+    return ret;
+  } catch (e) {
+    return handleException(e);
+  }
+}
+
 function stackCheckInit() {
   // This is normally called automatically during __wasm_call_ctors but need to
   // get these values before even running any of the ctors so we call it redundantly
@@ -5222,7 +5607,7 @@ function stackCheckInit() {
   writeStackCookie();
 }
 
-function run() {
+function run(args = arguments_) {
 
   if (runDependencies > 0) {
     dependenciesFulfilled = run;
@@ -5250,11 +5635,14 @@ function run() {
 
     initRuntime();
 
+    preMain();
+
     readyPromiseResolve?.(Module);
     Module['onRuntimeInitialized']?.();
     consumedModuleProp('onRuntimeInitialized');
 
-    assert(!Module['_main'], 'compiled without a main, but one is present. if you added it from JS, use Module["onRuntimeInitialized"]');
+    var noInitialRun = Module['noInitialRun'] || false;
+    if (!noInitialRun) callMain(args);
 
     postRun();
   }
@@ -5364,309 +5752,10 @@ for (const prop of Object.keys(Module)) {
 export default _createCircuitPythonModule;
 
 /**
- * Virtual Clock System for CircuitPython WASM
- *
- * Simulates a 32kHz crystal oscillator (like Renode's Simple32kHz.cs)
- * Writes directly to WASM shared memory - no message passing needed!
- *
- * This is the "conductor" that controls the tempo of Python execution.
- */
-
-// Timing modes
-const TimeMode = {
-    REALTIME: 0,      // 1:1 with wall clock (default for demos)
-    MANUAL: 1,        // Step-by-step (for education/debugging)
-    FAST_FORWARD: 2   // Skip delays (for testing)
-};
-
-class VirtualClock {
-    constructor(wasmInstance, wasmMemory, verbose = false) {
-        this.wasmMemory = wasmMemory;
-        this.verbose = verbose;
-
-        // Get pointer to shared virtual_clock_hw struct
-        this.virtualHardwarePtr = wasmInstance.exports.get_virtual_clock_hw_ptr();
-
-        // Create DataView for direct memory access
-        this.hardware = new DataView(wasmMemory.buffer, this.virtualHardwarePtr);
-
-        // Timing state
-        this.mode = TimeMode.REALTIME;
-        this.realtimeIntervalId = null;
-        this.startWallTime = 0;
-        this.pausedAt = 0;
-
-        // Event timeline for debugging
-        this.timeline = [];
-
-        if (this.verbose) {
-            if (this.verbose) console.error(`[VirtualClock] Initialized at memory offset ${this.virtualHardwarePtr}`);
-        }
-    }
-
-    // ==========================================================================
-    // SHARED MEMORY ACCESS - Direct reads/writes (like memory-mapped hardware)
-    // ==========================================================================
-
-    getTicks32kHz() {
-        // Read uint64_t at offset 0
-        const low = this.hardware.getUint32(0, true);
-        const high = this.hardware.getUint32(4, true);
-        return (BigInt(high) << 32n) | BigInt(low);
-    }
-
-    setTicks32kHz(ticks) {
-        // Write uint64_t at offset 0
-        this.hardware.setUint32(0, Number(ticks & 0xFFFFFFFFn), true);
-        this.hardware.setUint32(4, Number(ticks >> 32n), true);
-
-        // Update JS tick counter at offset 20
-        const jsTicksLow = this.hardware.getUint32(20, true);
-        const jsTicksHigh = this.hardware.getUint32(24, true);
-        const jsTicks = (BigInt(jsTicksHigh) << 32n) | BigInt(jsTicksLow);
-        const newJsTicks = jsTicks + 1n;
-        this.hardware.setUint32(20, Number(newJsTicks & 0xFFFFFFFFn), true);
-        this.hardware.setUint32(24, Number(newJsTicks >> 32n), true);
-    }
-
-    getCpuFrequency() {
-        // Read uint32_t at offset 8
-        return this.hardware.getUint32(8, true);
-    }
-
-    setCpuFrequency(hz) {
-        // Write uint32_t at offset 8
-        this.hardware.setUint32(8, hz, true);
-    }
-
-    setTimeMode(mode) {
-        // Write uint8_t at offset 12
-        this.hardware.setUint8(12, mode);
-    }
-
-    // ==========================================================================
-    // MODE 1: REALTIME - Simulates real hardware 1:1 with wall clock
-    // ==========================================================================
-
-    startRealtime() {
-        this.stopRealtime();
-        this.mode = TimeMode.REALTIME;
-        this.setTimeMode(TimeMode.REALTIME);
-        this.startWallTime = performance.now();
-
-        // Increment by 32 ticks every 1ms (32kHz = 32 ticks per ms)
-        this.realtimeIntervalId = setInterval(() => {
-            const currentTicks = this.getTicks32kHz();
-            this.setTicks32kHz(currentTicks + 32n);
-        }, 1);
-
-        if (this.verbose) console.error('[VirtualClock] Started REALTIME mode (1:1 with wall clock)');
-    }
-
-    stopRealtime() {
-        if (this.realtimeIntervalId !== null) {
-            clearInterval(this.realtimeIntervalId);
-            this.realtimeIntervalId = null;
-        }
-    }
-
-    // ==========================================================================
-    // MODE 2: MANUAL - Step-by-step control for education
-    // ==========================================================================
-
-    setManualMode() {
-        this.stopRealtime();
-        this.mode = TimeMode.MANUAL;
-        this.setTimeMode(TimeMode.MANUAL);
-        this.pausedAt = performance.now();
-        if (this.verbose) console.error('[VirtualClock] Switched to MANUAL mode (step-by-step)');
-    }
-
-    /**
-     * Advance virtual time by specified milliseconds
-     * Perfect for educational "slow motion" debugging
-     */
-    advanceMs(milliseconds) {
-        const ticks32kHz = BigInt(Math.floor(milliseconds * 32));
-        const currentTicks = this.getTicks32kHz();
-        const newTicks = currentTicks + ticks32kHz;
-        this.setTicks32kHz(newTicks);
-
-        this.timeline.push({
-            time: newTicks,
-            event: `Advanced ${milliseconds}ms (${ticks32kHz} ticks)`
-        });
-
-        if (this.verbose) console.error(`[VirtualClock] Advanced ${milliseconds}ms to ${this.getCurrentTimeMs()}ms`);
-    }
-
-    /**
-     * Advance to a specific virtual time
-     */
-    advanceToMs(targetMs) {
-        const currentMs = this.getCurrentTimeMs();
-        if (targetMs > currentMs) {
-            this.advanceMs(targetMs - currentMs);
-        }
-    }
-
-    // ==========================================================================
-    // MODE 3: FAST FORWARD - Skip delays for testing
-    // ==========================================================================
-
-    setFastForwardMode() {
-        this.stopRealtime();
-        this.mode = TimeMode.FAST_FORWARD;
-        this.setTimeMode(TimeMode.FAST_FORWARD);
-        if (this.verbose) console.error('[VirtualClock] Switched to FAST_FORWARD mode (skip delays)');
-    }
-
-    /**
-     * In fast-forward mode, time.sleep() advances virtual time instantly
-     * Called when WASM yields after detecting a sleep
-     */
-    onSleepDetected(sleepDurationMs) {
-        if (this.mode === TimeMode.FAST_FORWARD) {
-            this.advanceMs(sleepDurationMs);
-            if (this.verbose) console.error(`[VirtualClock] Fast-forwarded through ${sleepDurationMs}ms sleep`);
-        }
-    }
-
-    // ==========================================================================
-    // QUERY METHODS
-    // ==========================================================================
-
-    getCurrentTimeMs() {
-        const ticks = this.getTicks32kHz();
-        // Convert 32kHz ticks to milliseconds
-        return Number(ticks) / 32;
-    }
-
-    getCurrentTimeS() {
-        return this.getCurrentTimeMs() / 1000;
-    }
-
-    getMode() {
-        return this.mode;
-    }
-
-    getTimeline() {
-        return [...this.timeline];
-    }
-
-    // ==========================================================================
-    // CPU FREQUENCY CONTROL
-    // ==========================================================================
-
-    /**
-     * Set virtual CPU frequency (affects instruction timing)
-     * Python code: microcontroller.cpu.frequency = 48_000_000
-     */
-    setVirtualCpuFrequency(hz) {
-        this.setCpuFrequency(hz);
-        if (this.verbose) console.error(`[VirtualClock] CPU frequency set to ${hz / 1_000_000}MHz`);
-    }
-
-    getVirtualCpuFrequency() {
-        return this.getCpuFrequency();
-    }
-
-    // ==========================================================================
-    // EDUCATIONAL FEATURES
-    // ==========================================================================
-
-    /**
-     * Record an event in the timeline
-     * Example: "GPIO pin 5 set HIGH", "I2C write to 0x48"
-     */
-    recordEvent(event) {
-        const currentTicks = this.getTicks32kHz();
-        this.timeline.push({ time: currentTicks, event });
-    }
-
-    /**
-     * Get formatted timeline for display
-     */
-    getFormattedTimeline() {
-        return this.timeline.map(entry => {
-            const timeMs = Number(entry.time) / 32;
-            return `T+${timeMs.toFixed(3)}ms: ${entry.event}`;
-        });
-    }
-
-    /**
-     * Clear timeline (for new run)
-     */
-    clearTimeline() {
-        this.timeline = [];
-    }
-
-    /**
-     * Reset virtual time to zero
-     */
-    reset() {
-        this.setTicks32kHz(0n);
-        this.clearTimeline();
-        if (this.verbose) console.error('[VirtualClock] Reset to T=0');
-    }
-
-    // ==========================================================================
-    // STATISTICS
-    // ==========================================================================
-
-    getStatistics() {
-        // Read WASM yields count at offset 16
-        const yieldsLow = this.hardware.getUint32(16, true);
-        const yieldsHigh = this.hardware.getUint32(16, true);
-        const wasmYields = (BigInt(yieldsHigh) << 32n) | BigInt(yieldsLow);
-
-        // Read JS ticks count at offset 20
-        const ticksLow = this.hardware.getUint32(20, true);
-        const ticksHigh = this.hardware.getUint32(24, true);
-        const jsTicks = (BigInt(ticksHigh) << 32n) | BigInt(ticksLow);
-
-        return {
-            virtualTimeMs: this.getCurrentTimeMs(),
-            cpuFrequencyMHz: this.getCpuFrequency() / 1_000_000,
-            wasmYields,
-            jsTickUpdates: jsTicks,
-            timelineEvents: this.timeline.length
-        };
-    }
-}
-
-// Make available globally for concatenated build
-if (typeof globalThis !== 'undefined') {
-    globalThis.VirtualClock = VirtualClock;
-    globalThis.TimeMode = TimeMode;
-}
-
-// Export for use in other modules (both CommonJS and ES modules)
-if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { VirtualClock, TimeMode };
-}
-
-// ES module export
-export { VirtualClock, TimeMode };
-
-/**
- * Example usage for educators:
- *
- * // Real-time demo (default)
- * clock.startRealtime();
- *
- * // Step through code
- * clock.setManualMode();
- * clock.advanceMs(0.5);  // See exactly what happens in 0.5ms
- *
- * // Fast testing
- * clock.setFastForwardMode();
- * // time.sleep(10) completes instantly!
- */
-/**
  * CircuitPython WASM Filesystem
  *
  * Provides persistent storage for CircuitPython files using IndexedDB.
+ * Implements the StoragePeripheral interface for use with the os module.
  * Syncs with Emscripten's virtual filesystem (VFS) to provide seamless
  * file operations from Python code.
  */
@@ -5679,6 +5768,7 @@ export class CircuitPythonFilesystem {
     constructor(verbose = false) {
         this.db = null;
         this.verbose = verbose;
+        this.cwd = '/home';  // Current working directory - CircuitPython user space
     }
 
     /**
@@ -5725,15 +5815,21 @@ export class CircuitPythonFilesystem {
             throw new Error('Database not initialized');
         }
 
+        // Resolve relative paths
+        const resolvedPath = this._resolvePath(path);
+
         // Convert content to Uint8Array if it's a string
         const data = typeof content === 'string'
             ? new TextEncoder().encode(content)
             : content;
 
+        // Create parent directories if needed
+        await this._ensureParentDirs(resolvedPath);
+
         const fileRecord = {
-            path: path,
+            path: resolvedPath,
             content: data,
-            modified: Date.now(),
+            modified: Date.now() / 1000,  // Unix timestamp in seconds
             size: data.length,
             isDirectory: false
         };
@@ -5745,92 +5841,111 @@ export class CircuitPythonFilesystem {
 
             request.onsuccess = () => {
                 if (this.verbose) {
-                    console.log(`[CircuitPython FS] Wrote ${path} (${data.length} bytes)`);
+                    console.log(`[CircuitPython FS] Wrote ${resolvedPath} (${data.length} bytes)`);
                 }
                 resolve();
             };
 
             request.onerror = () => {
-                reject(new Error(`Failed to write ${path}: ${request.error}`));
+                reject(new Error(`Failed to write ${resolvedPath}: ${request.error}`));
             };
         });
     }
 
     /**
      * Read a file from IndexedDB
+     * Returns Uint8Array content or null if file doesn't exist
      */
     async readFile(path) {
         if (!this.db) {
             throw new Error('Database not initialized');
         }
 
+        // Resolve relative paths
+        const resolvedPath = this._resolvePath(path);
+
         return new Promise((resolve, reject) => {
             const transaction = this.db.transaction([STORE_NAME], 'readonly');
             const store = transaction.objectStore(STORE_NAME);
-            const request = store.get(path);
+            const request = store.get(resolvedPath);
 
             request.onsuccess = () => {
                 if (request.result) {
                     if (this.verbose) {
-                        console.log(`[CircuitPython FS] Read ${path} (${request.result.size} bytes)`);
+                        console.log(`[CircuitPython FS] Read ${resolvedPath} (${request.result.size} bytes)`);
                     }
                     resolve(request.result.content);
                 } else {
-                    reject(new Error(`File not found: ${path}`));
+                    // Return null for missing files (StoragePeripheral interface)
+                    resolve(null);
                 }
             };
 
             request.onerror = () => {
-                reject(new Error(`Failed to read ${path}: ${request.error}`));
+                reject(new Error(`Failed to read ${resolvedPath}: ${request.error}`));
             };
         });
     }
 
     /**
      * Delete a file from IndexedDB
+     * Throws error if file doesn't exist or is a directory
      */
     async deleteFile(path) {
         if (!this.db) {
             throw new Error('Database not initialized');
         }
 
+        const resolvedPath = this._resolvePath(path);
+
+        // Check if it's a directory
+        const fileInfo = await this._getFileInfo(resolvedPath);
+        if (!fileInfo) {
+            throw new Error(`File not found: ${resolvedPath}`);
+        }
+        if (fileInfo.isDirectory) {
+            throw new Error(`Cannot delete directory with deleteFile: ${resolvedPath}`);
+        }
+
         return new Promise((resolve, reject) => {
             const transaction = this.db.transaction([STORE_NAME], 'readwrite');
             const store = transaction.objectStore(STORE_NAME);
-            const request = store.delete(path);
+            const request = store.delete(resolvedPath);
 
             request.onsuccess = () => {
                 if (this.verbose) {
-                    console.log(`[CircuitPython FS] Deleted ${path}`);
+                    console.log(`[CircuitPython FS] Deleted ${resolvedPath}`);
                 }
                 resolve();
             };
 
             request.onerror = () => {
-                reject(new Error(`Failed to delete ${path}: ${request.error}`));
+                reject(new Error(`Failed to delete ${resolvedPath}: ${request.error}`));
             };
         });
     }
 
     /**
-     * Check if a file exists
+     * Check if a file or directory exists
      */
     async exists(path) {
         if (!this.db) {
             throw new Error('Database not initialized');
         }
 
+        const resolvedPath = this._resolvePath(path);
+
         return new Promise((resolve, reject) => {
             const transaction = this.db.transaction([STORE_NAME], 'readonly');
             const store = transaction.objectStore(STORE_NAME);
-            const request = store.get(path);
+            const request = store.get(resolvedPath);
 
             request.onsuccess = () => {
                 resolve(request.result !== undefined);
             };
 
             request.onerror = () => {
-                reject(new Error(`Failed to check ${path}: ${request.error}`));
+                reject(new Error(`Failed to check ${resolvedPath}: ${request.error}`));
             };
         });
     }
@@ -5887,9 +6002,18 @@ export class CircuitPythonFilesystem {
         }
 
         const files = await this.listFiles();
+        let syncedCount = 0;
 
         for (const fileInfo of files) {
             try {
+                // Skip directory entries - they'll be created as needed by files
+                if (fileInfo.isDirectory) {
+                    if (this.verbose) {
+                        console.log(`[CircuitPython FS] Skipping directory: ${fileInfo.path}`);
+                    }
+                    continue;
+                }
+
                 const content = await this.readFile(fileInfo.path);
 
                 // Create directory structure if needed
@@ -5910,6 +6034,7 @@ export class CircuitPythonFilesystem {
 
                 // Write file to VFS
                 Module.FS.writeFile(fileInfo.path, content);
+                syncedCount++;
 
                 if (this.verbose) {
                     console.log(`[CircuitPython FS] Synced to VFS: ${fileInfo.path}`);
@@ -5920,7 +6045,7 @@ export class CircuitPythonFilesystem {
         }
 
         if (this.verbose) {
-            console.log(`[CircuitPython FS] Synced ${files.length} files to VFS`);
+            console.log(`[CircuitPython FS] Synced ${syncedCount} files to VFS`);
         }
     }
 
@@ -6001,6 +6126,315 @@ export class CircuitPythonFilesystem {
         }
     }
 
+    // ========== StoragePeripheral Interface Methods ==========
+
+    /**
+     * Get current working directory
+     */
+    getcwd() {
+        return this.cwd;
+    }
+
+    /**
+     * Change current working directory
+     */
+    chdir(path) {
+        const resolvedPath = this._resolvePath(path);
+        // Validate that path exists (optional - could be made async to check DB)
+        this.cwd = resolvedPath;
+        if (this.verbose) {
+            console.log(`[CircuitPython FS] Changed directory to ${this.cwd}`);
+        }
+    }
+
+    /**
+     * Create a directory
+     * Creates parent directories if needed
+     */
+    async mkdir(path) {
+        if (!this.db) {
+            throw new Error('Database not initialized');
+        }
+
+        const resolvedPath = this._resolvePath(path);
+
+        // Check if directory already exists
+        const existing = await this._getFileInfo(resolvedPath);
+        if (existing) {
+            if (existing.isDirectory) {
+                // Directory already exists - this is OK
+                return;
+            } else {
+                throw new Error(`File exists at path: ${resolvedPath}`);
+            }
+        }
+
+        // Create parent directories recursively
+        await this._ensureParentDirs(resolvedPath);
+
+        // Create the directory entry
+        const dirRecord = {
+            path: resolvedPath,
+            content: null,
+            modified: Date.now() / 1000,
+            size: 0,
+            isDirectory: true
+        };
+
+        return new Promise((resolve, reject) => {
+            const transaction = this.db.transaction([STORE_NAME], 'readwrite');
+            const store = transaction.objectStore(STORE_NAME);
+            const request = store.put(dirRecord);
+
+            request.onsuccess = () => {
+                if (this.verbose) {
+                    console.log(`[CircuitPython FS] Created directory ${resolvedPath}`);
+                }
+                resolve();
+            };
+
+            request.onerror = () => {
+                reject(new Error(`Failed to create directory ${resolvedPath}: ${request.error}`));
+            };
+        });
+    }
+
+    /**
+     * Remove an empty directory
+     * Throws error if directory is not empty
+     */
+    async rmdir(path) {
+        if (!this.db) {
+            throw new Error('Database not initialized');
+        }
+
+        const resolvedPath = this._resolvePath(path);
+
+        // Check if it's a directory
+        const fileInfo = await this._getFileInfo(resolvedPath);
+        if (!fileInfo) {
+            throw new Error(`Directory not found: ${resolvedPath}`);
+        }
+        if (!fileInfo.isDirectory) {
+            throw new Error(`Not a directory: ${resolvedPath}`);
+        }
+
+        // Check if directory is empty
+        const contents = await this.listdir(resolvedPath);
+        if (contents.length > 0) {
+            throw new Error(`Directory not empty: ${resolvedPath}`);
+        }
+
+        return new Promise((resolve, reject) => {
+            const transaction = this.db.transaction([STORE_NAME], 'readwrite');
+            const store = transaction.objectStore(STORE_NAME);
+            const request = store.delete(resolvedPath);
+
+            request.onsuccess = () => {
+                if (this.verbose) {
+                    console.log(`[CircuitPython FS] Removed directory ${resolvedPath}`);
+                }
+                resolve();
+            };
+
+            request.onerror = () => {
+                reject(new Error(`Failed to remove directory ${resolvedPath}: ${request.error}`));
+            };
+        });
+    }
+
+    /**
+     * List files and directories in a directory
+     * Returns array of names (not full paths)
+     */
+    async listdir(path) {
+        if (!this.db) {
+            throw new Error('Database not initialized');
+        }
+
+        const resolvedPath = this._resolvePath(path);
+        const prefix = resolvedPath === '/' ? '/' : resolvedPath + '/';
+
+        return new Promise((resolve, reject) => {
+            const transaction = this.db.transaction([STORE_NAME], 'readonly');
+            const store = transaction.objectStore(STORE_NAME);
+            const request = store.getAll();
+
+            request.onsuccess = () => {
+                const names = new Set();
+
+                for (const file of request.result) {
+                    if (file.path.startsWith(prefix) && file.path !== resolvedPath) {
+                        // Get the relative path after the prefix
+                        const relativePath = file.path.substring(prefix.length);
+                        // Get just the first component (file or directory name)
+                        const name = relativePath.split('/')[0];
+                        if (name) {
+                            names.add(name);
+                        }
+                    }
+                }
+
+                const result = Array.from(names);
+                if (this.verbose) {
+                    console.log(`[CircuitPython FS] Listed ${result.length} items in ${resolvedPath}`);
+                }
+                resolve(result);
+            };
+
+            request.onerror = () => {
+                reject(new Error(`Failed to list directory ${resolvedPath}: ${request.error}`));
+            };
+        });
+    }
+
+    /**
+     * Get file/directory metadata
+     * Returns null if path doesn't exist
+     */
+    async stat(path) {
+        if (!this.db) {
+            throw new Error('Database not initialized');
+        }
+
+        const resolvedPath = this._resolvePath(path);
+        const fileInfo = await this._getFileInfo(resolvedPath);
+
+        if (!fileInfo) {
+            return null;
+        }
+
+        // Return stat object matching StoragePeripheral interface
+        return {
+            size: fileInfo.size || 0,
+            mode: fileInfo.isDirectory ? 0o040777 : 0o100666,
+            isDirectory: fileInfo.isDirectory,
+            mtime: fileInfo.modified || (Date.now() / 1000),
+            atime: fileInfo.modified || (Date.now() / 1000),
+            ctime: fileInfo.modified || (Date.now() / 1000)
+        };
+    }
+
+    /**
+     * Get filesystem statistics (optional)
+     * Returns null as IndexedDB doesn't provide this info easily
+     */
+    statvfs(_path) {
+        // IndexedDB doesn't easily provide filesystem stats
+        // Could be implemented with navigator.storage.estimate() if needed
+        return null;
+    }
+
+    /**
+     * Set file modification time (optional)
+     */
+    async utime(path, _atime, mtime) {
+        if (!this.db) {
+            throw new Error('Database not initialized');
+        }
+
+        const resolvedPath = this._resolvePath(path);
+        const fileInfo = await this._getFileInfo(resolvedPath);
+
+        if (!fileInfo) {
+            throw new Error(`File not found: ${resolvedPath}`);
+        }
+
+        // Update the modified timestamp
+        fileInfo.modified = mtime;
+
+        return new Promise((resolve, reject) => {
+            const transaction = this.db.transaction([STORE_NAME], 'readwrite');
+            const store = transaction.objectStore(STORE_NAME);
+            const request = store.put(fileInfo);
+
+            request.onsuccess = () => {
+                if (this.verbose) {
+                    console.log(`[CircuitPython FS] Updated mtime for ${resolvedPath}`);
+                }
+                resolve();
+            };
+
+            request.onerror = () => {
+                reject(new Error(`Failed to update time for ${resolvedPath}: ${request.error}`));
+            };
+        });
+    }
+
+    // ========== Helper Methods ==========
+
+    /**
+     * Resolve a path relative to current working directory
+     */
+    _resolvePath(path) {
+        if (path.startsWith('/')) {
+            // Absolute path
+            return path;
+        }
+
+        // Relative path - resolve against cwd
+        if (this.cwd === '/') {
+            return '/' + path;
+        }
+        return this.cwd + '/' + path;
+    }
+
+    /**
+     * Get file/directory info from database
+     */
+    async _getFileInfo(path) {
+        return new Promise((resolve, reject) => {
+            const transaction = this.db.transaction([STORE_NAME], 'readonly');
+            const store = transaction.objectStore(STORE_NAME);
+            const request = store.get(path);
+
+            request.onsuccess = () => {
+                resolve(request.result || null);
+            };
+
+            request.onerror = () => {
+                reject(new Error(`Failed to get file info for ${path}: ${request.error}`));
+            };
+        });
+    }
+
+    /**
+     * Ensure parent directories exist
+     */
+    async _ensureParentDirs(path) {
+        const parts = path.split('/').filter(p => p);
+        if (parts.length <= 1) {
+            return; // No parent directory or root
+        }
+
+        let currentPath = '';
+        for (let i = 0; i < parts.length - 1; i++) {
+            currentPath += '/' + parts[i];
+
+            const existing = await this._getFileInfo(currentPath);
+            if (!existing) {
+                // Create directory entry
+                const dirRecord = {
+                    path: currentPath,
+                    content: null,
+                    modified: Date.now() / 1000,
+                    size: 0,
+                    isDirectory: true
+                };
+
+                await new Promise((resolve, reject) => {
+                    const transaction = this.db.transaction([STORE_NAME], 'readwrite');
+                    const store = transaction.objectStore(STORE_NAME);
+                    const request = store.put(dirRecord);
+                    request.onsuccess = () => resolve();
+                    request.onerror = () => reject(new Error(`Failed to create directory ${currentPath}`));
+                });
+            }
+        }
+    }
+
+    // ========== Utility Methods ==========
+
     /**
      * Clear all files from IndexedDB
      */
@@ -6063,10 +6497,31 @@ export class CircuitPythonFilesystem {
 //   and in a browser goes to console, in node goes to process.stdout.write.
 // - stderr: same behaviour as stdout but for error output.
 // - linebuffer: whether to buffer line-by-line to stdout/stderr.
-// - verbose: whether to log infrastructure messages (VirtualClock, init). Default: false
+// - verbose: whether to log infrastructure messages (init). Default: false
 // - autoRun: whether to automatically run boot.py and code.py on load. Default: false
 // CIRCUITPY_CHANGE: export function name change
-// - virtual clock: initialize virtual clock for timing control
+
+
+function initCooperativeYielding(Module) {
+    if (!Module.tickInterval) {
+        Module.tickInterval = setInterval(() => {
+            if (Module._supervisor_tick_from_js) {
+                Module._supervisor_tick_from_js();
+            }
+        }, 1000);
+    }
+    
+    Module.getYieldStats = function() {
+        if (!Module._wasm_get_yield_count) return null;
+        return {
+            yieldCount: Module._wasm_get_yield_count(),
+            bytecodeCount: Module._wasm_get_bytecode_count(),
+            lastYieldTime: Module._wasm_get_last_yield_time(),
+            yieldState: Module._wasm_get_yield_state()
+        };
+    };
+}
+
 export async function loadCircuitPython(options) {
     const { pystack, heapsize, url, stdin, stdout, stderr, linebuffer, verbose, autoRun, filesystem } =
         Object.assign(
@@ -6132,6 +6587,9 @@ export async function loadCircuitPython(options) {
         );
         return proxy_convert_mp_to_js_obj_jsside_with_free(value);
     };
+
+    initCooperativeYielding(Module);
+    
     Module.ccall(
         "mp_js_init",
         "null",
@@ -6139,6 +6597,263 @@ export async function loadCircuitPython(options) {
         [pystack, heapsize],
     );
     Module.ccall("proxy_c_init", "null", [], []);
+
+    // CIRCUITPY-CHANGE: Initialize minimal board controllers for hardware emulation
+    // These provide the virtual hardware objects that tests expect
+    // Full controller classes are in src/controllers/*.js - these are lightweight stubs
+
+    // Pin class with onChange callback support
+    class Pin {
+        constructor(number, virtualStateRef) {
+            this.number = number;
+            this.changeCallbacks = [];
+            this._virtualStateRef = virtualStateRef;
+            this._value = false;
+            this._direction = 'input';
+            this._pull = null;
+        }
+
+        get value() {
+            return this._value;
+        }
+
+        set value(val) {
+            const boolValue = Boolean(val);
+            if (this._value !== boolValue) {
+                this._value = boolValue;
+                this._virtualStateRef.value = boolValue;
+                console.log(`[GPIO] Pin ${this.number} value set to ${boolValue}`);
+                this._notifyChange('value', boolValue);
+            }
+        }
+
+        get direction() {
+            return this._direction;
+        }
+
+        set direction(dir) {
+            if (dir !== 'input' && dir !== 'output') {
+                throw new Error(`Invalid direction: ${dir}`);
+            }
+            if (this._direction !== dir) {
+                this._direction = dir;
+                this._virtualStateRef.direction = dir;
+                console.log(`[GPIO] Pin ${this.number} direction set to ${dir}`);
+                this._notifyChange('direction', dir);
+            }
+        }
+
+        get pull() {
+            return this._pull;
+        }
+
+        set pull(p) {
+            if (p === 'none') p = null;
+            if (p !== 'up' && p !== 'down' && p !== null) {
+                throw new Error(`Invalid pull mode: ${p}`);
+            }
+            if (this._pull !== p) {
+                this._pull = p;
+                this._virtualStateRef.pull = p;
+                // Apply pull to value if input
+                if (this._direction === 'input' && p !== null) {
+                    this.value = (p === 'up');
+                }
+                this._notifyChange('pull', p);
+            }
+        }
+
+        getPinValue() { return this.value; }
+        setPinValue(val) { this.value = val; }
+
+        onChange(callback) {
+            this.changeCallbacks.push(callback);
+        }
+        _notifyChange(property, value) {
+            for (const cb of this.changeCallbacks) {
+                try { cb({ property, value }); } catch (e) { console.error('Pin callback error:', e); }
+            }
+        }
+    }
+
+    // GPIO Controller
+    const pins = new Map();
+    const virtualState = new Map();
+    const gpioController = {
+        getPin(number) {
+            if (!pins.has(number)) {
+                const state = {
+                    value: false,
+                    direction: 'input',
+                    pull: null,
+                    analogValue: 0
+                };
+                virtualState.set(number, state);
+                pins.set(number, new Pin(number, state));
+                console.log(`[GPIO] Created pin ${number}`);
+            }
+            return pins.get(number);
+        },
+        getAllPins() { return pins; },
+        getVirtualState(number) {
+            return virtualState.get(number) || {
+                value: false,
+                direction: 'input',
+                pull: null,
+                analogValue: 0
+            };
+        },
+        // Methods expected by library_digitalio.js
+        getPinValue(number) {
+            const pin = this.getPin(number);
+            return pin.value;
+        },
+        setPinValue(number, value) {
+            const pin = this.getPin(number);
+            pin.value = value;
+        },
+        setPinDirection(number, direction) {
+            const pin = this.getPin(number);
+            pin.direction = direction;
+        },
+        setPinPull(number, pull) {
+            const pin = this.getPin(number);
+            pin.pull = pull;
+        },
+        _updateVirtualState(number, updates) {
+            const state = virtualState.get(number);
+            if (state) {
+                Object.assign(state, updates);
+            }
+        }
+    };
+
+    // Bus class for I2C/SPI with callback support
+    class Bus {
+        constructor(index, type) {
+            this.index = index;
+            this.type = type;
+            this.probeCallbacks = [];
+            this.transactionCallbacks = [];
+        }
+        onProbe(callback) {
+            this.probeCallbacks.push(callback);
+        }
+        onTransaction(callback) {
+            this.transactionCallbacks.push(callback);
+        }
+        _notifyProbe(data) {
+            for (const cb of this.probeCallbacks) {
+                try { cb(data); } catch (e) { console.error('Probe callback error:', e); }
+            }
+        }
+        _notifyTransaction(data) {
+            for (const cb of this.transactionCallbacks) {
+                try { cb(data); } catch (e) { console.error('Transaction callback error:', e); }
+            }
+        }
+    }
+
+    // I2C Controller
+    const i2cBuses = new Map();
+    const i2cController = {
+        getBus(index) {
+            if (!i2cBuses.has(index)) {
+                i2cBuses.set(index, new Bus(index, 'i2c'));
+            }
+            return i2cBuses.get(index);
+        },
+        buses: i2cBuses
+    };
+
+    // SPI Controller
+    const spiBuses = new Map();
+    const spiController = {
+        getBus(index) {
+            if (!spiBuses.has(index)) {
+                spiBuses.set(index, new Bus(index, 'spi'));
+            }
+            return spiBuses.get(index);
+        },
+        buses: spiBuses
+    };
+
+    Module._circuitPythonBoard = {
+        gpio: gpioController,
+        i2c: i2cController,
+        spi: spiController,
+    };
+
+    // CIRCUITPY-CHANGE: Peripheral hook system for layered architecture
+    // This allows applications to register custom peripheral implementations
+    // for Type B modules (displayio, busio, etc.) that require external interaction.
+    // The core API remains environment-agnostic while enabling rich integrations.
+    const peripherals = new Map();
+
+    Module.attachPeripheral = function(name, implementation) {
+        if (typeof name !== 'string' || !name) {
+            throw new Error('Peripheral name must be a non-empty string');
+        }
+        if (typeof implementation !== 'object' || implementation === null) {
+            throw new Error('Peripheral implementation must be an object');
+        }
+        peripherals.set(name, implementation);
+        if (verbose) {
+            console.log(`[CircuitPython] Attached peripheral: ${name}`);
+        }
+    };
+
+    Module.getPeripheral = function(name) {
+        return peripherals.get(name);
+    };
+
+    Module.hasPeripheral = function(name) {
+        return peripherals.has(name);
+    };
+
+    Module.detachPeripheral = function(name) {
+        const existed = peripherals.delete(name);
+        if (existed && verbose) {
+            console.log(`[CircuitPython] Detached peripheral: ${name}`);
+        }
+        return existed;
+    };
+
+    Module.listPeripherals = function() {
+        return Array.from(peripherals.keys());
+    };
+
+    // Register default controllers as peripherals
+    Module.attachPeripheral('gpio', gpioController);
+    Module.attachPeripheral('i2c', i2cController);
+    Module.attachPeripheral('spi', spiController);
+
+    if (verbose) {
+        console.log('[CircuitPython] Board controllers initialized');
+        console.log('[CircuitPython] Peripheral hook system ready');
+        console.log('[CircuitPython] Registered peripherals:', Module.listPeripherals());
+    }
+
+    // CIRCUITPY-CHANGE: Set up CircuitPython-style directory structure
+    // Create /home/lib/ for user modules and set working directory to /home
+    try {
+        if (!Module.FS.analyzePath('/home').exists) {
+            Module.FS.mkdir('/home');
+        }
+        if (!Module.FS.analyzePath('/home/lib').exists) {
+            Module.FS.mkdir('/home/lib');
+        }
+        // Set current working directory to /home
+        Module.FS.chdir('/home');
+        if (verbose) {
+            console.log('[CircuitPython] Created /home/lib/ directory structure');
+            console.log('[CircuitPython] Working directory set to /home');
+        }
+    } catch (e) {
+        if (verbose) {
+            console.warn('[CircuitPython] Directory setup warning:', e);
+        }
+    }
 
     // CIRCUITPY-CHANGE: Initialize persistent filesystem if requested
     let persistentFS = null;
@@ -6153,8 +6868,12 @@ export async function loadCircuitPython(options) {
                 // Sync files from IndexedDB to VFS before running any code
                 await persistentFS.syncToVFS(Module);
 
+                // Register filesystem as storage peripheral for os module
+                Module.attachPeripheral('storage', persistentFS);
+
                 if (verbose) {
                     console.log('[CircuitPython] Persistent filesystem initialized');
+                    console.log('[CircuitPython] Registered filesystem as storage peripheral');
                 }
             } else {
                 throw new Error('CircuitPythonFilesystem not available');
@@ -6163,34 +6882,6 @@ export async function loadCircuitPython(options) {
             if (verbose) {
                 console.warn('[CircuitPython] Persistent filesystem initialization failed:', e);
             }
-        }
-    }
-
-    // CIRCUITPY-CHANGE: Initialize virtual clock for timing control
-    let virtualClock = null;
-    try {
-        // Get pointer to virtual clock hardware (timing, not I/O)
-        const virtualClockHwPtr = Module._get_virtual_clock_hw_ptr();
-        if (virtualClockHwPtr) {
-            // Create a simple object that looks like WASM instance for VirtualClock
-            const wasmInstance = {
-                exports: {
-                    get_virtual_clock_hw_ptr: () => virtualClockHwPtr
-                }
-            };
-            const wasmMemory = {
-                buffer: Module.HEAPU8.buffer
-            };
-            virtualClock = new VirtualClock(wasmInstance, wasmMemory, verbose);
-            // Start in realtime mode by default
-            virtualClock.startRealtime();
-            if (verbose) {
-                console.log('[CircuitPython] Virtual clock initialized in REALTIME mode');
-            }
-        }
-    } catch (e) {
-        if (verbose) {
-            console.warn('[CircuitPython] Virtual clock initialization failed:', e);
         }
     }
 
@@ -6225,22 +6916,22 @@ export async function loadCircuitPython(options) {
     // Run CircuitPython boot workflow (boot.py then code.py)
     const runWorkflow = () => {
         try {
-            // Run boot.py if it exists
-            if (Module.FS.analyzePath('/boot.py').exists) {
+            // Run boot.py if it exists in /home
+            if (Module.FS.analyzePath('/home/boot.py').exists) {
                 if (verbose) {
-                    console.log('[CircuitPython] Running /boot.py');
+                    console.log('[CircuitPython] Running /home/boot.py');
                 }
-                runFile('/boot.py');
+                runFile('/home/boot.py');
             }
 
-            // Run code.py if it exists
-            if (Module.FS.analyzePath('/code.py').exists) {
+            // Run code.py if it exists in /home
+            if (Module.FS.analyzePath('/home/code.py').exists) {
                 if (verbose) {
-                    console.log('[CircuitPython] Running /code.py');
+                    console.log('[CircuitPython] Running /home/code.py');
                 }
-                runFile('/code.py');
+                runFile('/home/code.py');
             } else if (verbose) {
-                console.log('[CircuitPython] No code.py found');
+                console.log('[CircuitPython] No code.py found in /home');
             }
         } catch (error) {
             if (verbose) {
@@ -6317,7 +7008,6 @@ export async function loadCircuitPython(options) {
 
     return {
         _module: Module,
-        virtualClock: virtualClock,
         filesystem: persistentFS,
         PyProxy: PyProxy,
         FS: Module.FS,
@@ -6326,6 +7016,14 @@ export async function loadCircuitPython(options) {
         saveFile: saveFile,
         saveBinaryFile: saveBinaryFile,
         fetchAndSaveFile: fetchAndSaveFile,
+        // CIRCUITPY-CHANGE: Peripheral hook system for layered architecture
+        peripherals: {
+            attach: Module.attachPeripheral.bind(Module),
+            get: Module.getPeripheral.bind(Module),
+            has: Module.hasPeripheral.bind(Module),
+            detach: Module.detachPeripheral.bind(Module),
+            list: Module.listPeripherals.bind(Module),
+        },
         globals: {
             __dict__: pyimport("__main__").__dict__,
             get(key) {
@@ -6364,16 +7062,18 @@ export async function loadCircuitPython(options) {
             Module._free(buf);
             return proxy_convert_mp_to_js_obj_jsside_with_free(value);
         },
-        runPythonAsync(code) {
+        async runPythonAsync(code) {
             const len = Module.lengthBytesUTF8(code);
             const buf = Module._malloc(len + 1);
             Module.stringToUTF8(code, buf, len + 1);
             const value = Module._malloc(3 * 4);
-            Module.ccall(
+            // CIRCUITPY-CHANGE: Mark as async for ASYNCIFY variant
+            await Module.ccall(
                 "mp_js_do_exec_async",
                 "number",
                 ["pointer", "number", "pointer"],
                 [buf, len, value],
+                { async: true }
             );
             Module._free(buf);
             const ret = proxy_convert_mp_to_js_obj_jsside_with_free(value);
@@ -6480,10 +7180,98 @@ export async function loadCircuitPython(options) {
         _virtual_analog_get_output_value: Module._virtual_analog_get_output_value,
         _virtual_analog_is_enabled: Module._virtual_analog_is_enabled,
         _virtual_analog_is_output: Module._virtual_analog_is_output,
+        // CIRCUITPY-CHANGE: Code analysis functions for cooperative yielding supervisor
+        _analyze_code_structure: Module._analyze_code_structure,
+        _is_valid_python_syntax: Module._is_valid_python_syntax,
+        _extract_loop_body: Module._extract_loop_body,
+        // High-level JavaScript-friendly wrappers for code analysis
+        analyzeCode(code) {
+            const len = Module.lengthBytesUTF8(code);
+            const codePtr = Module._malloc(len + 1);
+            Module.stringToUTF8(code, codePtr, len + 1);
+
+            const resultPtr = Module._analyze_code_structure(codePtr, len);
+            Module._free(codePtr);
+
+            if (!resultPtr) {
+                return null;
+            }
+
+            // Read code_structure_t from memory
+            // Note: resultPtr points to a static struct in C, not heap-allocated, so don't free it
+
+            // Memory layout (32-bit WASM):
+            // loop_info_t loops[16] - 16 loops * 16 bytes each = 256 bytes (offset 0)
+            //   Each loop_info_t: loop_type(4), line(4), column(4), needs_instrumentation(1), padding(3)
+            // int loop_count - 4 bytes (offset 256)
+            // Legacy fields:
+            //   bool has_while_true_loop - 1 byte (offset 260)
+            //   padding - 3 bytes
+            //   size_t while_true_line - 4 bytes (offset 264)
+            //   size_t while_true_column - 4 bytes (offset 268)
+            //   bool has_async_def - 1 byte (offset 272)
+            //   bool has_await - 1 byte (offset 273)
+            //   bool has_asyncio_run - 1 byte (offset 274)
+            //   padding - 1 byte
+            //   int token_count - 4 bytes (offset 276)
+
+            const loopCount = Module.HEAP32[(resultPtr + 256) / 4];
+            const loops = [];
+
+            // Loop type enum values (must match C enum)
+            const LoopType = {
+                WHILE_TRUE: 0,
+                WHILE_NUMERIC: 1,
+                WHILE_GENERAL: 2,
+                FOR_GENERAL: 3,
+                FOR_RANGE: 4
+            };
+
+            // Read each loop from the loops array
+            for (let i = 0; i < loopCount && i < 16; i++) {
+                const loopOffset = resultPtr + (i * 16);  // Each loop_info_t is 16 bytes
+                loops.push({
+                    loopType: Module.HEAP32[loopOffset / 4],           // loop_type (enum as int)
+                    line: Module.HEAPU32[(loopOffset + 4) / 4],        // line
+                    column: Module.HEAPU32[(loopOffset + 8) / 4],      // column
+                    needsInstrumentation: !!Module.HEAPU8[loopOffset + 12]  // needs_instrumentation
+                });
+            }
+
+            const result = {
+                loops,
+                loopCount,
+                LoopType,  // Export enum for users of this API
+                // Legacy fields for backward compatibility
+                hasWhileTrueLoop: !!Module.HEAPU8[resultPtr + 260],
+                whileTrueLine: Module.HEAPU32[(resultPtr + 264) / 4],
+                whileTrueColumn: Module.HEAPU32[(resultPtr + 268) / 4],
+                hasAsyncDef: !!Module.HEAPU8[resultPtr + 272],
+                hasAwait: !!Module.HEAPU8[resultPtr + 273],
+                hasAsyncioRun: !!Module.HEAPU8[resultPtr + 274],
+                tokenCount: Module.HEAP32[(resultPtr + 276) / 4]
+            };
+
+            return result;
+        },
+        isValidPythonSyntax(code) {
+            const len = Module.lengthBytesUTF8(code);
+            const codePtr = Module._malloc(len + 1);
+            Module.stringToUTF8(code, codePtr, len + 1);
+
+            const result = Module._is_valid_python_syntax(codePtr, len);
+            Module._free(codePtr);
+
+            return !!result;
+        },
     };
 }
 
 globalThis.loadCircuitPython = loadCircuitPython;
+
+// Export worker-based loader for browser environments
+// This runs CircuitPython in a Web Worker to prevent blocking the main thread
+export { loadCircuitPythonWorker } from './circuitpython-worker-proxy.js';
 
 async function runCLI() {
     const fs = await import("fs");
@@ -6535,6 +7323,7 @@ async function runCLI() {
             for (let i = 0; i < text.length; i++) {
                 const charCode = text.charCodeAt(i);
                 if (charCode === 0x04) {  // Ctrl+D
+                    process.stdout.write('\r\n');  // Write newline before exit
                     process.exit();
                 }
                 // Pass each character to the REPL

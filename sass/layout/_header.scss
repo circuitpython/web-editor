@@ -134,10 +134,20 @@
     font-size: 20px;
     line-height: 59px;
     margin-left: 10px;
-    display: inline;
-    flex: auto;
+    display: inline-block;
+    flex: 0 1 auto;  // Don't grow, can shrink, auto basis
+    max-width: 300px;  // Hard limit on width
+    min-width: 50px;   // Minimum width
     overflow: hidden;
     text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+// Ensure Save + Run button stays visible
+.btn-save-run {
+    flex-shrink: 0;  // Never shrink
+    flex-grow: 0;    // Never grow
+    margin-left: auto;  // Push to the right
 }
 
 @media (max-width: $screen-xs-max) {

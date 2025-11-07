@@ -148,11 +148,28 @@ btnClear.addEventListener('click', async function(e) {
 
 // Plotter Button
 btnPlotter.addEventListener('click', async function(e){
+    // Hide hardware panel if visible (mutually exclusive)
+    const hardwarePanel = document.getElementById('hardware-panel');
+    if (hardwarePanel && !hardwarePanel.classList.contains('hidden')) {
+        hardwarePanel.classList.add('hidden');
+        const hardwareBtn = document.getElementById('btn-hardware');
+        if (hardwareBtn) {
+            hardwareBtn.classList.remove('active');
+        }
+    }
+
     serialPlotter.classList.toggle("hidden");
     if (workflow && !workflow.plotterEnabled){
         await setupPlotterChart(workflow);
         workflow.plotterEnabled = true;
     }
+
+    // Resize terminal to account for plotter height
+    import('./layout.js').then(module => {
+        if (module.refitTerminal) {
+            module.refitTerminal();
+        }
+    });
 });
 
 btnInfo.addEventListener('click', async function(e) {
