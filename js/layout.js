@@ -139,7 +139,6 @@ function refitTerminal() {
                 if (xterm_screen) {
                     let cols = Math.floor(terminalWidth / TERMINAL_COL_WIDTH);
                     let rows = Math.floor(terminalHeight / TERMINAL_ROW_HEIGHT);
-                    console.log(rows, cols, terminalHeight, terminalWidth, TERMINAL_ROW_HEIGHT, TERMINAL_COL_WIDTH);
                     if (cols < MINIMUM_COLS) {
                         cols = MINIMUM_COLS;
                     }

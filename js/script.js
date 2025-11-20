@@ -33,6 +33,7 @@ let unchanged = 0;
 let connectionPromise = null;
 
 const btnRestart = document.querySelector('.btn-restart');
+const btnHalt = document.querySelector('.btn-halt');
 const btnPlotter = document.querySelector('.btn-plotter');
 const btnClear = document.querySelector('.btn-clear');
 const btnConnect = document.querySelectorAll('.btn-connect');
@@ -127,6 +128,14 @@ btnRestart.addEventListener('click', async function(e) {
     if (await checkConnected()) {
         // Perform a device soft restart
         await workflow.restartDevice();
+    }
+});
+
+// Halt Button
+btnHalt.addEventListener('click', async function(e) {
+    if (await checkConnected()) {
+        // Perform a device soft halt
+        await workflow.haltScript();
     }
 });
 

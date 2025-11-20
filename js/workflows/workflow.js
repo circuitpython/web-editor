@@ -91,7 +91,11 @@ class Workflow {
     }
 
     async restartDevice() {
-        this.repl.softRestart();
+        await this.repl.softRestart();
+    }
+
+    async haltScript() {
+        await this.repl.interruptCode();
     }
 
     makeDocState(document, docChangePos) {

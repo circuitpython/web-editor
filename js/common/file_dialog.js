@@ -291,8 +291,9 @@ class FileDialog extends GenericModal {
         } else if (clickedItem.getAttribute("data-type") != "folder") {
             this._getElement('fileNameField').value = clickedItem.querySelector("span").innerHTML;
         }
-
-        this._lastSelectedNode = clickedItem;
+        if (this._lastSelectedNode == null || !modifierKeys.includes(MODIFIER_SHIFT)) {
+            this._lastSelectedNode = clickedItem;
+        }
         this._setElementEnabled('okButton', !this._multipleItemsSelected() && clickedItem.getAttribute("data-type") != "bin");
         this._updateToolbar();
     }
