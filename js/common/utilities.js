@@ -53,7 +53,7 @@ function isIp() {
 
 // Check if the current url is a Web Workflow, IP, or Test Address and current path is /code/
 function isLocal() {
-    return (isMdns() || location.hostname == "localhost" || isIp()) && (location.pathname == "/code/");
+    return location.hostname == "localhost" || ((isMdns() || isIp()) && location.pathname == "/code/");
 }
 
 // Test to see if browser is running on Microsoft Windows OS
@@ -67,7 +67,7 @@ function isMicrosoftWindows() {
     return false;
 }
 
-// Test to see if browser is running on Microsoft Windows OS
+// Test to see if browser is running on Chrome OS
 function isChromeOs() {
     if (navigator.userAgent.includes("CrOS")) {
         return true;
