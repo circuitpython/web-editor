@@ -1,7 +1,8 @@
 import {REPL} from '@adafruit/circuitpython-repl-js';
+//import {REPL} from '../../../circuitpython-repl-js/repl.js';
 
 import {FileHelper} from '../common/file.js';
-import {UnsavedDialog} from '../common/dialogs.js';
+import {ButtonValueDialog, UnsavedDialog} from '../common/dialogs.js';
 import {FileDialog, FILE_DIALOG_OPEN, FILE_DIALOG_SAVE} from '../common/file_dialog.js';
 import {CONNTYPE, CONNSTATE} from '../constants.js';
 import {plotValues} from '../common/plotter.js'
@@ -42,6 +43,7 @@ class Workflow {
         this.disconnectCallback = null;
         this.loadEditor = null;
         this.connectDialog = null;
+        this._okCancelDialog = new ButtonValueDialog("ok-cancel");
         this._connected = false;
         this.currentFilename = null;
         this.fileHelper = null;
@@ -91,7 +93,25 @@ class Workflow {
     }
 
     async restartDevice() {
+        if (await this.safeMode()) {
+            let result = await this._okCancelDialog.open("Device is currently in safe mode. Reboot device?");
+            if (result === "ok") {
+                console.log("Rebooting device from safe mode");
+                await this.rebootDevice();
+            }
+        }
         await this.repl.softRestart();
+    }
+
+    async rebootDevice() {
+        let code = `
+try:
+    import microcontroller
+    microcontroller.reset()
+except ImportError:
+    pass
+`;
+        await this.showBusy(this.repl.runCode(code));
     }
 
     async haltScript() {
@@ -309,6 +329,20 @@ class Workflow {
             return await this.fileHelper.readOnly();
         }
         return false;
+    }
+
+    async safeMode() {
+        let code = `
+try:
+    import supervisor
+    print(supervisor.runtime.safe_mode_reason is not supervisor.SafeModeReason.NONE)
+except ImportError:
+    print(False)
+`;
+        let result = await this.showBusy(this.repl.runCode(code));
+        let isSafeMode = result.match("True") != null;
+
+        return isSafeMode;
     }
 
     async parseParams() {

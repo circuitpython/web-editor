@@ -229,6 +229,7 @@ async function checkConnected() {
             await workflow.showInfo(getDocState());
         }
     }
+
     return true;
 }
 
@@ -491,7 +492,7 @@ async function saveFileContents(path) {
         if (currentTimeout != null) {
             clearTimeout(currentTimeout);
         }
-        currentTimeout = setTimeout(saveFileContents, 2000);
+        currentTimeout = setTimeout(await saveFileContents(path), 2000);
     }
 }
 
@@ -621,7 +622,6 @@ document.addEventListener('DOMContentLoaded', async (event) => {
             }
         }
     } else {
-        //await showMessage("USB Workflow is currently experiencing issues. See <a href=\"https://github.com/circuitpython/web-editor/issues/203\">GitHub issue #203</a> for more details. Please use Web Workflow.");
         await checkConnected();
     }
 });
