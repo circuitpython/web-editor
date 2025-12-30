@@ -1,4 +1,4 @@
-import {GenericModal, ProgressDialog, ButtonValueDialog} from './dialogs.js';
+import {GenericModal, ProgressDialog, ButtonValueDialog, InputModal} from './dialogs.js';
 import {readUploadedFileAsArrayBuffer} from './utilities.js';
 import {saveAs} from 'file-saver';
 import JSZip from 'jszip';
@@ -319,6 +319,11 @@ class FileDialog extends GenericModal {
             }
         }
         return selectedItems > 1;
+    }
+
+    async _prompt(message, defaultValue="") {
+        const inputModal = new InputModal("input");
+        return await inputModal.open(message, defaultValue);
     }
 
     _updateToolbar() {
@@ -653,7 +658,8 @@ class FileDialog extends GenericModal {
             return;
         }
         oldName = oldName[0];
-        let newName = prompt("Enter a new folder name", oldName);
+        let newName = await this._prompt("Enter a new name", oldName);
+
         // If cancelled, do nothing
         if (!newName) {
             return;
@@ -688,7 +694,7 @@ class FileDialog extends GenericModal {
     async _handleNewFolderButton() {
         if (this._readOnlyMode) return;
         // prompt for new folder name
-        let folderName = prompt("Enter a new folder name");
+        let folderName = await this._prompt("Enter a new folder name");
         // If cancelled, do nothing
         if (!folderName) {
             return;
