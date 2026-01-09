@@ -52,10 +52,6 @@
             display: flex;
         }
     }
-
-    &.unsaved .file-path {
-        color: #f60;
-    }
 }
 
 #editor-bar, #serial-bar {
@@ -73,14 +69,12 @@
 #editor-page {
     #editor {
         flex: 1 1 0%;
-        background: #333;
     }
 }
 
 #serial-page {
     #plotter {
         flex: 2 1 0;
-        background: #777;
         position: relative;
         width: 99%;
         overflow: hidden;
@@ -92,7 +86,6 @@
     }
     #terminal {
         flex: 1 1 0%;
-        background: #333;
         position: relative;
         width: 100%;
         overflow: hidden;
@@ -103,18 +96,7 @@
             cursor: default;
             position: absolute;
             inset: 0;
-            scrollbar-color: var(--highlight) var(--dark);
-            scrollbar-width: thin;
             width: initial !important;
-
-            &::-webkit-scrollbar {
-                background-color: var(--dark);
-                width: 5px;
-            }
-
-            &::-webkit-scrollbar-thumb {
-                background: var(--highlight);
-            }
         }
     }
     #buffer-size{
@@ -167,6 +149,26 @@
         a {
             color: #0062c7;
             text-decoration: underline;
+        }
+    }
+
+    &.settings-dialog {
+        #settings-content {
+            padding-top: 10px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-width: 300px;
+            label {
+                i {
+                    margin-right: 3px;
+                }
+                margin-right: 20px;
+                white-space: nowrap;
+            }
+            input, select {
+                width: 100%;
+            }
         }
     }
 }

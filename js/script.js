@@ -1,7 +1,7 @@
 import { basicSetup } from "codemirror";
 import { EditorView, keymap } from "@codemirror/view";
 import { EditorState } from "@codemirror/state";
-import {indentWithTab} from "@codemirror/commands"
+import { indentWithTab } from "@codemirror/commands"
 import { python } from "@codemirror/lang-python";
 import { syntaxHighlighting, indentUnit } from "@codemirror/language";
 import { classHighlighter } from "@lezer/highlight";
@@ -17,9 +17,10 @@ import { WebWorkflow } from './workflows/web.js';
 import { isValidBackend, getBackendWorkflow, getWorkflowBackendName } from './workflows/workflow.js';
 import { ButtonValueDialog, MessageModal } from './common/dialogs.js';
 import { isLocal, switchUrl, getUrlParam } from './common/utilities.js';
+import { Settings } from './common/settings.js';
 import { CONNTYPE } from './constants.js';
 import './layout.js'; // load for side effects only
-import {setupPlotterChart} from "./common/plotter.js";
+import { setupPlotterChart } from "./common/plotter.js";
 import { mainContent, showSerial } from './layout.js';
 
 // Instantiate workflows
@@ -31,6 +32,7 @@ workflows[CONNTYPE.Web] = new WebWorkflow();
 let workflow = null;
 let unchanged = 0;
 let connectionPromise = null;
+let debugMessageAnsi = null;
 
 const btnRestart = document.querySelector('.btn-restart');
 const btnHalt = document.querySelector('.btn-halt');
@@ -43,13 +45,15 @@ const btnSave = document.querySelectorAll('.btn-save');
 const btnSaveAs = document.querySelectorAll('.btn-save-as');
 const btnSaveRun = document.querySelectorAll('.btn-save-run');
 const btnInfo = document.querySelector('.btn-info');
+const btnSettings = document.querySelector('.btn-settings');
 const terminalTitle = document.getElementById('terminal-title');
 const serialPlotter = document.getElementById('plotter');
 
 const messageDialog = new MessageModal("message");
 const connectionType = new ButtonValueDialog("connection-type");
+const settings = new Settings();
 
-const editorTheme = EditorView.theme({}, {dark: true});
+const editorTheme = EditorView.theme({}, {dark: getCssVar('editor-theme-dark').trim() === '1'});
 
 document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('mobile-menu-button').addEventListener('click', handleMobileToggle);
@@ -165,6 +169,12 @@ btnPlotter.addEventListener('click', async function(e){
 btnInfo.addEventListener('click', async function(e) {
     if (await checkConnected()) {
         await workflow.showInfo(getDocState());
+    }
+});
+
+btnSettings.addEventListener('click', async function(e) {
+    if (await settings.showDialog()) {
+        applySettings();
     }
 });
 
@@ -420,8 +430,12 @@ async function showMessage(message) {
 }
 
 async function debugLog(msg) {
+    if (debugMessageAnsi === null) {
+        const colorCode = getCssVar('debug-message-color').trim();
+        debugMessageAnsi = `\x1b[38;2;${parseInt(colorCode.slice(1,3),16)};${parseInt(colorCode.slice(3,5),16)};${parseInt(colorCode.slice(5,7),16)}m`;
+    }
     state.terminal.writeln(''); // get a fresh line without any prior content (a '>>>' prompt might be there without newline)
-    state.terminal.writeln(`\x1b[93m${msg}\x1b[0m`);
+    state.terminal.writeln(`${debugMessageAnsi}${msg}\x1b[0m`);
 }
 
 function updateUIConnected(isConnected) {
@@ -547,12 +561,16 @@ editor = new EditorView({
     parent: document.querySelector('#editor')
 });
 
+function getCssVar(varName) {
+    return window.getComputedStyle(document.body).getPropertyValue("--" + varName);
+}
+
 async function setupXterm() {
     state.terminal = new Terminal({
         theme: {
-            background: '#333',
-            foreground: '#ddd',
-            cursor: '#ddd',
+            background: getCssVar('background-color'),
+            foreground: getCssVar('terminal-text-color'),
+            cursor: getCssVar('terminal-text-color'),
         }
     });
 
@@ -585,8 +603,40 @@ function loadParameterizedContent() {
     return documentState;
 }
 
+function applySettings() {
+    // ----- Themes -----
+    const theme = settings.getSetting('theme');
+    // Remove all theme-[option] classes from body
+    document.body.classList.forEach((className) => {
+        if (className.startsWith('theme-')) {
+            document.body.classList.remove(className);
+        }
+    });
+
+    // Add the selected theme class
+    document.body.classList.add(`theme-${theme}`);
+
+    // Apply to EditorView.theme dark parameter
+    editor.darkTheme = getCssVar('editor-theme-dark').trim() === '1';
+
+    // Apply to xterm
+    state.terminal.options.theme = {
+        background: getCssVar('background-color'),
+        foreground: getCssVar('terminal-text-color'),
+        cursor: getCssVar('terminal-text-color'),
+    };
+
+    debugMessageAnsi = null;
+
+    // Note: Debug Message color is applied on next debug message or reload
+    // I'm not sure how to go through the xterm's existing content and change escape sequences
+    // Changing the CSS style reverts to the old style on terminal update/redraw
+
+}
+
 document.addEventListener('DOMContentLoaded', async (event) => {
     await setupXterm();
+    applySettings();
     btnConnect.forEach((element) => {
         element.addEventListener('click', async function(e) {
             e.preventDefault();
