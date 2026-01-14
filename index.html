@@ -120,6 +120,7 @@
             <button id="btn-mode-editor" class="mode-button active">Editor</button>
             <button id="btn-mode-serial" class="mode-button">Serial</button>
             <div class="spacer"></div>
+            <button class="purple-button btn-settings">Settings<i class="fa-solid fa-gear"></i></button>
             <button class="purple-button btn-info" disabled>Info<i class="fa-solid fa-info-circle"></i></button>
         </div>
     </div>
@@ -150,6 +151,14 @@
         <div class="buttons">
             <input type="text" id="filename" />
             <button class="purple-button ok-button">Ok</button>
+            <button class="purple-button cancel-button">Cancel</button>
+        </div>
+    </div>
+    <div class="popup-modal shadow settings-dialog closable" data-popup-modal="settings">
+        <i class="fa-solid fa-2x fa-xmark text-white bg-primary p-3 popup-modal__close"></i>
+        <div id="settings-content"></div>
+        <div class="buttons centered">
+            <button class="purple-button ok-button">Save</button>
             <button class="purple-button cancel-button">Cancel</button>
         </div>
     </div>

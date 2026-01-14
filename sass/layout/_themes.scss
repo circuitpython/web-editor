@@ -1,0 +1,177 @@
+@use "../base/variables" as *;
+
+// Dark Theme (default)
+:root {
+    --editor-theme-dark: 1; // General dark theme flag
+    --background-color: #333;
+    --plotter-background: #777;
+    --border-style: none;
+    --terminal-text-color: #ddd;
+    --puctuation-color: #fff;
+    --operator-color: #f3f3f3;
+    --gutter-color: #292a2b;
+    --gutter-active-line-color: #222227;
+    --gutter-text-color: #ddd;
+    --debug-message-color: #fce94f;
+    --unsaved-file-color: #f60;
+}
+
+// Light Theme
+.theme-light {
+    --editor-theme-dark: 0; // General dark theme flag
+    --background-color: #f8f8f8;
+    --plotter-background: #ccc;
+    --border-style: 1px solid #{$gray-border};
+    --terminal-text-color: #333;
+    --puctuation-color: #000;
+    --gutter-color: #ddd;
+    --gutter-active-line-color: #ccc;
+    --gutter-text-color: #222;
+    --debug-message-color: #FF9900;
+}
+
+// Styles applied to both themes
+
+#main-content {
+    &.unsaved .file-path {
+        color: var(--unsaved-file-color);
+    }
+}
+
+#footer-bar {
+    border-top: var(--border-style);
+}
+
+#editor-bar, #serial-bar {
+    border-bottom: var(--border-style);
+}
+
+#editor-page {
+    #editor {
+        background: var(--background-color);
+    }
+}
+
+#serial-page {
+    #plotter {
+        background: var(--plotter-background);
+    }
+    #terminal {
+        background: var(--background-color);
+        .xterm .xterm-viewport {
+            scrollbar-color: var(--highlight) var(--dark);
+            scrollbar-width: thin;
+
+            &::-webkit-scrollbar {
+                background-color: var(--dark);
+                width: 5px;
+            }
+
+            &::-webkit-scrollbar-thumb {
+                background: var(--highlight);
+            }
+        }
+    }
+}
+
+.cm-editor {
+    color: #ddd;
+    background-color: var(--background-color);
+    line-height: 1.5;
+    font-family: 'Operator Mono', 'Source Code Pro', Menlo, Monaco, Consolas, Courier New, monospace;
+    max-height: calc(100vh - 2*4em - 5em);
+
+    .cm-content {
+        caret-color: orange;
+    }
+
+    .cm-comment {
+        font-style: italic;
+        color: #676B79;
+    }
+
+    .cm-operator {
+        color: var(--operator-color);
+    }
+
+    .cm-string {
+        color: #19F9D8;
+    }
+
+    .cm-string-2 {
+        color: #FFB86C;
+    }
+
+    .cm-tag {
+        color: #ff2c6d;
+    }
+
+    .cm-meta {
+        color: #b084eb;
+    }
+
+    &.cm-focused .cm-cursor {
+        border-left-color: orange;
+    }
+
+    &.cm-focused .cm-selectionBackground,
+    ::selection {
+        background-color: orange;
+    }
+
+    &.ͼ3.cm-focused .cm-scroller .cm-selectionLayer .cm-selectionBackground {
+        background-color: #99eeff33;
+    }
+
+    .cm-gutters {
+        background-color: var(--gutter-color);
+        color: var(--gutter-text-color);
+        border: none;
+    }
+
+    .cm-activeLineGutter {
+        background-color: var(--gutter-active-line-color);
+    }
+
+    .cm-scroller {
+        overflow: auto;
+    }
+
+    /* Highlight Tags */
+    .tok-comment {
+        color: #7F848E;
+    }
+
+    .tok-variableName {
+        color: #61AFEF;
+    }
+
+    .tok-operator {
+        color: #56B6C2;
+    }
+
+    .tok-string {
+        color: #98C379;
+    }
+
+    .tok-punctuation {
+        color: var(--puctuation-color);
+    }
+
+    .tok-number {
+        color: #E5C07B,
+    }
+
+    .tok-keyword {
+        color: #C678DD,
+    }
+
+    .tok-propertyName {
+        color: #D19A66;
+    }
+
+    .tok-atom,
+    .tok-bool {
+        color: #E06C75;
+    }
+}
