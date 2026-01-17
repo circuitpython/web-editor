@@ -26,12 +26,52 @@ function isSerialVisible() {
     return serialPage.classList.contains('active');
 }
 
+function setupPanelFocusHandlers() {
+    console.log("Setting up panel focus handlers");
+    serialPage.removeEventListener('click', handleActivePanel);
+    serialPage.addEventListener('click', handleActivePanel);
+    editorPage.removeEventListener('click', handleActivePanel);
+    editorPage.addEventListener('click', handleActivePanel);
+}
+
+function handleActivePanel(event) {
+    const panel = event.currentTarget;
+    setActivePanel(panel);
+}
+
+function setActivePanel(panel) {
+    if (panel === serialPage && isSerialVisible()) {
+        // Serial panel requested and visible
+        serialPage.classList.add('focused-panel');
+        editorPage.classList.remove('focused-panel');
+        console.log("Serial panel focused");
+    } else if (panel === editorPage && isEditorVisible()) {
+        // Editor panel requested and visible
+        editorPage.classList.add('focused-panel');
+        serialPage.classList.remove('focused-panel');
+        console.log("Editor panel focused");
+    } else {
+        // Requested panel is not visible, set other panel as focused
+        if (isEditorVisible()) {
+            editorPage.classList.add('focused-panel');
+            serialPage.classList.remove('focused-panel');
+            console.log("Editor panel focused (default)");
+        } else {
+            serialPage.classList.add('focused-panel');
+            editorPage.classList.remove('focused-panel');
+            console.log("Serial panel focused (default)");
+        }
+    }
+}
+
 async function toggleEditor() {
     if (isSerialVisible()) {
         editorPage.classList.toggle('active');
         saveSetting(SETTING_EDITOR_VISIBLE, isEditorVisible());
         updatePageLayout(UPDATE_TYPE_EDITOR);
     }
+    setupPanelFocusHandlers();
+    setActivePanel(editorPage);
 }
 
 async function toggleSerial() {
@@ -40,6 +80,8 @@ async function toggleSerial() {
         saveSetting(SETTING_TERMINAL_VISIBLE, isSerialVisible());
         updatePageLayout(UPDATE_TYPE_SERIAL);
     }
+    setupPanelFocusHandlers();
+    setActivePanel(serialPage);
 }
 
 btnModeEditor.removeEventListener('click', toggleEditor);
@@ -230,3 +272,5 @@ pageSeparator.addEventListener('mousedown', async function (e) {
 fixViewportHeight();
 window.addEventListener("resize", fixViewportHeight);
 loadPanelSettings();
+setupPanelFocusHandlers();
+setActivePanel(editorPage);
