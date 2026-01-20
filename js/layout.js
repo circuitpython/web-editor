@@ -27,10 +27,12 @@ function isSerialVisible() {
 }
 
 function setupPanelFocusHandlers() {
-    console.log("Setting up panel focus handlers");
+    // Removing existing handlers to avoid duplicates
     serialPage.removeEventListener('click', handleActivePanel);
-    serialPage.addEventListener('click', handleActivePanel);
     editorPage.removeEventListener('click', handleActivePanel);
+
+    // Adding new handlers
+    serialPage.addEventListener('click', handleActivePanel);
     editorPage.addEventListener('click', handleActivePanel);
 }
 
@@ -40,26 +42,21 @@ function handleActivePanel(event) {
 }
 
 function setActivePanel(panel) {
+    editorPage.classList.remove('focused-panel');
+    serialPage.classList.remove('focused-panel');
+
     if (panel === serialPage && isSerialVisible()) {
         // Serial panel requested and visible
         serialPage.classList.add('focused-panel');
-        editorPage.classList.remove('focused-panel');
-        console.log("Serial panel focused");
     } else if (panel === editorPage && isEditorVisible()) {
         // Editor panel requested and visible
         editorPage.classList.add('focused-panel');
-        serialPage.classList.remove('focused-panel');
-        console.log("Editor panel focused");
     } else {
         // Requested panel is not visible, set other panel as focused
         if (isEditorVisible()) {
             editorPage.classList.add('focused-panel');
-            serialPage.classList.remove('focused-panel');
-            console.log("Editor panel focused (default)");
         } else {
             serialPage.classList.add('focused-panel');
-            editorPage.classList.remove('focused-panel');
-            console.log("Serial panel focused (default)");
         }
     }
 }
