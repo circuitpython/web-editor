@@ -26,12 +26,49 @@ function isSerialVisible() {
     return serialPage.classList.contains('active');
 }
 
+function setupPanelFocusHandlers() {
+    // Removing existing handlers to avoid duplicates
+    serialPage.removeEventListener('click', handleActivePanel);
+    editorPage.removeEventListener('click', handleActivePanel);
+
+    // Adding new handlers
+    serialPage.addEventListener('click', handleActivePanel);
+    editorPage.addEventListener('click', handleActivePanel);
+}
+
+function handleActivePanel(event) {
+    const panel = event.currentTarget;
+    setActivePanel(panel);
+}
+
+function setActivePanel(panel) {
+    editorPage.classList.remove('focused-panel');
+    serialPage.classList.remove('focused-panel');
+
+    if (panel === serialPage && isSerialVisible()) {
+        // Serial panel requested and visible
+        serialPage.classList.add('focused-panel');
+    } else if (panel === editorPage && isEditorVisible()) {
+        // Editor panel requested and visible
+        editorPage.classList.add('focused-panel');
+    } else {
+        // Requested panel is not visible, set other panel as focused
+        if (isEditorVisible()) {
+            editorPage.classList.add('focused-panel');
+        } else {
+            serialPage.classList.add('focused-panel');
+        }
+    }
+}
+
 async function toggleEditor() {
     if (isSerialVisible()) {
         editorPage.classList.toggle('active');
         saveSetting(SETTING_EDITOR_VISIBLE, isEditorVisible());
         updatePageLayout(UPDATE_TYPE_EDITOR);
     }
+    setupPanelFocusHandlers();
+    setActivePanel(editorPage);
 }
 
 async function toggleSerial() {
@@ -40,6 +77,8 @@ async function toggleSerial() {
         saveSetting(SETTING_TERMINAL_VISIBLE, isSerialVisible());
         updatePageLayout(UPDATE_TYPE_SERIAL);
     }
+    setupPanelFocusHandlers();
+    setActivePanel(serialPage);
 }
 
 btnModeEditor.removeEventListener('click', toggleEditor);
@@ -230,3 +269,5 @@ pageSeparator.addEventListener('mousedown', async function (e) {
 fixViewportHeight();
 window.addEventListener("resize", fixViewportHeight);
 loadPanelSettings();
+setupPanelFocusHandlers();
+setActivePanel(editorPage);
