@@ -150,19 +150,23 @@ class Workflow {
     }
 
     async showBusy(functionPromise, darkBackground = true) {
-        if (this.loader) {
-            if (darkBackground) {
-                this.loader.classList.add("overlay");
-            } else {
-                this.loader.classList.remove("overlay");
+        try {
+            if (this.loader) {
+                if (darkBackground) {
+                    this.loader.classList.add("overlay");
+                } else {
+                    this.loader.classList.remove("overlay");
+                }
+                this.loader.classList.add("busy");
             }
-            this.loader.classList.add("busy");
+            let result = await functionPromise;
+            
+            return result;
+        } finally {
+            if (this.loader) {
+                this.loader.classList.remove("busy");
+            }
         }
-        let result = await functionPromise;
-        if (this.loader) {
-            this.loader.classList.remove("busy");
-        }
-        return result;
     }
 
     async parseParams(urlParams) {
