@@ -7,7 +7,11 @@ class FileTransferClient {
 
     async readOnly() {
         await this._checkConnection();
-        return !this._allowedMethods.includes('DELETE');
+        console.log("Checking read only");
+        const response = await this._fetch("/fs/", {method: "GET", headers: {"Accept": "application/json"}})
+        const result = await response.json();
+        //TODO: Tyeth: cache this value until reconnection, as listdir / connect already fetch it
+        return result.writable === undefined || result.writable === false || !this._allowedMethods.includes("DELETE");
     }
 
     async _checkConnection() {
@@ -15,6 +19,7 @@ class FileTransferClient {
             throw new Error("Unable to perform file operation. Not Connected.");
         }
 
+        //TODO: Tyeth: reset this on reconnection
         if (this._allowedMethods === null) {
             const status = await this._fetch("/fs/", {method: "OPTIONS"});
             this._allowedMethods = status.headers.get("Access-Control-Allow-Methods").split(/,/).map(method => {return method.trim().toUpperCase();});
