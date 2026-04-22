@@ -89,7 +89,7 @@ class FileTransferClient {
         };
 
         if (fetchOptions.method && fetchOptions.method.toUpperCase() != 'OPTIONS') {
-            if (!this._isMethodAllowed(fetchOptions.method)) {
+            if (!await this._isMethodAllowed(fetchOptions.method)) {
                 if (fetchOptions.method.toUpperCase() == "MOVE") {
                     // This should only happen if rename is used and the user doesn't have latest version
                     console.warn("Please upgrade to the latest version of CircuitPython. Allowing MOVE for now.");
@@ -114,7 +114,7 @@ class FileTransferClient {
 
     async _isMethodAllowed(method) {
         if (this._allowedMethods) {
-            return this._allowedMethods.includes(method.toUpperCase);
+            return this._allowedMethods.includes(method.toUpperCase());
         }
 
         return false;
