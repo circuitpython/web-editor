@@ -34,6 +34,10 @@ class BLEWorkflow extends Workflow {
             {reconnect: false, request: true},
             {reconnect: true, request: true},
         ];
+
+        // Store bound event handlers so they can be properly removed
+        this._boundOnDisconnected = this.onDisconnected.bind(this);
+        this._boundOnSerialReceive = this.onSerialReceive.bind(this);
     }
 
     // This is called when a user clicks the main disconnect button
@@ -102,8 +106,8 @@ class BLEWorkflow extends Workflow {
             this.rxCharacteristic = await this.serialService.getCharacteristic(bleNusCharRXUUID);
 
             // Remove any existing event listeners to prevent multiple reads
-            this.txCharacteristic.removeEventListener('characteristicvaluechanged', this.onSerialReceive.bind(this));
-            this.txCharacteristic.addEventListener('characteristicvaluechanged', this.onSerialReceive.bind(this));
+            this.txCharacteristic.removeEventListener('characteristicvaluechanged', this._boundOnSerialReceive);
+            this.txCharacteristic.addEventListener('characteristicvaluechanged', this._boundOnSerialReceive);
             await this.txCharacteristic.startNotifications();
             return true;
         } catch (e) {
@@ -144,7 +148,12 @@ class BLEWorkflow extends Workflow {
     async connectToBluetoothDevice(device) {
         const abortController = new AbortController();
 
-        async function onAdvertisementReceived(event) {
+        // Remove previous advertisement listener if one was stored
+        if (this._boundOnAdvertisementReceived) {
+            device.removeEventListener('advertisementreceived', this._boundOnAdvertisementReceived);
+        }
+
+        this._boundOnAdvertisementReceived = (async function onAdvertisementReceived(event) {
             console.log('> Received advertisement from "' + device.name + '"...');
             // Stop watching advertisements to conserve battery life.
             abortController.abort();
@@ -164,10 +173,9 @@ class BLEWorkflow extends Workflow {
             } else {
                 console.log('Unable to connect to bluetooth device "' +  device.name + '.');
             }
-        }
+        }).bind(this);
 
-        device.removeEventListener('advertisementreceived', onAdvertisementReceived.bind(this));
-        device.addEventListener('advertisementreceived', onAdvertisementReceived.bind(this));
+        device.addEventListener('advertisementreceived', this._boundOnAdvertisementReceived);
 
         this.debugLog("Attempting to connect to " + device.name + "...");
         try {
@@ -199,8 +207,8 @@ class BLEWorkflow extends Workflow {
 
     async switchToDevice(device) {
         this.bleDevice = device;
-        this.bleDevice.removeEventListener("gattserverdisconnected", this.onDisconnected.bind(this));
-        this.bleDevice.addEventListener("gattserverdisconnected", this.onDisconnected.bind(this));
+        this.bleDevice.removeEventListener("gattserverdisconnected", this._boundOnDisconnected);
+        this.bleDevice.addEventListener("gattserverdisconnected", this._boundOnDisconnected);
         console.log("connected", this.bleServer);
 
         try {
@@ -267,7 +275,9 @@ class BLEWorkflow extends Workflow {
 
     updateConnected(connectionState) {
         super.updateConnected(connectionState);
-        this.connectionStep(2);
+        if (this.connectDialog && this.connectDialog.isOpen()) {
+            this.connectionStep(2);
+        }
     }
 
     async available() {
