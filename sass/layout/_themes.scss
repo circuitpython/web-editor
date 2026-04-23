@@ -7,7 +7,7 @@
     --plotter-background: #777;
     --border-style: none;
     --terminal-text-color: #ddd;
-    --puctuation-color: #fff;
+    --punctuation-color: #fff;
     --operator-color: #f3f3f3;
     --gutter-color: #292a2b;
     --gutter-active-line-color: #222227;
@@ -23,7 +23,7 @@
     --plotter-background: #ccc;
     --border-style: 1px solid #{$gray-border};
     --terminal-text-color: #333;
-    --puctuation-color: #000;
+    --punctuation-color: #000;
     --gutter-color: #ddd;
     --gutter-active-line-color: #ccc;
     --gutter-text-color: #222;
@@ -155,7 +155,7 @@
     }
 
     .tok-punctuation {
-        color: var(--puctuation-color);
+        color: var(--punctuation-color);
     }
 
     .tok-number {

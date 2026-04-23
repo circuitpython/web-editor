@@ -512,7 +512,7 @@ async function saveFileContents(path) {
         saveRetryCount++;
         if (saveRetryCount < MAX_SAVE_RETRIES) {
             console.log(`Save retry ${saveRetryCount} of ${MAX_SAVE_RETRIES}...`);
-            currentTimeout = setTimeout(await saveFileContents(path), 2000);
+            currentTimeout = setTimeout(() => saveFileContents(path), 2000);
         } else {
             saveRetryCount = 0;
             await showMessage(`Saving file '${workflow.currentFilename}' failed after multiple attempts. Check your connection and try again.`);
