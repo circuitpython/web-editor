@@ -9,26 +9,26 @@
     "preview": "vite preview"
   },
   "devDependencies": {
-    "sass": "^1.97.3",
-    "vite": "^7.3.1",
-    "vite-plugin-mkcert": "^1.17.9"
+    "sass": "^1.99.0",
+    "vite": "^8.0.9",
+    "vite-plugin-mkcert": "^2.0.0"
   },
   "dependencies": {
     "@adafruit/ble-file-transfer-js": "adafruit/ble-file-transfer-js#1.0.4",
     "@adafruit/circuitpython-repl-js": "adafruit/circuitpython-repl-js#3.2.5",
     "@codemirror/lang-python": "^6.2.1",
-    "@fortawesome/fontawesome-free": "^7.1.0",
+    "@fortawesome/fontawesome-free": "^7.2.0",
     "@xterm/addon-fit": "^0.11.0",
     "@xterm/addon-web-links": "^0.12.0",
     "@xterm/xterm": "^6.0.0",
     "chart.js": "^4.5.1",
     "codemirror": "^6.0.2",
     "file-saver": "^2.0.5",
-    "focus-trap": "^7.8.0",
+    "focus-trap": "^8.0.1",
     "idb-keyval": "^6.2.2",
     "jszip": "^3.10.1"
   },
   "optionalDependencies": {
-    "@rollup/rollup-linux-x64-gnu": "^4.56.0"
+    "@rollup/rollup-linux-x64-gnu": "^4.60.2"
   }
 }

@@ -477,6 +477,8 @@ async function loadEditor() {
 
 var editor;
 var currentTimeout = null;
+var saveRetryCount = 0;
+const MAX_SAVE_RETRIES = 3;
 
 // Save the File Contents and update the UI
 async function saveFileContents(path) {
@@ -497,8 +499,9 @@ async function saveFileContents(path) {
         if (await workflow.writeFile(path, contents, offset)) {
             setFilename(workflow.currentFilename);
             setSaved(true);
+            saveRetryCount = 0;
         } else {
-            await showMessage(`Saving file '${workflow.currentFilename} failed.`);
+            await showMessage(`Saving file '${workflow.currentFilename}' failed.`);
         }
     } catch (e) {
         console.error("write failed", e, e.stack);
@@ -506,7 +509,14 @@ async function saveFileContents(path) {
         if (currentTimeout != null) {
             clearTimeout(currentTimeout);
         }
-        currentTimeout = setTimeout(await saveFileContents(path), 2000);
+        saveRetryCount++;
+        if (saveRetryCount < MAX_SAVE_RETRIES) {
+            console.log(`Save retry ${saveRetryCount} of ${MAX_SAVE_RETRIES}...`);
+            currentTimeout = setTimeout(await saveFileContents(path), 2000);
+        } else {
+            saveRetryCount = 0;
+            await showMessage(`Saving file '${workflow.currentFilename}' failed after multiple attempts. Check your connection and try again.`);
+        }
     }
 }
 
@@ -550,6 +560,11 @@ async function onTextChange(update) {
 }
 
 function disconnectCallback() {
+    if (currentTimeout != null) {
+        clearTimeout(currentTimeout);
+        currentTimeout = null;
+    }
+    saveRetryCount = 0;
     updateUIConnected(false);
 }
 
