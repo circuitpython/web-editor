@@ -90,7 +90,7 @@
                         </ul>
                     </nav>
                 </div>
-                <div id="editor"></div>
+                <div id="editor" tabindex="0"></div>
             </div>
             <div id="page-separator" class=""></div>
             <div id="serial-page" class="">
@@ -113,13 +113,14 @@
                     </select>
                     <canvas id="plotter-canvas"></canvas>
                 </div>
-                <div id="terminal"></div>
+                <div id="terminal" tabindex="1"></div>
             </div>
         </div>
         <div id="footer-bar">
             <button id="btn-mode-editor" class="mode-button active">Editor</button>
             <button id="btn-mode-serial" class="mode-button">Serial</button>
             <div class="spacer"></div>
+            <button class="purple-button btn-settings">Settings<i class="fa-solid fa-gear"></i></button>
             <button class="purple-button btn-info" disabled>Info<i class="fa-solid fa-info-circle"></i></button>
         </div>
     </div>
@@ -150,6 +151,14 @@
         <div class="buttons">
             <input type="text" id="filename" />
             <button class="purple-button ok-button">Ok</button>
+            <button class="purple-button cancel-button">Cancel</button>
+        </div>
+    </div>
+    <div class="popup-modal shadow settings-dialog closable" data-popup-modal="settings">
+        <i class="fa-solid fa-2x fa-xmark text-white bg-primary p-3 popup-modal__close"></i>
+        <div id="settings-content"></div>
+        <div class="buttons centered">
+            <button class="purple-button ok-button">Save</button>
             <button class="purple-button cancel-button">Cancel</button>
         </div>
     </div>
@@ -186,10 +195,25 @@
             <button id="usb-workflow" class="purple-button files-button" value="usb">USB<i class="fa-brands fa-usb"></i></button>
         </div>
     </div>
+    <div class="popup-modal shadow prompt closable" data-popup-modal="ok-cancel">
+        <div id="message"></div>
+        <div class="buttons centered">
+            <button class="purple-button ok-button" value="ok">OK</button>
+            <button class="purple-button cancel-button" value="cancel">Cancel</button>
+        </div>
+    </div>
     <div class="popup-modal shadow prompt closable" data-popup-modal="message">
         <div id="message"></div>
         <div class="buttons centered">
             <button class="purple-button ok-button">Ok</button>
+        </div>
+    </div>
+    <div class="popup-modal shadow prompt" data-popup-modal="input">
+        <div id="message"></div>
+        <input type="text" id="inputvalue" />
+        <div class="buttons centered">
+            <button class="purple-button ok-button">Ok</button>
+            <button class="purple-button cancel-button">Cancel</button>
         </div>
     </div>
     <div class="popup-modal shadow prompt" data-popup-modal="progress" data-tabbable="false">
