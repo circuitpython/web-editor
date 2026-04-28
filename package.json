@@ -14,7 +14,7 @@
     "vite-plugin-mkcert": "^2.0.0"
   },
   "dependencies": {
-    "@adafruit/ble-file-transfer-js": "adafruit/ble-file-transfer-js#1.0.4",
+    "@adafruit/ble-file-transfer-js": "adafruit/ble-file-transfer-js#1.0.5",
     "@adafruit/circuitpython-repl-js": "adafruit/circuitpython-repl-js#3.2.5",
     "@codemirror/lang-python": "^6.2.1",
     "@fortawesome/fontawesome-free": "^7.2.0",
