@@ -9,17 +9,15 @@
 import { ViewPlugin, Decoration } from "@codemirror/view";
 import { syntaxTree } from "@codemirror/language";
 
-// CircuitPython core/built-in modules. These are the names that appear in
-// `import foo` / `from foo import ...` inside CircuitPython code and are
-// the most consistent thing we can match without parsing semantics.
+// Core/built-in CircuitPython modules. These are the identifiers that show
+// up in `import foo` / `from foo import ...` inside CircuitPython code.
 //
-// Keep this list focused on modules that ship with CircuitPython (or are
-// extremely common Adafruit libraries). Anything we add here will be
-// highlighted whenever the identifier appears, so we want low false-positive
-// risk against regular Python code.
-const CIRCUITPYTHON_MODULES = new Set([
-    // Core built-in CircuitPython modules
-    "adafruit_bus_device",
+// Anything in this set is highlighted whenever it appears as a bare
+// identifier, so it should stay focused on names that ship with
+// CircuitPython itself. Third-party Adafruit libraries are matched by
+// the `adafruit_` prefix below instead of being listed individually,
+// which avoids list maintenance every time a new library lands on PyPI.
+const CIRCUITPYTHON_CORE_MODULES = new Set([
     "aesio",
     "alarm",
     "analogbufio",
@@ -112,41 +110,23 @@ const CIRCUITPYTHON_MODULES = new Set([
     "wifi",
     "zlib",
 
-    // Very common Adafruit/CircuitPython community libraries that users see
-    // imported all the time. Underscore-prefixed Adafruit names are already
-    // distinctive enough that false positives are essentially nil.
-    "adafruit_ble",
-    "adafruit_connection_manager",
-    "adafruit_datetime",
-    "adafruit_display_shapes",
-    "adafruit_display_text",
-    "adafruit_displayio_layout",
-    "adafruit_displayio_sh1106",
-    "adafruit_displayio_ssd1306",
-    "adafruit_dotstar",
-    "adafruit_fakerequests",
-    "adafruit_framebuf",
-    "adafruit_hid",
-    "adafruit_httpserver",
-    "adafruit_imageload",
-    "adafruit_io",
-    "adafruit_logging",
-    "adafruit_matrixportal",
-    "adafruit_minimqtt",
-    "adafruit_motor",
-    "adafruit_ntp",
-    "adafruit_pixelbuf",
-    "adafruit_pixelmap",
-    "adafruit_portalbase",
-    "adafruit_register",
-    "adafruit_requests",
-    "adafruit_sdcard",
-    "adafruit_seesaw",
-    "adafruit_simplemath",
-    "adafruit_ticks",
+    // Bare-named community modules without the `adafruit_` prefix that are
+    // common enough to be worth recognising explicitly.
     "neopixel",
     "simpleio",
 ]);
+
+// Returns true when `name` is a CircuitPython module worth highlighting.
+// Wildcard-matches anything starting with `adafruit_` so new libraries
+// (e.g. `adafruit_foo_bar` shipped next month) light up automatically
+// without touching this file.
+function isCircuitPythonModule(name) {
+    if (CIRCUITPYTHON_CORE_MODULES.has(name)) return true;
+    if (name.startsWith("adafruit_") && name.length > "adafruit_".length) {
+        return true;
+    }
+    return false;
+}
 
 const moduleMark = Decoration.mark({ class: "tok-cp-module" });
 
@@ -167,7 +147,7 @@ function buildDecorations(view) {
                 // children — we only mark the root reference.
                 if (node.name !== "VariableName") return;
                 const text = view.state.doc.sliceString(node.from, node.to);
-                if (CIRCUITPYTHON_MODULES.has(text)) {
+                if (isCircuitPythonModule(text)) {
                     builder.push(moduleMark.range(node.from, node.to));
                 }
             },
