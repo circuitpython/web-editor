@@ -176,8 +176,9 @@
     }
 
     // CircuitPython-specific module names (overlay added by
-    // js/common/circuitpython_highlight.js). Distinct from regular
-    // variableName so users can spot CircuitPython modules at a glance.
+    // js/common/circuitpython_highlight.js). The overlay extension is
+    // wrapped with Prec.highest so its decoration nests inside the
+    // classHighlighter span, letting this color win without !important.
     .tok-cp-module {
         color: #FF79C6;
     }

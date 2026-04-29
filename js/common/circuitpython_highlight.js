@@ -8,6 +8,7 @@
 
 import { ViewPlugin, Decoration } from "@codemirror/view";
 import { syntaxTree } from "@codemirror/language";
+import { Prec } from "@codemirror/state";
 
 // Core/built-in CircuitPython modules. These are the identifiers that show
 // up in `import foo` / `from foo import ...` inside CircuitPython code.
@@ -191,7 +192,7 @@ function buildDecorations(view) {
 }
 
 // ViewPlugin keeps decorations in sync with viewport / document changes.
-export const circuitpythonHighlight = ViewPlugin.fromClass(
+const circuitpythonHighlightPlugin = ViewPlugin.fromClass(
     class {
         constructor(view) {
             this.decorations = buildDecorations(view);
@@ -210,3 +211,11 @@ export const circuitpythonHighlight = ViewPlugin.fromClass(
         decorations: (v) => v.decorations,
     },
 );
+
+// Wrap the plugin with Prec.highest so its decoration nests inside the
+// classHighlighter span. CodeMirror renders overlapping mark decorations
+// as nested spans where higher-precedence decorations end up closer to
+// the text. The inner span’s `color` is what the user sees, so making
+// `tok-cp-module` the inner class is what lets our pink override the
+// underlying `tok-variableName` blue without resorting to !important.
+export const circuitpythonHighlight = Prec.highest(circuitpythonHighlightPlugin);
