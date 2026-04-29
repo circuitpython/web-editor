@@ -8,17 +8,30 @@ class FileTransferClient extends BLEFileTransferClient {
     }
 
     async readOnly() {
-        let readonly = false;
-        return false;
-        // Check if the device is read only
-        console.log("Checking if device is read only");
-        // Attempt to write a 0-byte temp file and remove it
+        // Probe whether the BLE filesystem accepts writes.
+        //
+        // We can't rely on a specific firmware status code: older CircuitPython
+        // returned STATUS_ERROR_READONLY (0x05), but recent versions collapse that
+        // into STATUS_ERROR (0x02) on some code paths (see issue #376 and
+        // adafruit/circuitpython#10972). Instead, attempt to create and delete a
+        // hidden zero-byte file at the root and treat any failure as read-only.
         const testPath = '/._ble_readonly_check';
+        let readonly = false;
+        let wrote = false;
         try {
             await this.writeFile(testPath, 0, new Uint8Array(0));
-            await this.deleteFile(testPath);
+            wrote = true;
         } catch (e) {
             readonly = true;
+        }
+        if (wrote) {
+            // Best-effort cleanup; if the delete fails we still consider the FS
+            // writable since the write succeeded.
+            try {
+                await this.deleteFile(testPath);
+            } catch (e) {
+                console.warn("Failed to clean up read-only probe file:", e);
+            }
         }
         return readonly;
     }
