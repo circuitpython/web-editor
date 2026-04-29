@@ -117,12 +117,20 @@ const CIRCUITPYTHON_CORE_MODULES = new Set([
 ]);
 
 // Returns true when `name` is a CircuitPython module worth highlighting.
-// Wildcard-matches anything starting with `adafruit_` so new libraries
-// (e.g. `adafruit_foo_bar` shipped next month) light up automatically
-// without touching this file.
+// Wildcard-matches anything starting with `adafruit_` (Adafruit-maintained
+// libraries) or `circuitpython_` (community bundle libraries) so new
+// libraries light up automatically without touching this file. Both
+// prefixes are distinctive enough that false positives against ordinary
+// Python code are essentially nil.
 function isCircuitPythonModule(name) {
     if (CIRCUITPYTHON_CORE_MODULES.has(name)) return true;
     if (name.startsWith("adafruit_") && name.length > "adafruit_".length) {
+        return true;
+    }
+    if (
+        name.startsWith("circuitpython_") &&
+        name.length > "circuitpython_".length
+    ) {
         return true;
     }
     return false;
