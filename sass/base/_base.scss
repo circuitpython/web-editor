@@ -88,3 +88,23 @@ h5 {
     background-color: #d8d8d8;
     color: #888;
 }
+
+@media print {
+  body {
+    visibility: hidden;
+  }
+  #editor-page.focused-panel #editor, #serial-page.focused-panel #terminal {
+    visibility: visible;
+    position: absolute;
+    left: 0;
+    top: 0;
+    font-size: 2em;
+    .xterm-rows {
+      font-size: 1.2em;
+      &> div {
+        height: 1.2em !important;
+        line-height: 1.2em !important;
+      }
+    }
+  }
+}

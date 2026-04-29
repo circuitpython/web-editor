@@ -241,6 +241,26 @@ class MessageModal extends GenericModal {
     }
 }
 
+class InputModal extends GenericModal {
+    _handleOkButton(event) {
+        this._returnValue(this._getElement('inputValueField').value);
+    }
+
+    async open(message, defaultValue="") {
+        let p = super.open();
+        const cancelButton = this._currentModal.querySelector("button.cancel-button");
+        this._addDialogElement('cancelButton', cancelButton, 'click', this._closeModal);
+        const okButton = this._currentModal.querySelector("button.ok-button");
+        this._addDialogElement('okButton', okButton, 'click', this._handleOkButton);
+        const inputValueField = this._currentModal.querySelector("#inputvalue");
+        this._addDialogElement('inputValueField', inputValueField);
+        this._setElementValue('inputValueField', defaultValue);
+        this._currentModal.querySelector("#message").innerHTML = message;
+
+        return p;
+    }
+}
+
 class ProgressDialog extends GenericModal {
     async open() {
         let p = super.open();
@@ -424,5 +444,6 @@ export {
     UnsavedDialog,
     DiscoveryModal,
     ProgressDialog,
-    DeviceInfoModal
+    DeviceInfoModal,
+    InputModal
 };
