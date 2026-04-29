@@ -5,6 +5,7 @@ import { indentWithTab } from "@codemirror/commands"
 import { python } from "@codemirror/lang-python";
 import { syntaxHighlighting, indentUnit } from "@codemirror/language";
 import { classHighlighter } from "@lezer/highlight";
+import { circuitpythonHighlight } from "./common/circuitpython_highlight.js";
 import { getFileIcon } from "./common/file_dialog.js";
 
 import { Terminal } from '@xterm/xterm';
@@ -405,6 +406,7 @@ const editorExtensions = [
     python(),
     editorTheme,
     syntaxHighlighting(classHighlighter),
+    circuitpythonHighlight,
     EditorView.updateListener.of(onTextChange)
 ];
 

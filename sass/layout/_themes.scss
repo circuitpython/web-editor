@@ -174,4 +174,11 @@
     .tok-bool {
         color: #E06C75;
     }
+
+    // CircuitPython-specific module names (overlay added by
+    // js/common/circuitpython_highlight.js). Distinct from regular
+    // variableName so users can spot CircuitPython modules at a glance.
+    .tok-cp-module {
+        color: #FF79C6;
+    }
 }
