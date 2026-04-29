@@ -16,7 +16,7 @@ import { USBWorkflow } from './workflows/usb.js';
 import { WebWorkflow } from './workflows/web.js';
 import { isValidBackend, getBackendWorkflow, getWorkflowBackendName } from './workflows/workflow.js';
 import { ButtonValueDialog, MessageModal } from './common/dialogs.js';
-import { isLocal, switchUrl, getUrlParam } from './common/utilities.js';
+import { isLocal, isMdns, isIp, switchUrl, getUrlParam } from './common/utilities.js';
 import { CONNTYPE } from './constants.js';
 import './layout.js'; // load for side effects only
 import {setupPlotterChart} from "./common/plotter.js";
@@ -570,7 +570,13 @@ function getBackend() {
     if (backend && isValidBackend(backend)) {
         return getBackendWorkflow(backend);
     } else if (isLocal()) {
-        return getBackendWorkflow("web");
+        // Only auto-select Web Workflow when we're actually running on a
+        // device (mdns/IP host serving /code/) or the user has supplied a
+        // host= override. Bare localhost should fall through to the connect
+        // dialog so the user can pick BLE/Serial/USB.
+        if (isMdns() || isIp() || getUrlParam("host", false)) {
+            return getBackendWorkflow("web");
+        }
     }
 
     return null;
