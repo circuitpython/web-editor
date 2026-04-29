@@ -133,9 +133,9 @@ const CIRCUITPYTHON_CORE_MODULES = new Set([
     "wifi",
     "zlib",
 
-    // Bare-named community modules without the `adafruit_` or
-    // `circuitpython_` prefix that are common enough to recognise
-    // explicitly.
+    // Early Adafruit-maintained libraries that predate the `adafruit_`
+    // naming convention and shipped without a prefix. Listed explicitly
+    // because the prefix wildcard below can't catch them.
     "neopixel",
     "simpleio",
 ]);
