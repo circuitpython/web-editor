@@ -156,7 +156,10 @@ except ImportError:
             return this._connected != CONNSTATE.disconnected;
         }
 
-        return this._connected == CONNSTATE.connected;
+        // Require both the connection state flag and an initialized fileHelper.
+        // This guards against a race where the underlying transport reports
+        // "connected" before the file client has been wired up (see #327).
+        return this._connected == CONNSTATE.connected && this.fileHelper != null;
     }
 
     async deinit() {
@@ -263,14 +266,17 @@ except ImportError:
     }
 
     async saveFile(path = null) {
-        if (path === null) {
-            if (this.currentFilename !== null) {
+        if (path == null) {
+            if (this.currentFilename != null) {
                 path = this.currentFilename;
             } else {
                 path = await this.saveFileAs();
             }
         }
-        if (path !== null) {
+        // Use loose equality so an undefined return from saveFileAs (e.g., dialog
+        // canceled or rejected) is treated the same as null and does not get
+        // forwarded to writeFile, where it would crash in _splitPath. See #327.
+        if (path != null) {
             await this._saveFileContents(path);
             return true;
         }
@@ -279,14 +285,16 @@ except ImportError:
 
     async saveFileAs() {
         let path = await this.saveFileDialog();
-        if (path !== null) {
-            // check if filename exists
-            if (path != this.currentFilename && await this.fileExists(path) && !window.confirm("Overwrite existing file '" + path + "'?")) {
-                return null;
-            }
-            this.currentFilename = path;
-            await this.saveFile(path);
+        // Normalize undefined to null so callers can use a single check.
+        if (path == null) {
+            return null;
         }
+        // check if filename exists
+        if (path != this.currentFilename && await this.fileExists(path) && !window.confirm("Overwrite existing file '" + path + "'?")) {
+            return null;
+        }
+        this.currentFilename = path;
+        await this.saveFile(path);
         return path;
     }
 
