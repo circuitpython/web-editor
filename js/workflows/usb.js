@@ -309,7 +309,11 @@ class USBWorkflow extends Workflow {
             await this.writer.ready;
         }
 
-        this.updateConnected(CONNSTATE.connected);
+        // Mark as partially connected: serial is open but the file client is not yet
+        // initialized. We must not advertise CONNSTATE.connected here because callers
+        // (e.g., save handlers) check connectionStatus() and will dereference fileHelper
+        // before initFileClient() has run. See issue #327.
+        this.updateConnected(CONNSTATE.partial);
 
         // At this point we should see if we should init the file client and check if have a saved dir handle
         let fileops = new FileOps(this.repl, false);
@@ -334,6 +338,10 @@ class USBWorkflow extends Workflow {
             } else {
                 console.log("Failed to load directory");
             }
+            // Note: in the read-only path we remain at CONNSTATE.partial until the user
+            // confirms a working host folder via _useHostFolder(), which calls onConnected().
+            // This ensures save/open attempts triggered before folder selection re-open
+            // the connect dialog instead of dereferencing a half-initialized fileHelper.
         } else {
             // File System is writable, so we can use the REPL File Transfer Client
             this.initFileClient(new ReplFileTransferClient(this.connectionStatus.bind(this), this.repl));
