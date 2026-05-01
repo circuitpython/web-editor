@@ -3,11 +3,25 @@ class FileTransferClient {
         this.hostname = hostname;
         this.connectionStatus = connectionStatusCB;
         this._allowedMethods = null;
+        // Cached `writable` flag from the /fs/ JSON response. Populated by
+        // listDir() and by readOnly() when listDir hasn't been called yet.
+        // A new FileTransferClient is created on every (re)connect, so this
+        // cache resets naturally with the connection lifecycle.
+        this._writable = null;
     }
 
     async readOnly() {
         await this._checkConnection();
-        return !this._allowedMethods.includes('DELETE');
+        // Older CircuitPython releases advertised DELETE in OPTIONS even when
+        // the filesystem was actually read-only (USB had it), so we use the
+        // `writable` field from the /fs/ JSON response instead -- same source
+        // of truth as circup. If we already pulled it via listDir, reuse it.
+        if (this._writable === null) {
+            const response = await this._fetch("/fs/", {method: "GET", headers: {"Accept": "application/json"}});
+            const result = await response.json();
+            this._writable = result.writable === true;
+        }
+        return !this._writable;
     }
 
     async _checkConnection() {
@@ -131,7 +145,12 @@ class FileTransferClient {
 
         const response = await this._fetch(`/fs${path}`, {headers: {"Accept": "application/json"}});
         const results = await response.json();
-        let listings = results
+        // Cache the writable flag whenever the FS root response carries it,
+        // so readOnly() doesn't need a separate round-trip.
+        if (results.writable !== undefined) {
+            this._writable = results.writable === true;
+        }
+        let listings = results;
         if (results.files !== undefined) {
             listings = results.files;
         }
