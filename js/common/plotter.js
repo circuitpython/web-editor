@@ -3,27 +3,38 @@ import Chart from "chart.js/auto";
 let textLineBuffer = "";
 let textLine;
 
-// Expanded color palette so multi-series plots aren't limited to 3 colors
-// before falling back to black. Roughly follows distinct, easy-to-tell-apart
-// hues; reused round-robin if a sketch sends more series than colors.
+// Plotter color palette.
+// Plotter background is #777 on dark theme and #ccc on light theme, so colors
+// must be readable against mid-gray. Pale tints, gray, and brown are dropped
+// for that reason. Picked from the Okabe-Ito + tab10 mid-saturation set;
+// reused round-robin if a sketch sends more series than colors.
 let defaultColors = [
     '#1f77b4', // blue
     '#ff7f0e', // orange
     '#2ca02c', // green
     '#d62728', // red
     '#9467bd', // purple
-    '#8c564b', // brown
     '#e377c2', // pink
-    '#7f7f7f', // gray
-    '#bcbd22', // olive
     '#17becf', // cyan
-    '#aec7e8', // light blue
-    '#ffbb78', // light orange
-    '#98df8a', // light green
-    '#ff9896', // light red
-    '#c5b0d5', // light purple
-    '#c49c94', // light brown
+    '#bcbd22', // olive
+    '#e41a1c', // vivid red
+    '#377eb8', // steel blue
+    '#4daf4a', // leaf green
+    '#984ea3', // violet
 ];
+
+// Resolve a CSS custom property from :root (or body, for theme overrides)
+// at chart-build time. Falls back to the supplied default if the variable
+// is unset or empty.
+function getCssVar(name, fallback) {
+    if (typeof window === 'undefined' || !window.getComputedStyle) {
+        return fallback;
+    }
+    const value = window.getComputedStyle(document.body || document.documentElement)
+        .getPropertyValue(name)
+        .trim();
+    return value || fallback;
+}
 
 /**
  * @name LineBreakTransformer
@@ -249,7 +260,10 @@ export async function setupPlotterChart(workflow) {
                         display: true,
                         position: 'top',
                         labels: {
-                            color: '#000000'
+                            // Pick a color that contrasts with the current
+                            // theme's plotter background (set via
+                            // --terminal-text-color in sass/layout/_themes.scss).
+                            color: getCssVar('--terminal-text-color', '#ddd')
                         }
                     }
                 },
