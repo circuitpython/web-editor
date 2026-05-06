@@ -1,6 +1,6 @@
 import { basicSetup } from "codemirror";
 import { EditorView, keymap } from "@codemirror/view";
-import { EditorState } from "@codemirror/state";
+import { EditorState, Compartment } from "@codemirror/state";
 import { indentWithTab } from "@codemirror/commands"
 import { python } from "@codemirror/lang-python";
 import { json } from "@codemirror/lang-json";
@@ -100,6 +100,23 @@ function languageExtensionsForPath(path) {
         return [LANGUAGE_EXTENSION_MAP[ext]()];
     }
     return [];
+}
+
+// Compartment used so we can hot-swap the language plugin when the
+// active file's extension changes (e.g. user opens an .html file, or
+// uses Save As to rename code.py to test.html).
+const languageCompartment = new Compartment();
+
+// Apply the language plugin matching `path` to the running editor.
+// Safe to call before `editor` exists (the initial state already gets
+// the correct language via languageCompartment.of(...) below).
+function setEditorLanguageForPath(path) {
+    if (!editor) return;
+    editor.dispatch({
+        effects: languageCompartment.reconfigure(
+            languageExtensionsForPath(path),
+        ),
+    });
 }
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -445,9 +462,9 @@ const hotkeyMap = [
     { key: "Mod-r", run: saveRunFile },
 ];
 // Extensions that are always present, regardless of file type. The
-// per-file language extensions are appended in `buildEditorExtensions`
-// so we can swap CodeMirror language plugins when the user opens a
-// non-Python file (issue #361).
+// per-file language extensions live in `languageCompartment` so they
+// can be swapped at runtime (e.g. on Save As to a different
+// extension).
 const baseEditorExtensions = [
     basicSetup,
     keymap.of([indentWithTab]),
@@ -459,7 +476,10 @@ const baseEditorExtensions = [
 ];
 
 function buildEditorExtensions(path) {
-    return [...baseEditorExtensions, ...languageExtensionsForPath(path)];
+    return [
+        ...baseEditorExtensions,
+        languageCompartment.of(languageExtensionsForPath(path)),
+    ];
 }
 
 // Use the editor's function to check if anything has changed
@@ -536,9 +556,12 @@ const MAX_SAVE_RETRIES = 3;
 
 // Save the File Contents and update the UI
 async function saveFileContents(path) {
-    // If this is a different file, we write everything
+    // If this is a different file, we write everything and refresh the
+    // CodeMirror language plugin in case the new path has a different
+    // extension (e.g. Save As from code.py to test.html).
     if (path !== workflow.currentFilename) {
         unchanged = 0;
+        setEditorLanguageForPath(path);
     }
     let doc = editor.state.doc;
     let offset = 0;
