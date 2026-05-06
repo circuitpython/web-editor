@@ -14,6 +14,23 @@
     --gutter-text-color: #ddd;
     --debug-message-color: #fce94f;
     --unsaved-file-color: #f60;
+
+    // Editor token colors. Defaults are tuned for the dark editor
+    // background; the light theme below overrides any that would be
+    // unreadable on a near-white background.
+    --editor-text-color: #ddd;
+    --tok-comment-color: #7F848E;
+    --tok-variable-color: #61AFEF;
+    --tok-operator-color: #56B6C2;
+    --tok-string-color: #98C379;
+    --tok-string2-color: #FFB86C;
+    --tok-number-color: #E5C07B;
+    --tok-keyword-color: #C678DD;
+    --tok-property-color: #D19A66;
+    --tok-atom-color: #E06C75;
+    --tok-typename-color: #61AFEF;
+    --tok-cp-module-color: #FF79C6;
+    --tok-meta-color: #b084eb;
 }
 
 // Light Theme
@@ -28,6 +45,23 @@
     --gutter-active-line-color: #ccc;
     --gutter-text-color: #222;
     --debug-message-color: #FF9900;
+
+    // Darken token colors enough to stay readable on the
+    // near-white editor background. Dark theme values above are
+    // tuned for #333; these are tuned for #f8f8f8.
+    --editor-text-color: #222;
+    --tok-comment-color: #6B7280;
+    --tok-variable-color: #1F6FB8;
+    --tok-operator-color: #1F8FA8;
+    --tok-string-color: #2E7D32;
+    --tok-string2-color: #B85C00;
+    --tok-number-color: #8A5A00;
+    --tok-keyword-color: #7C2DB5;
+    --tok-property-color: #9A5A1A;
+    --tok-atom-color: #B91C1C;
+    --tok-typename-color: #1F6FB8;
+    --tok-cp-module-color: #C71585;
+    --tok-meta-color: #6E3FBE;
 }
 
 // Styles applied to both themes
@@ -75,7 +109,7 @@
 }
 
 .cm-editor {
-    color: #ddd;
+    color: var(--editor-text-color);
     background-color: var(--background-color);
     line-height: 1.5;
     font-family: 'Operator Mono', 'Source Code Pro', Menlo, Monaco, Consolas, Courier New, monospace;
@@ -87,7 +121,7 @@
 
     .cm-comment {
         font-style: italic;
-        color: #676B79;
+        color: var(--tok-comment-color);
     }
 
     .cm-operator {
@@ -95,19 +129,19 @@
     }
 
     .cm-string {
-        color: #19F9D8;
+        color: var(--tok-string-color);
     }
 
     .cm-string-2 {
-        color: #FFB86C;
+        color: var(--tok-string2-color);
     }
 
     .cm-tag {
-        color: #ff2c6d;
+        color: var(--tok-typename-color);
     }
 
     .cm-meta {
-        color: #b084eb;
+        color: var(--tok-meta-color);
     }
 
     &.cm-focused .cm-cursor {
@@ -139,19 +173,19 @@
 
     /* Highlight Tags */
     .tok-comment {
-        color: #7F848E;
+        color: var(--tok-comment-color);
     }
 
     .tok-variableName {
-        color: #61AFEF;
+        color: var(--tok-variable-color);
     }
 
     .tok-operator {
-        color: #56B6C2;
+        color: var(--tok-operator-color);
     }
 
     .tok-string {
-        color: #98C379;
+        color: var(--tok-string-color);
     }
 
     .tok-punctuation {
@@ -159,20 +193,27 @@
     }
 
     .tok-number {
-        color: #E5C07B,
+        color: var(--tok-number-color);
     }
 
     .tok-keyword {
-        color: #C678DD,
+        color: var(--tok-keyword-color);
     }
 
     .tok-propertyName {
-        color: #D19A66;
+        color: var(--tok-property-color);
     }
 
     .tok-atom,
     .tok-bool {
-        color: #E06C75;
+        color: var(--tok-atom-color);
+    }
+
+    // HTML/XML tag names, type names. Without an explicit color these
+    // fall back to the editor default text color, which on the light
+    // theme renders as nearly invisible #ddd-on-#f8f8f8.
+    .tok-typeName {
+        color: var(--tok-typename-color);
     }
 
     // CircuitPython-specific module names (overlay added by
@@ -180,6 +221,6 @@
     // wrapped with Prec.highest so its decoration nests inside the
     // classHighlighter span, letting this color win without !important.
     .tok-cp-module {
-        color: #FF79C6;
+        color: var(--tok-cp-module-color);
     }
 }

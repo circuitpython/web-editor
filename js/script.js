@@ -1,8 +1,14 @@
 import { basicSetup } from "codemirror";
 import { EditorView, keymap } from "@codemirror/view";
-import { EditorState } from "@codemirror/state";
+import { EditorState, Compartment } from "@codemirror/state";
 import { indentWithTab } from "@codemirror/commands"
 import { python } from "@codemirror/lang-python";
+import { json } from "@codemirror/lang-json";
+import { html } from "@codemirror/lang-html";
+import { css } from "@codemirror/lang-css";
+import { javascript } from "@codemirror/lang-javascript";
+import { xml } from "@codemirror/lang-xml";
+import { markdown } from "@codemirror/lang-markdown";
 import { syntaxHighlighting, indentUnit } from "@codemirror/language";
 import { classHighlighter } from "@lezer/highlight";
 import { circuitpythonHighlight } from "./common/circuitpython_highlight.js";
@@ -55,6 +61,87 @@ const connectionType = new ButtonValueDialog("connection-type");
 const settings = new Settings();
 
 const editorTheme = EditorView.theme({}, {dark: getCssVar('editor-theme-dark').trim() === '1'});
+
+// Map file extensions to a CodeMirror 6 language extension factory.
+// Anything not in this map falls back to plain text (no language plugin).
+// Python is handled separately because it also gets the CircuitPython
+// highlight overlay.
+const LANGUAGE_EXTENSION_MAP = {
+    "css":  css,
+    "htm":  html,
+    "html": html,
+    "js":   javascript,
+    "json": json,
+    "md":   markdown,
+    "xml":  xml,
+};
+
+function getFileExtensionFromPath(path) {
+    if (!path) return null;
+    // Use the basename so a dotted directory in the path doesn't fool us.
+    const base = path.split("/").pop();
+    if (!base || base.indexOf(".") < 0) return null;
+    return base.split(".").pop().toLowerCase();
+}
+
+// Pick the CodeMirror language extensions to use for a given file path.
+// Returns an array so callers can spread it directly into the editor's
+// extension list. New (untitled) docs default to Python so the editor
+// behaves the same as before for the common "create code.py" case.
+function languageExtensionsForPath(path) {
+    if (path === null || path === undefined) {
+        return [python(), circuitpythonHighlight];
+    }
+    const ext = getFileExtensionFromPath(path);
+    if (ext === "py") {
+        return [python(), circuitpythonHighlight];
+    }
+    if (ext && Object.prototype.hasOwnProperty.call(LANGUAGE_EXTENSION_MAP, ext)) {
+        return [LANGUAGE_EXTENSION_MAP[ext]()];
+    }
+    return [];
+}
+
+// Compartment used so we can hot-swap the language plugin when the
+// active file's extension changes (e.g. user opens an .html file, or
+// uses Save As to rename code.py to test.html).
+const languageCompartment = new Compartment();
+
+// Track which path the editor's language plugin is currently configured
+// for, so we can decide whether a reconfigure is actually needed. We
+// can't compare against `workflow.currentFilename` because
+// `workflow.saveFileAs()` mutates that BEFORE the post-save
+// `setFilename` callback runs, so by the time we'd see it the
+// "old" path is already gone.
+let editorLanguagePath = null;
+
+function extensionKey(path) {
+    if (path === null || path === undefined) return "__null__";
+    const ext = getFileExtensionFromPath(path);
+    return ext || "__noext__";
+}
+
+// Apply the language plugin matching `path` to the running editor.
+// Safe to call before `editor` exists (the initial state already gets
+// the correct language via languageCompartment.of(...) below).
+function setEditorLanguageForPath(path) {
+    if (!editor) {
+        editorLanguagePath = path;
+        return;
+    }
+    if (extensionKey(path) === extensionKey(editorLanguagePath)) {
+        // Same language plugin would be installed — skip the
+        // reconfigure to avoid needlessly resetting language-internal
+        // state (folds, parser caches, etc.).
+        return;
+    }
+    editorLanguagePath = path;
+    editor.dispatch({
+        effects: languageCompartment.reconfigure(
+            languageExtensionsForPath(path),
+        ),
+    });
+}
 
 document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('mobile-menu-button').addEventListener('click', handleMobileToggle);
@@ -279,6 +366,12 @@ async function checkReadOnly() {
 
 /* Update the filename and update the UI */
 function setFilename(path) {
+    // Refresh the CodeMirror language plugin whenever the active file
+    // changes — this is the single chokepoint that all filename
+    // changes route through (Open File, New File, Save As, backend
+    // load), so it's the right place to keep the language in sync.
+    setEditorLanguageForPath(path);
+
     // Use the extension_map to figure out the file icon
     let filename = path;
 
@@ -398,17 +491,26 @@ const hotkeyMap = [
     { key: "Alt-n", run: newFile },
     { key: "Mod-r", run: saveRunFile },
 ];
-const editorExtensions = [
+// Extensions that are always present, regardless of file type. The
+// per-file language extensions live in `languageCompartment` so they
+// can be swapped at runtime (e.g. on Save As to a different
+// extension).
+const baseEditorExtensions = [
     basicSetup,
     keymap.of([indentWithTab]),
     keymap.of(hotkeyMap),
     indentUnit.of("    "),
-    python(),
     editorTheme,
     syntaxHighlighting(classHighlighter),
-    circuitpythonHighlight,
     EditorView.updateListener.of(onTextChange)
 ];
+
+function buildEditorExtensions(path) {
+    return [
+        ...baseEditorExtensions,
+        languageCompartment.of(languageExtensionsForPath(path)),
+    ];
+}
 
 // Use the editor's function to check if anything has changed
 function isDirty() {
@@ -416,11 +518,15 @@ function isDirty() {
     return true;
 }
 
-function loadEditorContents(content) {
+function loadEditorContents(content, path = null) {
     editor.setState(EditorState.create({
         doc: content,
-        extensions: editorExtensions
+        extensions: buildEditorExtensions(path)
     }));
+    // Keep our tracked language path in sync with the fresh state's
+    // compartment contents so the next setEditorLanguageForPath call
+    // can correctly skip a no-op reconfigure.
+    editorLanguagePath = path;
     unchanged = editor.state.doc.length;
     //console.log("doc length", unchanged);
 }
@@ -484,7 +590,9 @@ const MAX_SAVE_RETRIES = 3;
 
 // Save the File Contents and update the UI
 async function saveFileContents(path) {
-    // If this is a different file, we write everything
+    // If this is a different file, we write everything. The language
+    // plugin is refreshed by setFilename below (it routes through
+    // setEditorLanguageForPath), so no extra dispatch is needed here.
     if (path !== workflow.currentFilename) {
         unchanged = 0;
     }
@@ -525,7 +633,7 @@ async function saveFileContents(path) {
 // Load the File Contents and Path into the UI
 function loadFileContents(path, contents, saved = true) {
     setFilename(path);
-    loadEditorContents(contents);
+    loadEditorContents(contents, path);
     if (saved !== null) {
         setSaved(saved);
     }
@@ -573,7 +681,7 @@ function disconnectCallback() {
 editor = new EditorView({
     state: EditorState.create({
         doc: "",
-        extensions: editorExtensions
+        extensions: buildEditorExtensions(null)
     }),
     parent: document.querySelector('#editor')
 });
