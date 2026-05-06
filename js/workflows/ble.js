@@ -51,6 +51,7 @@ class BLEWorkflow extends Workflow {
     async showConnect(documentState) {
         let p = this.connectDialog.open();
         let modal = this.connectDialog.getModal();
+        this._wireBackToChooser(modal);
         btnRequestBluetoothDevice = modal.querySelector('#requestBluetoothDevice');
         btnReconnect = modal.querySelector('#bleReconnect');
 

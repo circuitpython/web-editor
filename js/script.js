@@ -53,6 +53,34 @@ const messageDialog = new MessageModal("message");
 const connectionType = new ButtonValueDialog("connection-type");
 const settings = new Settings();
 
+// localStorage key used to remember the most recently chosen backend
+// ("web" | "ble" | "usb"). When the user clicks Connect after a
+// disconnect, we prefer the last backend over re-prompting for one.
+const LAST_BACKEND_KEY = "webeditor.lastBackend";
+
+function getLastBackend() {
+    try {
+        const name = window.localStorage.getItem(LAST_BACKEND_KEY);
+        if (name && isValidBackend(name)) {
+            return getBackendWorkflow(name);
+        }
+    } catch (e) {
+        // localStorage may be unavailable (privacy mode, etc.) — that's fine
+    }
+    return null;
+}
+
+function rememberLastBackend(workflowType) {
+    try {
+        const name = getWorkflowBackendName(workflowType);
+        if (name) {
+            window.localStorage.setItem(LAST_BACKEND_KEY, name);
+        }
+    } catch (e) {
+        // ignore — non-fatal
+    }
+}
+
 const editorTheme = EditorView.theme({}, {dark: getCssVar('editor-theme-dark').trim() === '1'});
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -218,9 +246,20 @@ function setSaved(saved) {
 
 async function checkConnected() {
     if (!workflow || !workflow.connectionStatus()) {
-        let connType = await chooseConnection();
-        if (!connType) {
-            return false;
+        let connType;
+
+        // Prefer the last backend the user successfully connected with
+        // (issue #373) so clicking Connect after a disconnect skips the
+        // chooser. The connect dialog itself has a "back" link that calls
+        // chooseAndShowConnect() if the user wants to switch workflows.
+        const lastBackend = getLastBackend();
+        if (lastBackend) {
+            connType = lastBackend;
+        } else {
+            connType = await chooseConnection();
+            if (!connType) {
+                return false;
+            }
         }
         await loadWorkflow(connType);
 
@@ -240,6 +279,24 @@ async function checkConnected() {
         }
     }
 
+    return true;
+}
+
+// Closes whatever connect dialog is open and re-opens the workflow chooser,
+// then loads/connects to whichever workflow the user picks. Used by the
+// "back" button inside each connect dialog (issue #373).
+async function chooseAndShowConnect() {
+    if (workflow && workflow.connectDialog && workflow.connectDialog.isOpen()) {
+        workflow.connectDialog.close();
+    }
+    let connType = await chooseConnection();
+    if (!connType) {
+        return false;
+    }
+    await loadWorkflow(connType);
+    if (!workflow.connectionStatus()) {
+        await workflow.showConnect(getDocState());
+    }
     return true;
 }
 
@@ -361,6 +418,7 @@ async function loadWorkflow(workflowType = null) {
                 }
             }
             workflow = workflows[workflowType];
+            rememberLastBackend(workflowType);
             // Initialize the workflow
             await workflow.init({
                 terminal: state.terminal,
@@ -376,6 +434,7 @@ async function loadWorkflow(workflowType = null) {
                 showMessageFunc: showMessage,
                 currentFilename: currentFilename,
                 showSerialFunc: showSerial,
+                chooseConnectionFunc: chooseAndShowConnect,
             });
         } else {
             console.log("Reload workflow");
