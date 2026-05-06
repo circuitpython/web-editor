@@ -3,6 +3,12 @@ import { EditorView, keymap } from "@codemirror/view";
 import { EditorState } from "@codemirror/state";
 import { indentWithTab } from "@codemirror/commands"
 import { python } from "@codemirror/lang-python";
+import { json } from "@codemirror/lang-json";
+import { html } from "@codemirror/lang-html";
+import { css } from "@codemirror/lang-css";
+import { javascript } from "@codemirror/lang-javascript";
+import { xml } from "@codemirror/lang-xml";
+import { markdown } from "@codemirror/lang-markdown";
 import { syntaxHighlighting, indentUnit } from "@codemirror/language";
 import { classHighlighter } from "@lezer/highlight";
 import { circuitpythonHighlight } from "./common/circuitpython_highlight.js";
@@ -55,6 +61,46 @@ const connectionType = new ButtonValueDialog("connection-type");
 const settings = new Settings();
 
 const editorTheme = EditorView.theme({}, {dark: getCssVar('editor-theme-dark').trim() === '1'});
+
+// Map file extensions to a CodeMirror 6 language extension factory.
+// Anything not in this map falls back to plain text (no language plugin).
+// Python is handled separately because it also gets the CircuitPython
+// highlight overlay.
+const LANGUAGE_EXTENSION_MAP = {
+    "css":  css,
+    "htm":  html,
+    "html": html,
+    "js":   javascript,
+    "json": json,
+    "md":   markdown,
+    "xml":  xml,
+};
+
+function getFileExtensionFromPath(path) {
+    if (!path) return null;
+    // Use the basename so a dotted directory in the path doesn't fool us.
+    const base = path.split("/").pop();
+    if (!base || base.indexOf(".") < 0) return null;
+    return base.split(".").pop().toLowerCase();
+}
+
+// Pick the CodeMirror language extensions to use for a given file path.
+// Returns an array so callers can spread it directly into the editor's
+// extension list. New (untitled) docs default to Python so the editor
+// behaves the same as before for the common "create code.py" case.
+function languageExtensionsForPath(path) {
+    if (path === null || path === undefined) {
+        return [python(), circuitpythonHighlight];
+    }
+    const ext = getFileExtensionFromPath(path);
+    if (ext === "py") {
+        return [python(), circuitpythonHighlight];
+    }
+    if (ext && Object.prototype.hasOwnProperty.call(LANGUAGE_EXTENSION_MAP, ext)) {
+        return [LANGUAGE_EXTENSION_MAP[ext]()];
+    }
+    return [];
+}
 
 document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('mobile-menu-button').addEventListener('click', handleMobileToggle);
@@ -398,17 +444,23 @@ const hotkeyMap = [
     { key: "Alt-n", run: newFile },
     { key: "Mod-r", run: saveRunFile },
 ];
-const editorExtensions = [
+// Extensions that are always present, regardless of file type. The
+// per-file language extensions are appended in `buildEditorExtensions`
+// so we can swap CodeMirror language plugins when the user opens a
+// non-Python file (issue #361).
+const baseEditorExtensions = [
     basicSetup,
     keymap.of([indentWithTab]),
     keymap.of(hotkeyMap),
     indentUnit.of("    "),
-    python(),
     editorTheme,
     syntaxHighlighting(classHighlighter),
-    circuitpythonHighlight,
     EditorView.updateListener.of(onTextChange)
 ];
+
+function buildEditorExtensions(path) {
+    return [...baseEditorExtensions, ...languageExtensionsForPath(path)];
+}
 
 // Use the editor's function to check if anything has changed
 function isDirty() {
@@ -416,10 +468,10 @@ function isDirty() {
     return true;
 }
 
-function loadEditorContents(content) {
+function loadEditorContents(content, path = null) {
     editor.setState(EditorState.create({
         doc: content,
-        extensions: editorExtensions
+        extensions: buildEditorExtensions(path)
     }));
     unchanged = editor.state.doc.length;
     //console.log("doc length", unchanged);
@@ -525,7 +577,7 @@ async function saveFileContents(path) {
 // Load the File Contents and Path into the UI
 function loadFileContents(path, contents, saved = true) {
     setFilename(path);
-    loadEditorContents(contents);
+    loadEditorContents(contents, path);
     if (saved !== null) {
         setSaved(saved);
     }
@@ -573,7 +625,7 @@ function disconnectCallback() {
 editor = new EditorView({
     state: EditorState.create({
         doc: "",
-        extensions: editorExtensions
+        extensions: buildEditorExtensions(null)
     }),
     parent: document.querySelector('#editor')
 });
