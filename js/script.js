@@ -107,11 +107,35 @@ function languageExtensionsForPath(path) {
 // uses Save As to rename code.py to test.html).
 const languageCompartment = new Compartment();
 
+// Track which path the editor's language plugin is currently configured
+// for, so we can decide whether a reconfigure is actually needed. We
+// can't compare against `workflow.currentFilename` because
+// `workflow.saveFileAs()` mutates that BEFORE the post-save
+// `setFilename` callback runs, so by the time we'd see it the
+// "old" path is already gone.
+let editorLanguagePath = null;
+
+function extensionKey(path) {
+    if (path === null || path === undefined) return "__null__";
+    const ext = getFileExtensionFromPath(path);
+    return ext || "__noext__";
+}
+
 // Apply the language plugin matching `path` to the running editor.
 // Safe to call before `editor` exists (the initial state already gets
 // the correct language via languageCompartment.of(...) below).
 function setEditorLanguageForPath(path) {
-    if (!editor) return;
+    if (!editor) {
+        editorLanguagePath = path;
+        return;
+    }
+    if (extensionKey(path) === extensionKey(editorLanguagePath)) {
+        // Same language plugin would be installed — skip the
+        // reconfigure to avoid needlessly resetting language-internal
+        // state (folds, parser caches, etc.).
+        return;
+    }
+    editorLanguagePath = path;
     editor.dispatch({
         effects: languageCompartment.reconfigure(
             languageExtensionsForPath(path),
@@ -342,6 +366,12 @@ async function checkReadOnly() {
 
 /* Update the filename and update the UI */
 function setFilename(path) {
+    // Refresh the CodeMirror language plugin whenever the active file
+    // changes — this is the single chokepoint that all filename
+    // changes route through (Open File, New File, Save As, backend
+    // load), so it's the right place to keep the language in sync.
+    setEditorLanguageForPath(path);
+
     // Use the extension_map to figure out the file icon
     let filename = path;
 
@@ -493,6 +523,10 @@ function loadEditorContents(content, path = null) {
         doc: content,
         extensions: buildEditorExtensions(path)
     }));
+    // Keep our tracked language path in sync with the fresh state's
+    // compartment contents so the next setEditorLanguageForPath call
+    // can correctly skip a no-op reconfigure.
+    editorLanguagePath = path;
     unchanged = editor.state.doc.length;
     //console.log("doc length", unchanged);
 }
@@ -556,12 +590,11 @@ const MAX_SAVE_RETRIES = 3;
 
 // Save the File Contents and update the UI
 async function saveFileContents(path) {
-    // If this is a different file, we write everything and refresh the
-    // CodeMirror language plugin in case the new path has a different
-    // extension (e.g. Save As from code.py to test.html).
+    // If this is a different file, we write everything. The language
+    // plugin is refreshed by setFilename below (it routes through
+    // setEditorLanguageForPath), so no extra dispatch is needed here.
     if (path !== workflow.currentFilename) {
         unchanged = 0;
-        setEditorLanguageForPath(path);
     }
     let doc = editor.state.doc;
     let offset = 0;
