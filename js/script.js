@@ -235,10 +235,9 @@ async function checkConnected() {
         if (!workflow.connectionStatus()) {
             // Display the appropriate connection dialog
             await workflow.showConnect(getDocState());
-        } else if (workflow.type === CONNTYPE.Web) {
-            // We're connected, local, and using Web Workflow
-            await workflow.showInfo(getDocState());
         }
+        // Note: the Device Info dialog is now opened from loadEditor() so that
+        // BLE/USB/Web all behave the same way after a fresh connect.
     }
 
     return true;
@@ -466,6 +465,12 @@ window.onbeforeunload = () => {
     }
 };
 
+// Tracks whether we've already shown the post-connect Device Info dialog
+// for the current workflow. Reset to false in disconnectCallback() so that
+// a fresh connect always re-shows it, while silent reconnects (which also
+// run loadEditor) do not.
+let shownDeviceInfoForCurrentSession = false;
+
 async function loadEditor() {
     let documentState = loadParameterizedContent();
     if (documentState) {
@@ -475,6 +480,24 @@ async function loadEditor() {
     }
 
     updateUIConnected(true);
+
+    // Show the Device Info dialog once per fresh connect, regardless of
+    // workflow (Web / USB / BLE). This is where the firmware-update
+    // suggestion (issue #357) is surfaced, so the user notices it just
+    // after connecting without us introducing a new dialog.
+    //
+    // Fire-and-forget: we don't await the dialog because it stays open until
+    // the user dismisses it, and we don't want to block the rest of the
+    // post-connect flow (busy spinner, parameterized doc loading, etc.).
+    if (!shownDeviceInfoForCurrentSession
+            && workflow
+            && workflow.showInfo
+            && workflow.connectionStatus && workflow.connectionStatus()) {
+        shownDeviceInfoForCurrentSession = true;
+        Promise.resolve()
+            .then(() => workflow.showInfo(getDocState()))
+            .catch((err) => console.warn("Could not show device info dialog", err));
+    }
 }
 
 var editor;
@@ -567,6 +590,7 @@ function disconnectCallback() {
         currentTimeout = null;
     }
     saveRetryCount = 0;
+    shownDeviceInfoForCurrentSession = false;
     updateUIConnected(false);
 }
 
@@ -682,10 +706,10 @@ document.addEventListener('DOMContentLoaded', async (event) => {
         // If we don't have all the info we need to connect
         let returnVal = await workflow.parseParams();
         if (returnVal === true && await workflowConnect() && workflow.type === CONNTYPE.Web) {
-            if (await checkReadOnly()) {
-                // We're connected, local, no errors, and using Web Workflow
-                await workflow.showInfo(getDocState());
-            }
+            // We're connected, local, no errors, and using Web Workflow.
+            // The Device Info dialog is opened from loadEditor() now, so we
+            // just need to verify read-only state here.
+            await checkReadOnly();
         } else {
             if (returnVal instanceof Error) {
                 await showMessage(returnVal);
