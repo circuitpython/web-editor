@@ -1,4 +1,5 @@
 import {sleep, isIp, switchDevice} from './utilities.js';
+import {renderFirmwareSuggestions} from './firmware-check.js';
 import * as focusTrap from 'focus-trap';
 
 const SELECTOR_CLOSE_BUTTON = ".popup-modal__close";
@@ -357,6 +358,10 @@ class DiscoveryModal extends GenericModal {
         this._currentModal.querySelector("#mcuname").textContent = deviceInfo.mcu_name;
         this._currentModal.querySelector("#boardid").textContent = deviceInfo.board_id;
         this._currentModal.querySelector("#uid").textContent = deviceInfo.uid;
+        const updateContainer = this._currentModal.querySelector("#firmware-update");
+        if (updateContainer) {
+            renderFirmwareSuggestions(updateContainer, deviceInfo);
+        }
     }
 
     async _refreshDevices() {
@@ -417,6 +422,10 @@ class DeviceInfoModal extends GenericModal {
         this._currentModal.querySelector("#mcuname").textContent = deviceInfo.mcu_name;
         this._currentModal.querySelector("#boardid").textContent = deviceInfo.board_id;
         this._currentModal.querySelector("#uid").textContent = deviceInfo.uid;
+        const updateContainer = this._currentModal.querySelector("#firmware-update");
+        if (updateContainer) {
+            renderFirmwareSuggestions(updateContainer, deviceInfo);
+        }
     }
 
     async open(workflow, documentState) {

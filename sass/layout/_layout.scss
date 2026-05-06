@@ -434,6 +434,43 @@
 
     &[data-popup-modal="device-discovery"],
     &[data-popup-modal="device-info"] {
+        .firmware-update-suggestion-container {
+            // Filled in by firmware-check.js when a newer firmware is found.
+            // Empty by default so the dialog layout doesn't shift when the
+            // GitHub releases API hasn't responded yet (or fails).
+            &:empty {
+                display: none;
+            }
+        }
+
+        .firmware-update-suggestion {
+            margin: 10px 0 5px;
+            padding: 10px 12px;
+            border: 1px solid $light-purple;
+            border-radius: 5px;
+            background-color: #faf6ff;
+            font-size: 0.95rem;
+
+            i {
+                color: $purple;
+                margin-right: 6px;
+            }
+
+            .firmware-update-suggestion__title {
+                font-weight: bold;
+            }
+
+            ul {
+                margin: 6px 0;
+                padding-left: 24px;
+            }
+
+            a {
+                color: $purple;
+                font-weight: bold;
+            }
+        }
+
         .device-info {
             margin-top: 5px;
             width: 100%;
