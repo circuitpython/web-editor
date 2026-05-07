@@ -54,6 +54,9 @@ class Workflow {
         this.plotterChart = false;
         this.buttonStates = [];
         this.connectButtons = {};
+        // Caller-supplied callback used by the "back to workflow chooser"
+        // button on each connect dialog (issue #373). Set in init().
+        this.chooseConnection = null;
     }
 
     async init(params) {
@@ -73,6 +76,9 @@ class Workflow {
         }
         this.currentFilename = params.currentFilename;
         this._showSerial = params.showSerialFunc;
+        if (params.chooseConnectionFunc) {
+            this.chooseConnection = params.chooseConnectionFunc;
+        }
 
         this.repl.setTitle = this.setTerminalTitle.bind(this);
         this.repl.writeToTerminal = this.writeToTerminal.bind(this);
@@ -219,6 +225,30 @@ except ImportError:
 
     async showConnect(documentState) {
         return await this.connectDialog.open();
+    }
+
+    // Wires up the "Choose a different workflow" link inside a connect
+    // dialog. Each subclass calls this from showConnect() after it has
+    // resolved its modal. The link/button is selected by the
+    // `.connect-back` class so the markup stays consistent across dialogs.
+    _wireBackToChooser(modal) {
+        if (!modal || !this.chooseConnection) {
+            return;
+        }
+        const backLinks = modal.querySelectorAll('.connect-back');
+        backLinks.forEach((el) => {
+            const handler = async (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                await this.chooseConnection();
+            };
+            // Remove a previously attached handler (idempotent re-open)
+            if (el._connectBackHandler) {
+                el.removeEventListener('click', el._connectBackHandler);
+            }
+            el._connectBackHandler = handler;
+            el.addEventListener('click', handler);
+        });
     }
 
     async runCurrentCode() {

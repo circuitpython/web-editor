@@ -220,6 +220,28 @@
     }
 }
 
+// "Choose a different workflow" back link inside each connect dialog
+// (issue #373). Sits above the existing instructions, indented in from
+// the modal close button.
+.connect-back-row {
+    margin: 0 0 1rem 0;
+    font-size: 0.9rem;
+
+    a.connect-back {
+        text-decoration: none;
+        opacity: 0.8;
+
+        &:hover {
+            opacity: 1;
+            text-decoration: underline;
+        }
+
+        i {
+            margin-right: 0.35rem;
+        }
+    }
+}
+
 .loader {
     display: none;
     z-index: 9998;
