@@ -4,7 +4,7 @@ import {GenericModal, DeviceInfoModal} from '../common/dialogs.js';
 import {FileOps} from '@adafruit/circuitpython-repl-js'; // Use this to determine which FileTransferClient to load
 import {FileTransferClient as ReplFileTransferClient} from '../common/repl-file-transfer.js';
 import {FileTransferClient as FSAPIFileTransferClient} from '../common/fsapi-file-transfer.js';
-import { isChromeOs, isMicrosoftWindows } from '../common/utilities.js';
+import { isChromeOs, isLinux, isMicrosoftWindows } from '../common/utilities.js';
 
 let btnRequestSerialDevice, btnSelectHostFolder, btnUseHostFolder, lblWorkingfolder;
 
@@ -210,6 +210,16 @@ class USBWorkflow extends Workflow {
         btnSelectHostFolder = modal.querySelector('#selectHostFolder');
         btnUseHostFolder = modal.querySelector('#useHostFolder');
         lblWorkingfolder = modal.querySelector('#workingFolder');
+
+        // Show the Linux-only mount-option notice when relevant (#229).
+        // CIRCUITPY mounted without `sync` on Linux can produce
+        // "OSError: [Errno 5] Input/output error" on Ctrl-D after a save
+        // because Chromium's File System Access writes are deferred by the
+        // kernel writeback for up to ~30s.
+        const linuxNotice = modal.querySelector('#linux-mount-notice');
+        if (linuxNotice) {
+            linuxNotice.hidden = !isLinux();
+        }
 
         // Map the button states to the buttons
         this.connectButtons = {
