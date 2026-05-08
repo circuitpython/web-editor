@@ -4,7 +4,7 @@ import {GenericModal, DeviceInfoModal} from '../common/dialogs.js';
 import {FileOps} from '@adafruit/circuitpython-repl-js'; // Use this to determine which FileTransferClient to load
 import {FileTransferClient as ReplFileTransferClient} from '../common/repl-file-transfer.js';
 import {FileTransferClient as FSAPIFileTransferClient} from '../common/fsapi-file-transfer.js';
-import { isChromeOs, isMicrosoftWindows } from '../common/utilities.js';
+import { isChromeOs, isLinux, isMicrosoftWindows } from '../common/utilities.js';
 
 let btnRequestSerialDevice, btnSelectHostFolder, btnUseHostFolder, lblWorkingfolder;
 
@@ -52,11 +52,28 @@ class USBWorkflow extends Workflow {
     }
 
     async onDisconnected(e, reconnect = true) {
+        // Guard against the disconnect callbacks firing twice (e.g. the
+        // "disconnect" event AND the read-loop catch both call us when a
+        // device is unplugged — see issue #373).
+        if (this._isDisconnecting) {
+            return;
+        }
+        this._isDisconnecting = true;
+
+        // If we got here because the underlying device was lost (NetworkError),
+        // the writable stream is errored and any further writes will throw
+        // unhandled NetworkErrors. Force reconnect=false so we don't loop
+        // back through connect() on a gone device; the user can click Connect
+        // (which now remembers the last backend — issue #373) to try again.
+        let safeReconnect = reconnect;
+
         if (this.reader) {
             try {
                 await this.reader.cancel();
             } catch (error) {
+                // Reader cancel can reject with NetworkError on a lost device
                 console.warn("Error calling reader.cancel:", error);
+                safeReconnect = false;
             }
             this.reader = null;
         }
@@ -65,6 +82,7 @@ class USBWorkflow extends Workflow {
                 await this.writer.releaseLock();
             } catch (error) {
                 console.warn("Error calling writer.releaseLock:", error);
+                safeReconnect = false;
             }
             this.writer = null;
         }
@@ -74,24 +92,45 @@ class USBWorkflow extends Workflow {
                 await this._serialDevice.close();
             } catch (error) {
                 console.warn("Error calling _serialDevice.close:", error);
+                safeReconnect = false;
             }
             this._serialDevice = null;
         }
 
-        super.onDisconnected(e, reconnect);
+        try {
+            await super.onDisconnected(e, safeReconnect);
+        } finally {
+            this._isDisconnecting = false;
+        }
     }
 
     async serialTransmit(msg) {
         const encoder = new TextEncoder();
-        if (this.writer) {
-            const encMessage = encoder.encode(msg);
-            await this.writer.ready.catch((err) => {
-                console.error(`Ready error: ${err}`);
-            });
-            await this.writer.write(encMessage).catch((err) => {
-                console.error(`Chunk error: ${err}`);
-            });
+        if (!this.writer) {
+            return;
+        }
+        const encMessage = encoder.encode(msg);
+
+        // Any of these awaits can reject with NetworkError if the device was
+        // unplugged or otherwise lost (#373). We treat any of those as a
+        // disconnect event and stop touching the writer instead of letting the
+        // unhandled rejection escape (which used to spam the console at
+        // script.js:592).
+        const handleTransmitError = async (err) => {
+            console.warn("Serial transmit error, treating as disconnect:", err);
+            // Don't try to reconnect automatically — the device is gone, and
+            // the user clicking Connect will pick up the last backend.
+            await this.onDisconnected(null, false);
+        };
+
+        try {
             await this.writer.ready;
+            if (!this.writer) return; // disconnected during await
+            await this.writer.write(encMessage);
+            if (!this.writer) return;
+            await this.writer.ready;
+        } catch (err) {
+            await handleTransmitError(err);
         }
     }
 
@@ -166,10 +205,21 @@ class USBWorkflow extends Workflow {
     async showConnect(documentState) {
         let p = this.connectDialog.open();
         let modal = this.connectDialog.getModal();
+        this._wireBackToChooser(modal);
         btnRequestSerialDevice = modal.querySelector('#requestSerialDevice');
         btnSelectHostFolder = modal.querySelector('#selectHostFolder');
         btnUseHostFolder = modal.querySelector('#useHostFolder');
         lblWorkingfolder = modal.querySelector('#workingFolder');
+
+        // Show the Linux-only mount-option notice when relevant (#229).
+        // CIRCUITPY mounted without `sync` on Linux can produce
+        // "OSError: [Errno 5] Input/output error" on Ctrl-D after a save
+        // because Chromium's File System Access writes are deferred by the
+        // kernel writeback for up to ~30s.
+        const linuxNotice = modal.querySelector('#linux-mount-notice');
+        if (linuxNotice) {
+            linuxNotice.hidden = !isLinux();
+        }
 
         // Map the button states to the buttons
         this.connectButtons = {
@@ -298,9 +348,14 @@ class USBWorkflow extends Workflow {
         console.log("switch to", this._serialDevice);
         await this._serialDevice.open({baudRate: 115200}); // Throws if something else is already connected or it isn't found.
         console.log("Starting Read Loop");
+        // Pass reconnect=false: if the read loop bails out, the device is
+        // most likely gone (NetworkError: device has been lost). Trying to
+        // immediately connect() again would re-enter this method on a dead
+        // device and surface another unhandled NetworkError (#373).
         this._readLoopPromise = this._readSerialLoop().catch(
             async function(error) {
-                await this.onDisconnected();
+                console.warn("Read loop ended with error:", error);
+                await this.onDisconnected(null, false);
             }.bind(this)
         );
 

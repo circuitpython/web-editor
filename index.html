@@ -224,6 +224,7 @@
     <div class="popup-modal shadow connect-dialog closable" data-popup-modal="ble-connect">
         <i class="fa-solid fa-2x fa-xmark text-white bg-primary p-3 popup-modal__close"></i>
         <div id="ble-instructions" class="connection-layout content">
+            <p class="connect-back-row"><a href="#" class="connect-back"><i class="fa-solid fa-arrow-left"></i> Choose a different workflow</a></p>
             <p>If you are connecting to a new device, follow the steps below. Otherwise click the Reconnect button.</p>
             <p><button class="purple-button" id="bleReconnect">Reconnect</button></p>
             <section class="step">
@@ -268,6 +269,7 @@
     <div class="popup-modal shadow connect-dialog closable" data-popup-modal="web-connect">
         <i class="fa-solid fa-2x fa-xmark text-white bg-primary p-3 popup-modal__close"></i>
         <div id="web-instructions" class="connection-layout content">
+            <p class="connect-back-row"><a href="#" class="connect-back"><i class="fa-solid fa-arrow-left"></i> Choose a different workflow</a></p>
             <section class="step">
                 <div class="step-number"></div>
                 <div class="step-content">
@@ -309,6 +311,7 @@
     <div class="popup-modal shadow connect-dialog closable" data-popup-modal="usb-connect">
         <i class="fa-solid fa-2x fa-xmark text-white bg-primary p-3 popup-modal__close"></i>
         <div id="usb-instructions" class="connection-layout content">
+            <p class="connect-back-row"><a href="#" class="connect-back"><i class="fa-solid fa-arrow-left"></i> Choose a different workflow</a></p>
             <section class="step">
                 <div class="step-number"></div>
                 <div class="step-content">
@@ -335,6 +338,17 @@
                 <div class="step-content">
                     <h1>Select USB Host Folder</h1>
                     <p>Select the root folder of your device. This is typically the CIRCUITPY Drive on your computer unless you renamed it. If your device does not appear as a drive on your computer, it will need to have the USB Host functionality enabled.</p>
+                    <details id="linux-mount-notice" class="linux-mount-notice" hidden>
+                        <summary><strong>Linux:</strong> seeing <code>OSError: [Errno 5]</code> after <kbd>Ctrl</kbd>+<kbd>D</kbd>? Click for fix.</summary>
+                        <p>Your CIRCUITPY drive is mounted with asynchronous writes. Remount it with <code>sync</code>:</p>
+                        <pre><code>udisksctl unmount -b /dev/sdX1
+udisksctl mount -b /dev/sdX1 -o sync</code></pre>
+                        <p>Replace <code>sdX1</code> with the correct device. Find it with:</p>
+                        <pre><code>lsblk</code></pre>
+                        <p>or:</p>
+                        <pre><code>mount | grep CIRCUITPY</code></pre>
+                        <p>For a permanent fix, see <a href="https://github.com/circuitpython/web-editor/blob/main/docs/LINUX_USB_MOUNT.md" target="_blank" rel="noopener">Linux USB mount notes</a>.</p>
+                    </details>
                     <p>
                         <button class="purple-button hidden" id="useHostFolder"><span id="workingFolder"></span></button>
                         <button class="purple-button first-item" id="selectHostFolder">Select New Folder</button>

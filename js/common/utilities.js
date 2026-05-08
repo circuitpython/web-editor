@@ -75,6 +75,26 @@ function isChromeOs() {
     return false;
 }
 
+// Test to see if browser is running on Linux (and is not Chrome OS or
+// Android, which can also report "Linux" in the legacy userAgent string).
+function isLinux() {
+    // Newer test on Chromium
+    if (navigator.userAgentData?.platform === "Linux") {
+        return true;
+    }
+    // Avoid false positives for Chrome OS and Android.
+    if (isChromeOs()) {
+        return false;
+    }
+    if (navigator.userAgent.includes("Android")) {
+        return false;
+    }
+    if (navigator.userAgent.includes("Linux")) {
+        return true;
+    }
+    return false;
+}
+
 // Parse out the url parameters from the current url
 function getUrlParams() {
     // This should look for and validate very specific values
@@ -167,6 +187,7 @@ export {
     isLocal,
     isMicrosoftWindows,
     isChromeOs,
+    isLinux,
     getUrlParams,
     getUrlParam,
     timeout,

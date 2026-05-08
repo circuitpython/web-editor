@@ -220,6 +220,28 @@
     }
 }
 
+// "Choose a different workflow" back link inside each connect dialog
+// (issue #373). Sits above the existing instructions, indented in from
+// the modal close button.
+.connect-back-row {
+    margin: 0 0 1rem 0;
+    font-size: 0.9rem;
+
+    a.connect-back {
+        text-decoration: none;
+        opacity: 0.8;
+
+        &:hover {
+            opacity: 1;
+            text-decoration: underline;
+        }
+
+        i {
+            margin-right: 0.35rem;
+        }
+    }
+}
+
 .loader {
     display: none;
     z-index: 9998;
@@ -519,4 +541,71 @@
         }
     }
 
+}
+
+// Inline notice shown in the USB connect dialog for Linux users (#229).
+.linux-mount-notice {
+    margin-top: 1rem;
+    padding: 0.5rem 1rem;
+    border-left: 4px solid #f0ad4e;
+    background-color: #fff8e1;
+    border-radius: 3px;
+    font-size: 0.95em;
+
+    summary {
+        cursor: pointer;
+        padding: 0.25rem 0;
+        list-style: none;
+        position: relative;
+        padding-left: 1.25rem;
+
+        &::-webkit-details-marker {
+            display: none;
+        }
+
+        &::before {
+            content: "\25B6"; // right-pointing triangle
+            position: absolute;
+            left: 0;
+            font-size: 0.8em;
+            transition: transform 150ms ease-in-out;
+            display: inline-block;
+        }
+    }
+
+    &[open] summary {
+        margin-bottom: 0.5rem;
+
+        &::before {
+            transform: rotate(90deg);
+        }
+    }
+
+    p {
+        margin: 0.25rem 0;
+    }
+
+    pre {
+        margin: 0.5rem 0;
+        padding: 0.5rem;
+        background-color: #2d2d2d;
+        color: #f1f1f1;
+        border-radius: 3px;
+        overflow-x: auto;
+        font-size: 0.9em;
+    }
+
+    code {
+        font-family: monospace;
+    }
+
+    kbd {
+        display: inline-block;
+        padding: 1px 4px;
+        font-family: monospace;
+        font-size: 0.9em;
+        background-color: #eee;
+        border: 1px solid #ccc;
+        border-radius: 3px;
+    }
 }

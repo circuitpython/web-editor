@@ -37,13 +37,21 @@ class WebWorkflow extends Workflow {
 
     async serialTransmit(msg) {
         // Use an open web socket to transmit serial data
-        if (this.websocket) {
-            let value = decodeURIComponent(escape(msg));
-            try {
-                this.websocket.send(value);
-            } catch (e) {
-                console.log("caught write error", e, e.stack);
-            }
+        if (!this.websocket) {
+            return;
+        }
+        // If the socket is closing/closed, don't even try — just clean up.
+        if (this.websocket.readyState !== WebSocket.OPEN) {
+            console.warn("Serial transmit on a non-open websocket; treating as disconnect");
+            await this.onDisconnected(null, false);
+            return;
+        }
+        let value = decodeURIComponent(escape(msg));
+        try {
+            this.websocket.send(value);
+        } catch (e) {
+            console.warn("caught write error, treating as disconnect:", e);
+            await this.onDisconnected(null, false);
         }
     }
 
@@ -61,7 +69,13 @@ class WebWorkflow extends Workflow {
     async onConnected(e) {
         this.debugLog("connected");
         await super.onConnected(e);
-        //this.connIntervalId = setInterval(this._checkConnection.bind(this), PING_INTERVAL_MS);
+        // Periodic ping so we notice silent network drops (issue #373).
+        // _checkConnection() calls onDisconnected(null, false) when a ping
+        // times out, which flips the UI back to "Connect".
+        if (this.connIntervalId) {
+            clearInterval(this.connIntervalId);
+        }
+        this.connIntervalId = setInterval(this._checkConnection.bind(this), PING_INTERVAL_MS);
     }
 
     async onDisconnected(e, reconnect = true) {
@@ -85,6 +99,7 @@ class WebWorkflow extends Workflow {
     async showConnect(documentState) {
         const p = this.connectDialog.open();
         const modal = this.connectDialog.getModal();
+        this._wireBackToChooser(modal);
         const deviceLink = modal.querySelector("#device-link");
         deviceLink.addEventListener("click", (event) => {
             event.preventDefault();
@@ -131,6 +146,15 @@ class WebWorkflow extends Workflow {
             this.websocket.onopen = this.onConnected.bind(this);
             this.websocket.onmessage = this.onSerialReceive.bind(this);
             this.websocket.onclose = this.onDisconnected.bind(this);
+            // A websocket error (network drop, device reboot) does not
+            // always fire onclose cleanly. Treat onerror as a hard
+            // disconnect so the UI flips back to "Connect" (issue #373).
+            this.websocket.onerror = (event) => {
+                console.warn("WebSocket error, treating as disconnect:", event);
+                this.onDisconnected(event, false).catch((err) => {
+                    console.warn("onDisconnected after socket error failed:", err);
+                });
+            };
             return true;
         } catch (e) {
             //console.log(e, e.stack);
