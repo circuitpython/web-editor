@@ -236,15 +236,13 @@
             text-decoration: underline;
         }
 
-        // Suppress the default focus outline on mouse-click activation.
-        // Keyboard users still get a visible focus ring via :focus-visible.
-        &:focus {
+        // Suppress the focus outline rectangle (matches other anchors in
+        // the editor; the underline-on-hover treatment is the active state).
+        &:focus,
+        &:focus-visible,
+        &:active {
             outline: none;
-        }
-
-        &:focus-visible {
-            outline: 2px solid currentColor;
-            outline-offset: 2px;
+            box-shadow: none;
         }
 
         i {
