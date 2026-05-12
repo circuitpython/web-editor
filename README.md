@@ -35,22 +35,13 @@ ACTION=="add", KERNEL=="sd[a-z]*", ATTRS{idVendor}=="239a", ENV{ID_FS_LABEL}=="C
 
 Then reload with `sudo udevadm control --reload-rules && sudo udevadm trigger`. The CIRCUITPY drive will be mounted with `sync,flush` on next reconnect, so writes commit immediately at a small write-speed cost.
 
-**Option B — Disable CircuitPython's filesystem-change auto-reload.** Add the following to `boot.py` on the device:
-
-```python
-import supervisor
-supervisor.runtime.autoreload = False
-```
-
-This suppresses the device's own auto-reload on filesystem change, so you fully control reboots from the editor. The editor's wait still applies to its own Run/Reboot actions.
-
-**Option C — Reduce the kernel's dirty-page expire window** (host-wide; affects all writes, not just CIRCUITPY):
+**Option B — Reduce the kernel's dirty-page expire window** (host-wide; affects all writes, not just CIRCUITPY):
 
 ```
 sudo sysctl -w vm.dirty_expire_centisecs=100
 ```
 
-Note: ChromeOS users cannot apply Option A or C and should rely on the editor's built-in wait or use Option B on the device.
+Note: ChromeOS users cannot apply either option and should rely on the editor's built-in wait.
 
 ## License
 
