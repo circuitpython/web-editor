@@ -10,11 +10,13 @@ import {isLinux, sleep} from '../common/utilities.js';
 
 // How long we are willing to wait for the host kernel to flush a pending
 // FSAPI write down to the CIRCUITPY drive before we send Ctrl-D. The kernel's
-// default dirty_expire_centisecs on most Linux distros is 3000 (=30s), so 35s
+// default dirty_expire_centisecs on most Linux distros is 3000 (=30s), so 40s
 // gives a small safety margin. Issue #229.
-const HOST_FLUSH_TIMEOUT_MS = 35000;
+const HOST_FLUSH_TIMEOUT_MS = 40000;
 // Poll interval while waiting. Keep low so we proceed quickly once the kernel
-// does flush. Each poll is a tiny `os.stat()` via REPL.
+// does flush. Each poll opens the file on the device and checksums its
+// contents to confirm the data sectors (not just the FAT directory entry)
+// have been flushed by the host kernel.
 const HOST_FLUSH_POLL_MS = 500;
 
 /*
@@ -121,9 +123,11 @@ class Workflow {
     //
     // Public wrapper shows the busy loader for the duration of the wait so
     // the user knows the UI is not frozen during the (potentially ~30s) wait.
+    // Public wrapper shows the busy loader for the duration of the wait so
+    // the user knows the UI is not frozen during the (potentially ~30s) wait.
     async _waitForHostFlush() {
-        // Quick non-async checks first so we never flash the loader when there
-        // is nothing to wait for. Mirrors the early-exits in _waitForHostFlushImpl.
+        // Quick non-async checks first so we never flash the loader when
+        // there is nothing to wait for. Mirrors early-exits in the impl.
         if (!isLinux() || !this.fileHelper) {
             return;
         }
@@ -134,8 +138,6 @@ class Workflow {
         if (!fileClient.getLastWrite()) {
             return;
         }
-        // There IS a pending write to wait on. Show the busy overlay so the
-        // user knows the editor is intentionally pausing.
         await this.showBusy(this._waitForHostFlushImpl(fileClient));
     }
 
@@ -144,16 +146,28 @@ class Workflow {
         if (!pending) {
             return;
         }
-        const {path, byteLength} = pending;
+        const {path, byteLength, checksum} = pending;
         // Escape any single quotes / backslashes in the path before injecting
         // into the python snippet below.
         const safePath = String(path).replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+        // Probe both the FAT directory entry (os.stat) AND the file's data
+        // sectors (read all bytes and xor-checksum them). Linux can update
+        // the directory metadata block before flushing the data block, so
+        // os.stat alone is not a sufficient flush detector. We compare the
+        // xor sum to the host-computed value to confirm correct content is
+        // present on the device.
         const code = `
 try:
     import os
-    print(os.stat('${safePath}')[6])
+    _s = os.stat('${safePath}')[6]
+    with open('${safePath}', 'rb') as _f:
+        _b = _f.read()
+    _c = 0
+    for _x in _b:
+        _c = (_c ^ _x) & 0xff
+    print(_s, _c, len(_b))
 except OSError:
-    print(-1)
+    print(-1, -1, -1)
 `;
         const start = Date.now();
         while (Date.now() - start < HOST_FLUSH_TIMEOUT_MS) {
@@ -164,14 +178,18 @@ except OSError:
                 console.warn("Host-flush poll failed, proceeding without wait:", e);
                 return;
             }
-            // runCode returns the REPL's stdout. We printed a single integer.
-            const match = String(result || "").match(/-?\d+/);
+            const match = String(result || "").match(/(-?\d+)\s+(-?\d+)\s+(-?\d+)/);
             if (match) {
-                const size = parseInt(match[0], 10);
-                if (size >= byteLength) {
-                    // Device sees the full write; safe to proceed. Clear the
-                    // tracker so we do not re-poll on the next softRestart
-                    // for the same write.
+                const size = parseInt(match[1], 10);
+                const devChecksum = parseInt(match[2], 10);
+                const readLen = parseInt(match[3], 10);
+                // Require all three to confirm the data sectors (not just
+                // the FAT directory entry) are flushed: correct size, full
+                // readable length, and matching checksum. Linux can update
+                // the directory block before the data block, so os.stat
+                // alone is not a sufficient flush detector.
+                if (size >= byteLength && readLen >= byteLength
+                        && (checksum < 0 || devChecksum === checksum)) {
                     fileClient.clearLastWrite?.();
                     return;
                 }

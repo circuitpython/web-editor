@@ -197,9 +197,24 @@ class FileTransferClient {
         // byteLength is the on-disk byte size in both cases.
         try {
             const expectedSize = (offset || 0) + (contents.byteLength || contents.length || 0);
+            // Compute a quick FNV-1a-style xor-sum across the bytes so a
+            // device-side reader can confirm the data sectors (not just the
+            // FAT directory entry) are present and correct.
+            let checksum = 0;
+            try {
+                const bytes = (contents instanceof Uint8Array)
+                    ? contents
+                    : new TextEncoder().encode(String(contents));
+                for (let i = 0; i < bytes.length; i++) {
+                    checksum = (checksum ^ bytes[i]) & 0xff;
+                }
+            } catch (_e) {
+                checksum = -1;
+            }
             this._lastWrite = {
                 path: path,
                 byteLength: expectedSize,
+                checksum: checksum,
                 at: Date.now(),
             };
         } catch (_e) {
