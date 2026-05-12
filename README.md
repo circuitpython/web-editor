@@ -26,7 +26,7 @@ The editor mitigates this by waiting (with a Blinka spinner) for the device to c
 
 If you want to eliminate the wait entirely (and the underlying race), pick one of the following workarounds on your Linux host:
 
-**Option A — Mount CIRCUITPY synchronously (recommended).** Add a udev rule so the kernel commits writes immediately:
+**Option A — Mount CIRCUITPY synchronously (recommended; eliminates the wait).** With this rule the host commits writes inside `close()`, so the editor's flush-detector poll matches on its first attempt and the Run/Reboot/Ctrl-D actions feel instant. Add a udev rule:
 
 ```
 # /etc/udev/rules.d/99-circuitpy.rules
