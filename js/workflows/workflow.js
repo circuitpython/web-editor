@@ -123,8 +123,6 @@ class Workflow {
     //
     // Public wrapper shows the busy loader for the duration of the wait so
     // the user knows the UI is not frozen during the (potentially ~30s) wait.
-    // Public wrapper shows the busy loader for the duration of the wait so
-    // the user knows the UI is not frozen during the (potentially ~30s) wait.
     async _waitForHostFlush() {
         // Quick non-async checks first so we never flash the loader when
         // there is nothing to wait for. Mirrors early-exits in the impl.
@@ -139,6 +137,27 @@ class Workflow {
             return;
         }
         await this.showBusy(this._waitForHostFlushImpl(fileClient));
+    }
+
+    // Intercepted serial-transmit used by the terminal panel. When the user
+    // types Ctrl-D directly in the terminal we route it through the same
+    // host-flush wait used by the Run / Reboot buttons. Without this, a
+    // user-initiated Ctrl-D right after a save would race the kernel page
+    // cache flush and trigger OSError [Errno 5]. Issue #229.
+    async serialTransmitWithFlushGuard(data) {
+        // \x04 = Ctrl-D, which CircuitPython interprets as a soft reboot
+        // when received at the normal prompt. Only intercept if our
+        // host-flush guard has something pending; otherwise pass straight
+        // through to keep terminal latency low.
+        if (typeof data === "string" && data.includes("\x04")
+                && isLinux() && this.fileHelper) {
+            const fileClient = this.fileHelper.getFileClient?.();
+            if (fileClient && typeof fileClient.getLastWrite === "function"
+                    && fileClient.getLastWrite()) {
+                await this._waitForHostFlush();
+            }
+        }
+        return await this.serialTransmit(data);
     }
 
     async _waitForHostFlushImpl(fileClient) {
