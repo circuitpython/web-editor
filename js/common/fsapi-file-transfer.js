@@ -5,6 +5,25 @@ class FileTransferClient {
         this.connectionStatus = connectionStatusCB;
         this._dirHandle = null;
         this._uid = uid;
+        // Tracks the most recent file we wrote via FSAPI and its byte length.
+        // On Linux, writes can sit in the kernel page cache for up to ~30s
+        // before the FAT-mounted CIRCUITPY drive is flushed. Consumers (e.g.,
+        // softRestart) can read this and poll the device side until the host
+        // has actually committed the bytes. See issue #229.
+        this._lastWrite = null; // { path: string, byteLength: number, at: number }
+    }
+
+    // Returns the most recent FSAPI write, or null if there hasn't been one
+    // since the client was created. Callers should treat the result as read-only.
+    getLastWrite() {
+        return this._lastWrite;
+    }
+
+    // Mark the last-write tracker as resolved (host flush confirmed, or the
+    // caller has decided to stop waiting). Prevents repeated polls for the
+    // same write across multiple consecutive softRestart()s.
+    clearLastWrite() {
+        this._lastWrite = null;
     }
 
     async readOnly() {
@@ -171,6 +190,22 @@ class FileTransferClient {
         }
         await writable.write(contents);
         await writable.close();
+
+        // Record the expected byte length for the host-flush wait (issue #229).
+        // `contents` has already been encoded to a Uint8Array above when raw
+        // was false, and the raw-mode path operates on a typed array, so
+        // byteLength is the on-disk byte size in both cases.
+        try {
+            const expectedSize = (offset || 0) + (contents.byteLength || contents.length || 0);
+            this._lastWrite = {
+                path: path,
+                byteLength: expectedSize,
+                at: Date.now(),
+            };
+        } catch (_e) {
+            // Tracker is best-effort; never let it break a successful write.
+            this._lastWrite = null;
+        }
     }
 
     _splitPath(path) {

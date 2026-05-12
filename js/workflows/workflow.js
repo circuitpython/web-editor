@@ -6,6 +6,16 @@ import {ButtonValueDialog, UnsavedDialog} from '../common/dialogs.js';
 import {FileDialog, FILE_DIALOG_OPEN, FILE_DIALOG_SAVE} from '../common/file_dialog.js';
 import {CONNTYPE, CONNSTATE} from '../constants.js';
 import {plotValues} from '../common/plotter.js'
+import {isLinux, sleep} from '../common/utilities.js';
+
+// How long we are willing to wait for the host kernel to flush a pending
+// FSAPI write down to the CIRCUITPY drive before we send Ctrl-D. The kernel's
+// default dirty_expire_centisecs on most Linux distros is 3000 (=30s), so 35s
+// gives a small safety margin. Issue #229.
+const HOST_FLUSH_TIMEOUT_MS = 35000;
+// Poll interval while waiting. Keep low so we proceed quickly once the kernel
+// does flush. Each poll is a tiny `os.stat()` via REPL.
+const HOST_FLUSH_POLL_MS = 500;
 
 /*
  * This class will encapsulate all of the common workflow-related functions
@@ -98,6 +108,85 @@ class Workflow {
         return await this.available();
     }
 
+    // On Linux + FSAPI workflow, the host kernel can hold a just-written file
+    // in its page cache for up to ~30s before flushing to the vfat-mounted
+    // CIRCUITPY drive. Sending Ctrl-D before that happens makes CircuitPython
+    // try to import a half-written file and bail with OSError [Errno 5].
+    //
+    // This helper polls the device's view of the filesystem via REPL until it
+    // sees the file at the expected size (= host has flushed) or we hit the
+    // timeout (in which case we fall through and let the caller proceed,
+    // because waiting forever is worse than a possibly-failing reboot that
+    // the existing retry path can recover from). See issue #229.
+    //
+    // Public wrapper shows the busy loader for the duration of the wait so
+    // the user knows the UI is not frozen during the (potentially ~30s) wait.
+    async _waitForHostFlush() {
+        // Quick non-async checks first so we never flash the loader when there
+        // is nothing to wait for. Mirrors the early-exits in _waitForHostFlushImpl.
+        if (!isLinux() || !this.fileHelper) {
+            return;
+        }
+        const fileClient = this.fileHelper.getFileClient?.();
+        if (!fileClient || typeof fileClient.getLastWrite !== "function") {
+            return;
+        }
+        if (!fileClient.getLastWrite()) {
+            return;
+        }
+        // There IS a pending write to wait on. Show the busy overlay so the
+        // user knows the editor is intentionally pausing.
+        await this.showBusy(this._waitForHostFlushImpl(fileClient));
+    }
+
+    async _waitForHostFlushImpl(fileClient) {
+        const pending = fileClient.getLastWrite();
+        if (!pending) {
+            return;
+        }
+        const {path, byteLength} = pending;
+        // Escape any single quotes / backslashes in the path before injecting
+        // into the python snippet below.
+        const safePath = String(path).replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+        const code = `
+try:
+    import os
+    print(os.stat('${safePath}')[6])
+except OSError:
+    print(-1)
+`;
+        const start = Date.now();
+        while (Date.now() - start < HOST_FLUSH_TIMEOUT_MS) {
+            let result;
+            try {
+                result = await this.repl.runCode(code);
+            } catch (e) {
+                console.warn("Host-flush poll failed, proceeding without wait:", e);
+                return;
+            }
+            // runCode returns the REPL's stdout. We printed a single integer.
+            const match = String(result || "").match(/-?\d+/);
+            if (match) {
+                const size = parseInt(match[0], 10);
+                if (size >= byteLength) {
+                    // Device sees the full write; safe to proceed. Clear the
+                    // tracker so we do not re-poll on the next softRestart
+                    // for the same write.
+                    fileClient.clearLastWrite?.();
+                    return;
+                }
+            }
+            await sleep(HOST_FLUSH_POLL_MS);
+        }
+        console.warn(
+            `Host-flush wait timed out after ${HOST_FLUSH_TIMEOUT_MS}ms for ` +
+            `${path} (expected ${byteLength} bytes). Proceeding anyway; if the ` +
+            `reboot fails the editor's save-retry logic will recover.`
+        );
+        // Leave the tracker set so the next softRestart will retry the wait
+        // in case the kernel eventually flushes between now and then.
+    }
+
     async restartDevice() {
         if (await this.safeMode()) {
             let result = await this._okCancelDialog.open("Device is currently in safe mode. Reboot device?");
@@ -106,6 +195,7 @@ class Workflow {
                 await this.rebootDevice();
             }
         }
+        await this._waitForHostFlush();
         await this.repl.softRestart();
     }
 
@@ -270,6 +360,11 @@ except ImportError:
         }
 
         await this._showSerial();
+
+        // Wait for any pending Linux page-cache flush before either path:
+        // Ctrl-D would race code.py's read on a soft restart, and `import X`
+        // would race X.py's bytecode read on first import. See issue #229.
+        await this._waitForHostFlush();
 
         if (path == "/code.py") {
             await this.repl.softRestart();
