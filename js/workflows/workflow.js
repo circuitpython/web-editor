@@ -10,9 +10,12 @@ import {isLinux, sleep} from '../common/utilities.js';
 
 // How long we are willing to wait for the host kernel to flush a pending
 // FSAPI write down to the CIRCUITPY drive before we send Ctrl-D. The kernel's
-// default dirty_expire_centisecs on most Linux distros is 3000 (=30s), so 40s
-// gives a small safety margin. Issue #229.
-const HOST_FLUSH_TIMEOUT_MS = 40000;
+// default dirty_expire_centisecs on most Linux distros is 3000 (=30s), but
+// laptop-mode and similar power-saving configs can push it to 60s or beyond,
+// and slow USB buses or large files extend the actual flush time further.
+// 60s covers the common laptop-mode case while still falling through to the
+// existing save-retry loop if the flush genuinely never completes. Issue #229.
+const HOST_FLUSH_TIMEOUT_MS = 60000;
 // Poll interval while waiting. Keep low so we proceed quickly once the kernel
 // does flush. Each poll opens the file on the device and checksums its
 // contents to confirm the data sectors (not just the FAT directory entry)

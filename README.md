@@ -24,6 +24,8 @@ On Linux, the CIRCUITPY drive is mounted asynchronously by default. After the ed
 
 The editor mitigates this by waiting (with a Blinka spinner) for the device to confirm it can read the full file before sending a soft-reboot. This covers the **Run** and **Reboot** buttons and Ctrl-D pressed in the terminal panel.
 
+The built-in wait gives up after 60 seconds and falls through to the existing save-retry loop. That window comfortably covers the default Linux flush behavior (`vm.dirty_expire_centisecs` = 3000), but it can be exceeded on hosts running laptop-mode tools or other power-saving configs (which push the expire window to 60s+), on slow or contended USB buses, or when writing larger files. If you regularly see the Blinka loader time out, apply one of the workarounds below to short-circuit the wait.
+
 If you want to eliminate the wait entirely (and the underlying race), pick one of the following workarounds on your Linux host:
 
 **Option A — Mount CIRCUITPY synchronously (recommended; eliminates the wait).** With this rule the host commits writes inside `close()`, so the editor's flush-detector poll matches on its first attempt and the Run/Reboot/Ctrl-D actions feel instant. Add a udev rule:
