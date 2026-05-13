@@ -41,7 +41,15 @@ Then reload with `sudo udevadm control --reload-rules && sudo udevadm trigger`. 
 sudo sysctl -w vm.dirty_expire_centisecs=100
 ```
 
-Note: ChromeOS users cannot apply either option and should rely on the editor's built-in wait.
+**Option C — Run `sync` in a terminal after saving** (no setup required). Opening a terminal on your Linux host and typing:
+
+```
+sync
+```
+
+forces the kernel to flush all pending writes immediately. If you run it right after the editor finishes saving, the editor's flush-detector poll matches on its next attempt and the wait completes quickly. Useful as a one-off speed-up when you don't want to install the udev rule.
+
+Note: ChromeOS users cannot apply Options A or B and should rely on the editor's built-in wait.
 
 ## License
 
