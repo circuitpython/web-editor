@@ -653,7 +653,10 @@ async function setupXterm() {
     state.terminal.open(document.getElementById('terminal'));
     state.terminal.onData(async (data) => {
         if (await checkConnected()) {
-            workflow.serialTransmit(data);
+            // Route through the flush-guard wrapper so a user-typed Ctrl-D
+            // right after a save waits for the host kernel to flush before
+            // the device reads code.py. See issue #229.
+            await workflow.serialTransmitWithFlushGuard(data);
         }
     });
 }

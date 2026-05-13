@@ -75,6 +75,33 @@ function isChromeOs() {
     return false;
 }
 
+// Test to see if browser is running on Linux (and NOT Chrome OS or Android,
+// both of which include "Linux" in their UA strings). Used to gate the
+// host-flush wait introduced for issue #229: on Linux the kernel page cache
+// can hold writes to a vfat-mounted CIRCUITPY drive for up to ~30s before
+// the device sees them, which races a Ctrl-D soft restart.
+function isLinux() {
+    // Newer test on Chromium browsers.
+    if (navigator.userAgentData?.platform) {
+        const platform = navigator.userAgentData.platform;
+        if (platform === "Linux") {
+            return true;
+        }
+        // userAgentData.platform is authoritative when present: if it says
+        // ChromeOS or Android, we are not on "plain Linux" even though the
+        // legacy UA below would match.
+        return false;
+    }
+    // Legacy UA fallback: exclude ChromeOS and Android explicitly.
+    if (navigator.userAgent.includes("CrOS")) {
+        return false;
+    }
+    if (navigator.userAgent.includes("Android")) {
+        return false;
+    }
+    return navigator.userAgent.includes("Linux");
+}
+
 // Parse out the url parameters from the current url
 function getUrlParams() {
     // This should look for and validate very specific values
@@ -167,6 +194,7 @@ export {
     isLocal,
     isMicrosoftWindows,
     isChromeOs,
+    isLinux,
     getUrlParams,
     getUrlParam,
     timeout,

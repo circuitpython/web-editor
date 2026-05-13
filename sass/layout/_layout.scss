@@ -236,6 +236,15 @@
             text-decoration: underline;
         }
 
+        // Suppress the focus outline rectangle (matches other anchors in
+        // the editor; the underline-on-hover treatment is the active state).
+        &:focus,
+        &:focus-visible,
+        &:active {
+            outline: none;
+            box-shadow: none;
+        }
+
         i {
             margin-right: 0.35rem;
         }
