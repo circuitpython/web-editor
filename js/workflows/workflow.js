@@ -6,6 +6,21 @@ import {ButtonValueDialog, UnsavedDialog} from '../common/dialogs.js';
 import {FileDialog, FILE_DIALOG_OPEN, FILE_DIALOG_SAVE} from '../common/file_dialog.js';
 import {CONNTYPE, CONNSTATE} from '../constants.js';
 import {plotValues} from '../common/plotter.js'
+import {isLinux, sleep} from '../common/utilities.js';
+
+// How long we are willing to wait for the host kernel to flush a pending
+// FSAPI write down to the CIRCUITPY drive before we send Ctrl-D. The kernel's
+// default dirty_expire_centisecs on most Linux distros is 3000 (=30s), but
+// laptop-mode and similar power-saving configs can push it to 60s or beyond,
+// and slow USB buses or large files extend the actual flush time further.
+// 60s covers the common laptop-mode case while still falling through to the
+// existing save-retry loop if the flush genuinely never completes. Issue #229.
+const HOST_FLUSH_TIMEOUT_MS = 60000;
+// Poll interval while waiting. Keep low so we proceed quickly once the kernel
+// does flush. Each poll opens the file on the device and checksums its
+// contents to confirm the data sectors (not just the FAT directory entry)
+// have been flushed by the host kernel.
+const HOST_FLUSH_POLL_MS = 500;
 
 /*
  * This class will encapsulate all of the common workflow-related functions
@@ -98,6 +113,120 @@ class Workflow {
         return await this.available();
     }
 
+    // On Linux + FSAPI workflow, the host kernel can hold a just-written file
+    // in its page cache for up to ~30s before flushing to the vfat-mounted
+    // CIRCUITPY drive. Sending Ctrl-D before that happens makes CircuitPython
+    // try to import a half-written file and bail with OSError [Errno 5].
+    //
+    // This helper polls the device's view of the filesystem via REPL until it
+    // sees the file at the expected size (= host has flushed) or we hit the
+    // timeout (in which case we fall through and let the caller proceed,
+    // because waiting forever is worse than a possibly-failing reboot that
+    // the existing retry path can recover from). See issue #229.
+    //
+    // Public wrapper shows the busy loader for the duration of the wait so
+    // the user knows the UI is not frozen during the (potentially ~30s) wait.
+    async _waitForHostFlush() {
+        // Quick non-async checks first so we never flash the loader when
+        // there is nothing to wait for. Mirrors early-exits in the impl.
+        if (!isLinux() || !this.fileHelper) {
+            return;
+        }
+        const fileClient = this.fileHelper.getFileClient?.();
+        if (!fileClient || typeof fileClient.getLastWrite !== "function") {
+            return;
+        }
+        if (!fileClient.getLastWrite()) {
+            return;
+        }
+        await this.showBusy(this._waitForHostFlushImpl(fileClient));
+    }
+
+    // Intercepted serial-transmit used by the terminal panel. When the user
+    // types Ctrl-D directly in the terminal we route it through the same
+    // host-flush wait used by the Run / Reboot buttons. Without this, a
+    // user-initiated Ctrl-D right after a save would race the kernel page
+    // cache flush and trigger OSError [Errno 5]. Issue #229.
+    async serialTransmitWithFlushGuard(data) {
+        // \x04 = Ctrl-D, which CircuitPython interprets as a soft reboot
+        // when received at the normal prompt. Only intercept if our
+        // host-flush guard has something pending; otherwise pass straight
+        // through to keep terminal latency low.
+        if (typeof data === "string" && data.includes("\x04")
+                && isLinux() && this.fileHelper) {
+            const fileClient = this.fileHelper.getFileClient?.();
+            if (fileClient && typeof fileClient.getLastWrite === "function"
+                    && fileClient.getLastWrite()) {
+                await this._waitForHostFlush();
+            }
+        }
+        return await this.serialTransmit(data);
+    }
+
+    async _waitForHostFlushImpl(fileClient) {
+        const pending = fileClient.getLastWrite();
+        if (!pending) {
+            return;
+        }
+        const {path, byteLength, checksum} = pending;
+        // Escape any single quotes / backslashes in the path before injecting
+        // into the python snippet below.
+        const safePath = String(path).replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+        // Probe both the FAT directory entry (os.stat) AND the file's data
+        // sectors (read all bytes and xor-checksum them). Linux can update
+        // the directory metadata block before flushing the data block, so
+        // os.stat alone is not a sufficient flush detector. We compare the
+        // xor sum to the host-computed value to confirm correct content is
+        // present on the device.
+        const code = `
+try:
+    import os
+    _s = os.stat('${safePath}')[6]
+    with open('${safePath}', 'rb') as _f:
+        _b = _f.read()
+    _c = 0
+    for _x in _b:
+        _c = (_c ^ _x) & 0xff
+    print(_s, _c, len(_b))
+except OSError:
+    print(-1, -1, -1)
+`;
+        const start = Date.now();
+        while (Date.now() - start < HOST_FLUSH_TIMEOUT_MS) {
+            let result;
+            try {
+                result = await this.repl.runCode(code);
+            } catch (e) {
+                console.warn("Host-flush poll failed, proceeding without wait:", e);
+                return;
+            }
+            const match = String(result || "").match(/(-?\d+)\s+(-?\d+)\s+(-?\d+)/);
+            if (match) {
+                const size = parseInt(match[1], 10);
+                const devChecksum = parseInt(match[2], 10);
+                const readLen = parseInt(match[3], 10);
+                // Require all three to confirm the data sectors (not just
+                // the FAT directory entry) are flushed: correct size, full
+                // readable length, and matching checksum. Linux can update
+                // the directory block before the data block, so os.stat
+                // alone is not a sufficient flush detector.
+                if (size >= byteLength && readLen >= byteLength
+                        && (checksum < 0 || devChecksum === checksum)) {
+                    fileClient.clearLastWrite?.();
+                    return;
+                }
+            }
+            await sleep(HOST_FLUSH_POLL_MS);
+        }
+        console.warn(
+            `Host-flush wait timed out after ${HOST_FLUSH_TIMEOUT_MS}ms for ` +
+            `${path} (expected ${byteLength} bytes). Proceeding anyway; if the ` +
+            `reboot fails the editor's save-retry logic will recover.`
+        );
+        // Leave the tracker set so the next softRestart will retry the wait
+        // in case the kernel eventually flushes between now and then.
+    }
+
     async restartDevice() {
         if (await this.safeMode()) {
             let result = await this._okCancelDialog.open("Device is currently in safe mode. Reboot device?");
@@ -106,6 +235,7 @@ class Workflow {
                 await this.rebootDevice();
             }
         }
+        await this._waitForHostFlush();
         await this.repl.softRestart();
     }
 
@@ -270,6 +400,11 @@ except ImportError:
         }
 
         await this._showSerial();
+
+        // Wait for any pending Linux page-cache flush before either path:
+        // Ctrl-D would race code.py's read on a soft restart, and `import X`
+        // would race X.py's bytecode read on first import. See issue #229.
+        await this._waitForHostFlush();
 
         if (path == "/code.py") {
             await this.repl.softRestart();
