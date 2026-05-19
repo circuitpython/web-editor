@@ -45,10 +45,13 @@ class USBWorkflow extends Workflow {
     }
 
     async onConnected(e) {
-        this.connectDialog.close();
-        await this.loadEditor();
+        // super.onConnected sets _connected=CONNSTATE.connected and closes
+        // the connect dialog. Run it first so that loadEditor() (and any
+        // other code that gates on connectionStatus()) sees us as fully
+        // connected.
+        await super.onConnected(e);
         this.debugLog("connected");
-        super.onConnected(e);
+        await this.loadEditor();
     }
 
     async onDisconnected(e, reconnect = true) {
