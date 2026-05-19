@@ -606,8 +606,8 @@ async function saveFileContents(path) {
                     setSaved(false);
                     const hint = e.hint || "The filesystem is currently read-only.";
                     await showMessage(
-                        `Saving file '${workflow.currentFilename}' failed: ${hint} ` +
-                        `Your edits are still in the editor -- save again once the drive is released.`
+                        `Saving file '${workflow.currentFilename}' failed. ${hint} ` +
+                        `Your edits are still here in the editor -- save again once the board's filesystem is writable.`
                     );
                     return false;
                 }

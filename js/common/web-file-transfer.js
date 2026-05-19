@@ -138,9 +138,13 @@ class FileTransferClient {
                               location.startsWith("/fs/");
             if (isFsWrite && (response.status === 409 || response.status === 500)) {
                 err.writeProtected = true;
-                err.hint = "CIRCUITPY may be mounted on your computer. " +
-                           "Eject it (or disable USB Mass Storage in boot.py) " +
-                           "and try again.";
+                err.hint = "The board's filesystem is currently locked, " +
+                           "usually because CIRCUITPY is mounted on a " +
+                           "computer over USB. Disconnect the USB cable, " +
+                           "or disable USB Mass Storage in boot.py, then " +
+                           "reset the board and try saving again. " +
+                           "(Ejecting the drive in your OS may not be " +
+                           "enough on its own.)";
             }
             throw err;
         }
