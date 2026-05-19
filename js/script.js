@@ -605,8 +605,16 @@ async function saveFileContents(path) {
                 if (e && e.writeProtected) {
                     setSaved(false);
                     const hint = e.hint || "The filesystem is currently read-only.";
+                    let helpLink = "";
+                    if (e.helpUrl) {
+                        const label = e.helpLabel || "More info";
+                        // MessageModal renders via innerHTML, so a real <a>
+                        // tag is clickable. target=_blank + noopener so we
+                        // don't nav away from the editor.
+                        helpLink = ` <a href="${e.helpUrl}" target="_blank" rel="noopener noreferrer">${label}</a>.`;
+                    }
                     await showMessage(
-                        `Saving file '${workflow.currentFilename}' failed. ${hint} ` +
+                        `Saving file '${workflow.currentFilename}' failed. ${hint}${helpLink} ` +
                         `Your edits are still here in the editor -- save again once the board's filesystem is writable.`
                     );
                     return false;

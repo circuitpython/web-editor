@@ -145,6 +145,8 @@ class FileTransferClient {
                            "reset the board and try saving again. " +
                            "(Ejecting the drive in your OS may not be " +
                            "enough on its own.)";
+                err.helpUrl = "https://learn.adafruit.com/getting-started-with-web-workflow-using-the-code-editor/device-setup#disabling-usb-mass-storage-3125964";
+                err.helpLabel = "Disabling USB Mass Storage (Adafruit Learn)";
             }
             throw err;
         }
