@@ -128,6 +128,15 @@ class FileTransferClient {
             err.status = response.status;
             err.method = (fetchOptions.method || "GET").toUpperCase();
             err.path = location;
+            // DEBUG: leave this in until we're sure the writeProtected
+            // detection is firing in the field. Cheap, runs only on
+            // non-OK responses.
+            console.warn("[web-file-transfer] non-OK response", {
+                method: err.method,
+                path: err.path,
+                status: err.status,
+                statusText: response.statusText,
+            });
             // /fs/ PUT against a write-protected filesystem currently returns
             // 500 on shipped CircuitPython firmware. A fix is pending to
             // return 409 Conflict (matching DELETE / MOVE / mkdir-PUT in

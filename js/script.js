@@ -594,6 +594,14 @@ async function saveFileContents(path) {
                 return false;
             } catch (e) {
                 console.error(`write failed (attempt ${attempt} of ${MAX_SAVE_RETRIES})`, e, e.stack);
+                console.warn("[saveFileContents] caught error fields", {
+                    name: e && e.name,
+                    message: e && e.message,
+                    status: e && e.status,
+                    method: e && e.method,
+                    path: e && e.path,
+                    writeProtected: e && e.writeProtected,
+                });
                 unchanged = Math.min(baseUnchanged, unchanged);
                 // If the device cleanly told us the filesystem is held by
                 // someone else (most commonly USB-MSC: the host has
