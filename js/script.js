@@ -229,8 +229,11 @@ async function newFile() {
 
 async function saveRunFile() {
     if (await checkConnected()) {
+        // workflow.saveFile() now propagates the real save result -- only
+        // soft-restart / re-import once the PUT actually succeeded. Otherwise
+        // we would reboot the board running the old code.py while the editor
+        // still had the unsaved edits (issue #460).
         if (await workflow.saveFile()) {
-            setSaved(true);
             await workflow.runCurrentCode();
         }
     }
@@ -535,47 +538,80 @@ async function loadEditor() {
 }
 
 var editor;
-var currentTimeout = null;
-var saveRetryCount = 0;
 const MAX_SAVE_RETRIES = 3;
+const SAVE_RETRY_DELAY_MS = 2000;
+let saveInFlight = false;
 
-// Save the File Contents and update the UI
+function sleep(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// Save the File Contents and update the UI. Returns true on success, false
+// on final failure (after all retries). Retries inline so callers (Save+Run,
+// hotkeys, dialogs) can actually await the outcome -- previously this used
+// a fire-and-forget setTimeout, which let Save+Run soft-restart the board
+// before the PUT had succeeded (issue #460).
 async function saveFileContents(path) {
-    // If this is a different file, we write everything
-    if (path !== workflow.currentFilename) {
-        unchanged = 0;
+    if (saveInFlight) {
+        // Re-entrant save (e.g. user mashing Ctrl-S / Save+Run). The first
+        // call will report success/failure; the second would race the same
+        // bytes onto the wire and confuse partialWrites bookkeeping.
+        console.log("saveFileContents: already in flight, ignoring re-entry");
+        return false;
     }
-    let doc = editor.state.doc;
-    let offset = 0;
-    let contents = doc.sliceString(0);
-    if (workflow.partialWrites) {
-        offset = unchanged;
-        console.log("sync starting at", unchanged, "to", editor.state.doc.length);
-    }
-    let oldUnchanged = unchanged;
-    unchanged = doc.length;
+    saveInFlight = true;
     try {
-        if (await workflow.writeFile(path, contents, offset)) {
-            setFilename(workflow.currentFilename);
-            setSaved(true);
-            saveRetryCount = 0;
-        } else {
-            await showMessage(`Saving file '${workflow.currentFilename}' failed.`);
+        // If this is a different file, we write everything
+        if (path !== workflow.currentFilename) {
+            unchanged = 0;
         }
-    } catch (e) {
-        console.error("write failed", e, e.stack);
-        unchanged = Math.min(oldUnchanged, unchanged);
-        if (currentTimeout != null) {
-            clearTimeout(currentTimeout);
+        let doc = editor.state.doc;
+        let contents = doc.sliceString(0);
+        let baseUnchanged = unchanged;
+        let docLengthAtStart = doc.length;
+
+        for (let attempt = 1; attempt <= MAX_SAVE_RETRIES; attempt++) {
+            // Recompute offset each attempt -- if onTextChange fired between
+            // retries, `unchanged` may have shrunk and we need to resend more.
+            let offset = 0;
+            if (workflow.partialWrites) {
+                offset = Math.min(baseUnchanged, unchanged);
+                console.log("sync starting at", offset, "to", editor.state.doc.length);
+            }
+            // Optimistically mark the bytes-being-sent as unchanged. If the
+            // write throws we'll roll back to baseUnchanged for the next try.
+            unchanged = docLengthAtStart;
+            try {
+                if (await workflow.writeFile(path, contents, offset)) {
+                    setFilename(workflow.currentFilename);
+                    setSaved(true);
+                    return true;
+                }
+                // writeFile returned a falsy value without throwing -- treat
+                // as a soft failure and surface a message immediately.
+                await showMessage(`Saving file '${workflow.currentFilename}' failed.`);
+                setSaved(false);
+                return false;
+            } catch (e) {
+                console.error(`write failed (attempt ${attempt} of ${MAX_SAVE_RETRIES})`, e, e.stack);
+                unchanged = Math.min(baseUnchanged, unchanged);
+                if (attempt < MAX_SAVE_RETRIES) {
+                    await sleep(SAVE_RETRY_DELAY_MS);
+                    // Bail out if the user disconnected mid-retry.
+                    if (!workflow || !workflow.connectionStatus()) {
+                        setSaved(false);
+                        return false;
+                    }
+                }
+            }
         }
-        saveRetryCount++;
-        if (saveRetryCount < MAX_SAVE_RETRIES) {
-            console.log(`Save retry ${saveRetryCount} of ${MAX_SAVE_RETRIES}...`);
-            currentTimeout = setTimeout(() => saveFileContents(path), 2000);
-        } else {
-            saveRetryCount = 0;
-            await showMessage(`Saving file '${workflow.currentFilename}' failed after multiple attempts. Check your connection and try again.`);
-        }
+        // All retries exhausted. Leave the editor marked dirty so the user
+        // knows the file on the board is still stale.
+        setSaved(false);
+        await showMessage(`Saving file '${workflow.currentFilename}' failed after multiple attempts. Check your connection and try again.`);
+        return false;
+    } finally {
+        saveInFlight = false;
     }
 }
 
@@ -611,19 +647,13 @@ async function onTextChange(update) {
         unchanged = 0;
     }
 
-    if (currentTimeout != null) {
-        clearTimeout(currentTimeout);
-    }
-
     setSaved(false);
 }
 
 function disconnectCallback() {
-    if (currentTimeout != null) {
-        clearTimeout(currentTimeout);
-        currentTimeout = null;
-    }
-    saveRetryCount = 0;
+    // saveInFlight is intentionally not forced here -- the in-flight
+    // saveFileContents loop checks connectionStatus() between retries and
+    // exits cleanly on its own, then clears the flag in its finally block.
     updateUIConnected(false);
 }
 
