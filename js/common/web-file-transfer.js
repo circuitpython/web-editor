@@ -50,9 +50,36 @@ class FileTransferClient {
         }
     }
 
+    // Build a ProtocolError-shaped error that callers can recognize as
+    // "the device's filesystem is currently held by something else"
+    // (typically USB MSC). Tagged identically to the runtime PUT 409/500
+    // path so `saveFileContents()` can show the same actionable dialog
+    // whether the check trips on the cached writable flag or on the
+    // actual response from the device.
+    _writeProtectedError() {
+        const err = new ProtocolError("File System is Read Only.");
+        err.status = 409;
+        err.writeProtected = true;
+        err.hint = "The board's filesystem is currently locked, " +
+                   "usually because CIRCUITPY is mounted on a " +
+                   "computer over USB. Disconnect the USB cable, " +
+                   "or disable USB Mass Storage in boot.py, then " +
+                   "reset the board and try saving again. " +
+                   "(Ejecting the drive in your OS may not be " +
+                   "enough on its own.)";
+        err.helpUrl = "https://learn.adafruit.com/getting-started-with-web-workflow-using-the-code-editor/device-setup#disabling-usb-mass-storage-3125964";
+        err.helpLabel = "Disabling USB Mass Storage (Adafruit Learn)";
+        return err;
+    }
+
     async _checkWritable() {
+        // Force a re-read of the writable flag so the user can recover
+        // without disconnecting: if they just released the drive (or
+        // disabled USB MSC and reset), the next save attempt should
+        // succeed, not bounce off a stale `false` cache.
+        this._writable = null;
         if (await this.readOnly()) {
-            throw new Error("File System is Read Only. Try disabling the USB Drive.");
+            throw this._writeProtectedError();
         }
     }
 
@@ -128,15 +155,6 @@ class FileTransferClient {
             err.status = response.status;
             err.method = (fetchOptions.method || "GET").toUpperCase();
             err.path = location;
-            // DEBUG: leave this in until we're sure the writeProtected
-            // detection is firing in the field. Cheap, runs only on
-            // non-OK responses.
-            console.warn("[web-file-transfer] non-OK response", {
-                method: err.method,
-                path: err.path,
-                status: err.status,
-                statusText: response.statusText,
-            });
             // /fs/ PUT against a write-protected filesystem currently returns
             // 500 on shipped CircuitPython firmware. A fix is pending to
             // return 409 Conflict (matching DELETE / MOVE / mkdir-PUT in
@@ -146,16 +164,14 @@ class FileTransferClient {
                               typeof location === "string" &&
                               location.startsWith("/fs/");
             if (isFsWrite && (response.status === 409 || response.status === 500)) {
+                // Reuse the same wording/hint as the cached-flag
+                // _checkWritable() path, so users see one consistent
+                // message regardless of which layer caught the lock.
+                const wp = this._writeProtectedError();
                 err.writeProtected = true;
-                err.hint = "The board's filesystem is currently locked, " +
-                           "usually because CIRCUITPY is mounted on a " +
-                           "computer over USB. Disconnect the USB cable, " +
-                           "or disable USB Mass Storage in boot.py, then " +
-                           "reset the board and try saving again. " +
-                           "(Ejecting the drive in your OS may not be " +
-                           "enough on its own.)";
-                err.helpUrl = "https://learn.adafruit.com/getting-started-with-web-workflow-using-the-code-editor/device-setup#disabling-usb-mass-storage-3125964";
-                err.helpLabel = "Disabling USB Mass Storage (Adafruit Learn)";
+                err.hint = wp.hint;
+                err.helpUrl = wp.helpUrl;
+                err.helpLabel = wp.helpLabel;
             }
             throw err;
         }

@@ -331,7 +331,19 @@ async function checkReadOnly() {
         await showMessage(readOnly);
         return false;
     } else if (readOnly) {
-        await showMessage("Warning: File System is in read only mode. Disable the USB drive to allow write access.");
+        // Same wording as the per-save dialog, with the Learn-guide
+        // link, so the very first popup users see at connect already
+        // points them at the right fix.
+        const learnUrl = "https://learn.adafruit.com/getting-started-with-web-workflow-using-the-code-editor/device-setup#disabling-usb-mass-storage-3125964";
+        const learnLabel = "Disabling USB Mass Storage (Adafruit Learn)";
+        await showMessage(
+            "Warning: the board's filesystem is read-only, usually because " +
+            "CIRCUITPY is mounted on a computer over USB. You can browse and " +
+            "open files, but saving will fail until the lock is released. " +
+            "Disconnect the USB cable, or disable USB Mass Storage in boot.py, " +
+            "then reset the board. (Ejecting the drive in your OS may not be " +
+            `enough on its own.) <a href="${learnUrl}" target="_blank" rel="noopener noreferrer">${learnLabel}</a>.`
+        );
     }
     return true;
 }
@@ -594,14 +606,6 @@ async function saveFileContents(path) {
                 return false;
             } catch (e) {
                 console.error(`write failed (attempt ${attempt} of ${MAX_SAVE_RETRIES})`, e, e.stack);
-                console.warn("[saveFileContents] caught error fields", {
-                    name: e && e.name,
-                    message: e && e.message,
-                    status: e && e.status,
-                    method: e && e.method,
-                    path: e && e.path,
-                    writeProtected: e && e.writeProtected,
-                });
                 unchanged = Math.min(baseUnchanged, unchanged);
                 // If the device cleanly told us the filesystem is held by
                 // someone else (most commonly USB-MSC: the host has
