@@ -595,6 +595,22 @@ async function saveFileContents(path) {
             } catch (e) {
                 console.error(`write failed (attempt ${attempt} of ${MAX_SAVE_RETRIES})`, e, e.stack);
                 unchanged = Math.min(baseUnchanged, unchanged);
+                // If the device cleanly told us the filesystem is held by
+                // someone else (most commonly USB-MSC: the host has
+                // CIRCUITPY mounted), retrying won't help -- surface an
+                // actionable hint immediately and bail. Older CircuitPython
+                // firmware returns 500 for this case, newer firmware
+                // returns 409 Conflict; web-file-transfer.js tags both
+                // with `writeProtected` so we can treat them the same way.
+                if (e && e.writeProtected) {
+                    setSaved(false);
+                    const hint = e.hint || "The filesystem is currently read-only.";
+                    await showMessage(
+                        `Saving file '${workflow.currentFilename}' failed: ${hint} ` +
+                        `Your edits are still in the editor -- save again once the drive is released.`
+                    );
+                    return false;
+                }
                 if (attempt < MAX_SAVE_RETRIES) {
                     await sleep(SAVE_RETRY_DELAY_MS);
                     // Bail out if the user disconnected mid-retry.

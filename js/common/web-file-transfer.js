@@ -72,7 +72,8 @@ class FileTransferClient {
             options.headers['Content-Type'] = "application/octet-stream";
         }
 
-        await this._fetch(`/fs${path}`, options);
+        const response = await this._fetch(`/fs${path}`, options);
+        return response.ok;
     }
 
     // Makes the directory and any missing parents
@@ -120,7 +121,28 @@ class FileTransferClient {
         }
 
         if (!response.ok) {
-            throw new ProtocolError(response.statusText);
+            // Attach the status code + a friendly hint when we recognize
+            // the failure mode, so callers can branch on it (e.g. show an
+            // actionable message and skip retries that won't help).
+            const err = new ProtocolError(response.statusText || `HTTP ${response.status}`);
+            err.status = response.status;
+            err.method = (fetchOptions.method || "GET").toUpperCase();
+            err.path = location;
+            // /fs/ PUT against a write-protected filesystem currently returns
+            // 500 on shipped CircuitPython firmware. A fix is pending to
+            // return 409 Conflict (matching DELETE / MOVE / mkdir-PUT in
+            // the same file). Treat both the same way until enough users
+            // are on the patched firmware that 500 can be left generic.
+            const isFsWrite = err.method === "PUT" &&
+                              typeof location === "string" &&
+                              location.startsWith("/fs/");
+            if (isFsWrite && (response.status === 409 || response.status === 500)) {
+                err.writeProtected = true;
+                err.hint = "CIRCUITPY may be mounted on your computer. " +
+                           "Eject it (or disable USB Mass Storage in boot.py) " +
+                           "and try again.";
+            }
+            throw err;
         }
 
         return response;
