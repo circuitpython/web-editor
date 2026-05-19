@@ -442,8 +442,14 @@ except ImportError:
         // canceled or rejected) is treated the same as null and does not get
         // forwarded to writeFile, where it would crash in _splitPath. See #327.
         if (path != null) {
-            await this._saveFileContents(path);
-            return true;
+            // Propagate the actual save result so Save+Run and other callers
+            // can avoid taking follow-up actions (soft-restart, import) when
+            // the underlying PUT failed. _saveFileContents returns false on
+            // exhausted retries; treating only an explicit `false` as failure
+            // keeps backwards compatibility with older saveFileFunc callbacks
+            // that returned undefined on success (issue #460).
+            const result = await this._saveFileContents(path);
+            return result !== false;
         }
         return false;
     }

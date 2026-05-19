@@ -318,7 +318,32 @@
     display: none;
 
     &.prompt {
-        max-height: 365px;
+        max-height: 80vh;
+        // Flex column so the buttons stay pinned to the bottom and the
+        // content area can scroll when a dialog has rich/multi-section
+        // markup that overflows the modal height. Three-class selector
+        // beats `.popup-modal.is--visible` so the `display: flex`
+        // wins on specificity.
+        &.is--visible {
+            display: flex;
+            flex-direction: column;
+        }
+        #message {
+            overflow-y: auto;
+            flex: 1 1 auto;
+            min-height: 0;
+        }
+        .buttons {
+            flex: 0 0 auto;
+        }
+    }
+
+    // The message dialog often shows multi-section explanatory prose
+    // (e.g. the save-failure / read-only-filesystem help). Cap the
+    // width so paragraphs wrap at a comfortable reading measure rather
+    // than stretching the full viewport on a wide monitor.
+    &[data-popup-modal="message"] {
+        max-width: min(480px, 90vw);
     }
 
     &.shadow {
