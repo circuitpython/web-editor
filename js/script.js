@@ -331,18 +331,13 @@ async function checkReadOnly() {
         await showMessage(readOnly);
         return false;
     } else if (readOnly) {
-        // Same wording as the per-save dialog, with the Learn-guide
-        // link, so the very first popup users see at connect already
-        // points them at the right fix.
+        // Concise connect-time notice that the filesystem is read-only,
+        // with a link to the Learn guide for users who want the fix now.
         const learnUrl = "https://learn.adafruit.com/getting-started-with-web-workflow-using-the-code-editor/device-setup#disabling-usb-mass-storage-3125964";
-        const learnLabel = "Disabling USB Mass Storage (Adafruit Learn)";
         await showMessage(
-            "Warning: the board's filesystem is read-only, usually because " +
-            "CIRCUITPY is mounted on a computer over USB. You can browse and " +
-            "open files, but saving will fail until the lock is released. " +
-            "Disconnect the USB cable, or disable USB Mass Storage in boot.py, " +
-            "then reset the board. (Ejecting the drive in your OS may not be " +
-            `enough on its own.) <a href="${learnUrl}" target="_blank" rel="noopener noreferrer">${learnLabel}</a>.`
+            "Filesystem is read-only — you can browse files, but saving " +
+            "will fail until USB Mass Storage is released. " +
+            `<a href="${learnUrl}" target="_blank" rel="noopener noreferrer">How to fix</a>.`
         );
     }
     return true;
@@ -616,18 +611,24 @@ async function saveFileContents(path) {
                 // with `writeProtected` so we can treat them the same way.
                 if (e && e.writeProtected) {
                     setSaved(false);
-                    const hint = e.hint || "The filesystem is currently read-only.";
-                    let helpLink = "";
-                    if (e.helpUrl) {
-                        const label = e.helpLabel || "More info";
-                        // MessageModal renders via innerHTML, so a real <a>
-                        // tag is clickable. target=_blank + noopener so we
-                        // don't nav away from the editor.
-                        helpLink = ` <a href="${e.helpUrl}" target="_blank" rel="noopener noreferrer">${label}</a>.`;
-                    }
+                    const learnUrl = e.helpUrl || "https://learn.adafruit.com/getting-started-with-web-workflow-using-the-code-editor/device-setup#disabling-usb-mass-storage-3125964";
+                    const learnLabel = e.helpLabel || "Disabling USB Mass Storage (Adafruit Learn)";
+                    // MessageModal renders via innerHTML, so real markup
+                    // (sections, list, link) is fine. Sections separate the
+                    // 'what happened', 'why', and 'how to fix' so users can
+                    // scan instead of parsing a wall of prose.
                     await showMessage(
-                        `Saving file '${workflow.currentFilename}' failed. ${hint}${helpLink} ` +
-                        `Your edits are still here in the editor -- save again once the board's filesystem is writable.`
+                        `<p><strong>Could not save '${workflow.currentFilename}'.</strong></p>` +
+                        `<p>The board's filesystem is locked, usually because ` +
+                        `CIRCUITPY is mounted on a computer over USB.</p>` +
+                        `<p><strong>To fix:</strong></p>` +
+                        `<ul style="margin: 0.25em 0 0.5em 1.25em; padding: 0;">` +
+                            `<li>Disconnect the USB cable, <em>or</em></li>` +
+                            `<li>Disable USB Mass Storage in <code>boot.py</code>, then reset the board.</li>` +
+                        `</ul>` +
+                        `<p><em>Note:</em> ejecting the drive in your OS isn't always enough on its own.</p>` +
+                        `<p><a href="${learnUrl}" target="_blank" rel="noopener noreferrer">${learnLabel}</a></p>` +
+                        `<p>Your edits are still here — save again once the filesystem is writable.</p>`
                     );
                     return false;
                 }
