@@ -60,13 +60,20 @@ class FileTransferClient {
         const err = new ProtocolError("File System is Read Only.");
         err.status = 409;
         err.writeProtected = true;
-        err.hint = "The board's filesystem is currently locked, " +
-                   "usually because CIRCUITPY is mounted on a " +
-                   "computer over USB. Disconnect the USB cable, " +
-                   "or disable USB Mass Storage in boot.py, then " +
-                   "reset the board and try saving again. " +
-                   "(Ejecting the drive in your OS may not be " +
-                   "enough on its own.)";
+        // The board's filesystem is read-only to web workflow whenever
+        // USB Mass Storage support is enabled on the board, regardless
+        // of whether a host computer is actively using the drive. The
+        // common-case fix is to disable USB MSC in boot.py (which also
+        // hides the drive from the host); users who want both modes
+        // typically gate the disable on a button or pin check.
+        err.hint = "The board's filesystem is in read-only mode for " +
+                   "web workflow. This happens whenever USB Mass " +
+                   "Storage is enabled on the board (the default for " +
+                   "most CircuitPython boards), whether or not a host " +
+                   "computer has CIRCUITPY mounted. Disable USB Mass " +
+                   "Storage in boot.py and reset the board, or eject " +
+                   "CIRCUITPY and disconnect the USB data connection, " +
+                   "then try saving again.";
         err.helpUrl = "https://learn.adafruit.com/getting-started-with-web-workflow-using-the-code-editor/device-setup#disabling-usb-mass-storage-3125964";
         err.helpLabel = "Disabling USB Mass Storage (Adafruit Learn)";
         return err;

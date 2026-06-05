@@ -333,10 +333,14 @@ async function checkReadOnly() {
     } else if (readOnly) {
         // Concise connect-time notice that the filesystem is read-only,
         // with a link to the Learn guide for users who want the fix now.
+        // The cause is the board's USB Mass Storage support being
+        // enabled (the default on most boards) — saving from web
+        // workflow stays blocked whether or not a host actively has
+        // CIRCUITPY mounted.
         const learnUrl = "https://learn.adafruit.com/getting-started-with-web-workflow-using-the-code-editor/device-setup#disabling-usb-mass-storage-3125964";
         await showMessage(
             "Filesystem is read-only — you can browse files, but saving " +
-            "will fail until USB Mass Storage is released. " +
+            "will fail while USB Mass Storage is enabled on the board. " +
             `<a href="${learnUrl}" target="_blank" rel="noopener noreferrer">How to fix</a>.`
         );
     }
@@ -617,16 +621,27 @@ async function saveFileContents(path) {
                     // (sections, list, link) is fine. Sections separate the
                     // 'what happened', 'why', and 'how to fix' so users can
                     // scan instead of parsing a wall of prose.
+                    //
+                    // We intentionally don't assert that a host has
+                    // CIRCUITPY mounted: the board's filesystem becomes
+                    // read-only to web workflow whenever USB Mass
+                    // Storage is enabled on the board (the default for
+                    // most CircuitPython boards), even on a power-only
+                    // USB connection or a wall adapter. See #460 for
+                    // the full discussion.
                     await showMessage(
                         `<p><strong>Could not save '${workflow.currentFilename}'.</strong></p>` +
-                        `<p>The board's filesystem is locked, usually because ` +
-                        `CIRCUITPY is mounted on a computer over USB.</p>` +
+                        `<p>The board's filesystem is in read-only mode for web workflow. ` +
+                        `This happens whenever USB Mass Storage is enabled on the board ` +
+                        `(the default for most CircuitPython boards), whether or not a ` +
+                        `host computer is actively using it.</p>` +
                         `<p><strong>To fix:</strong></p>` +
                         `<ul style="margin: 0.25em 0 0.5em 1.25em; padding: 0;">` +
-                            `<li>Disconnect the USB cable, <em>or</em></li>` +
-                            `<li>Disable USB Mass Storage in <code>boot.py</code>, then reset the board.</li>` +
+                            `<li>Disable USB Mass Storage in <code>boot.py</code>, then reset the board, <em>or</em></li>` +
+                            `<li>If a computer has CIRCUITPY mounted, eject the drive and disconnect the USB data connection.</li>` +
                         `</ul>` +
-                        `<p><em>Note:</em> ejecting the drive in your OS isn't always enough on its own.</p>` +
+                        `<p><em>Heads up:</em> disabling USB Mass Storage in <code>boot.py</code> means the CIRCUITPY drive won't appear on a host computer either — you'll edit through web workflow only. Many makers use a button or pin check in <code>boot.py</code> to choose between the two modes at startup.</p>` +
+                        `<p><em>Note:</em> on macOS, ejecting the drive in Finder doesn't always release the board-side lock on its own.</p>` +
                         `<p><a href="${learnUrl}" target="_blank" rel="noopener noreferrer">${learnLabel}</a></p>` +
                         `<p>Your edits are still here — save again once the filesystem is writable.</p>`
                     );
