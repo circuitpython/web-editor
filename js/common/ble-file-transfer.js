@@ -1,10 +1,61 @@
 import {FileTransferClient as BLEFileTransferClient} from '@adafruit/ble-file-transfer-js';
 //import {FileTransferClient as BLEFileTransferClient} from '../../../ble-file-transfer-js/adafruit-ble-file-transfer.js';
 
-// Wrapper for BLEFileTransferClient to add additional functionality
+// Wrapper for BLEFileTransferClient to add additional functionality.
+// Optionally accepts a workflow reference so that mutating ops can notify
+// the workflow about the impending firmware autoreload (see
+// circuitpython/web-editor#377).
+//
+// Mutating ops (write/move/delete/mkdir) trigger a CircuitPython VM
+// autoreload, which kills the GATT connection. We hold the op's promise
+// open until either (a) the connection is restored, or (b) the silent
+// reconnect window expires, so callers like FileDialog can chain
+// `await fileHelper.move(...); await this._openFolder();` without
+// blowing up on a torn-down GATT in the second await.
 class FileTransferClient extends BLEFileTransferClient {
-    constructor(bleDevice, bufferSize) {
+    constructor(bleDevice, bufferSize, workflow = null) {
         super(bleDevice, bufferSize);
+        this._workflow = workflow;
+    }
+
+    _signalMutatingOp() {
+        if (this._workflow && typeof this._workflow.markMutatingOp === 'function') {
+            this._workflow.markMutatingOp();
+        }
+    }
+
+    async _awaitReconnectIfNeeded() {
+        if (this._workflow && typeof this._workflow.awaitPostOpReconnect === 'function') {
+            await this._workflow.awaitPostOpReconnect();
+        }
+    }
+
+    async writeFile(path, offset, contents, modificationTime, raw) {
+        this._signalMutatingOp();
+        const result = await super.writeFile(path, offset, contents, modificationTime, raw);
+        await this._awaitReconnectIfNeeded();
+        return result;
+    }
+
+    async move(oldPath, newPath) {
+        this._signalMutatingOp();
+        const result = await super.move(oldPath, newPath);
+        await this._awaitReconnectIfNeeded();
+        return result;
+    }
+
+    async delete(path) {
+        this._signalMutatingOp();
+        const result = await super.delete(path);
+        await this._awaitReconnectIfNeeded();
+        return result;
+    }
+
+    async makeDir(path, modificationTime) {
+        this._signalMutatingOp();
+        const result = await super.makeDir(path, modificationTime);
+        await this._awaitReconnectIfNeeded();
+        return result;
     }
 
     async readOnly() {
