@@ -49,6 +49,19 @@ class BLEWorkflow extends Workflow {
         this._lastMutatingOpAt = 0;
         this._silentReconnectInFlight = false;
         this._silentReconnectPromise = null;
+
+        // Cached bound handlers so add/remove use the same reference.
+        // Without this, .bind() returns a fresh function every call and
+        // removeEventListener becomes a no-op, leaking listeners on every
+        // connect/reconnect cycle. See #410.
+        this._onRequestBluetoothDeviceClick = this.onRequestBluetoothDeviceButtonClick.bind(this);
+        this._onReconnectClick = this.reconnectButtonHandler.bind(this);
+        this._onSerialReceiveBound = this.onSerialReceive.bind(this);
+        this._onDisconnectedBound = this.onDisconnected.bind(this);
+
+        // Track in-flight watchAdvertisements abort controllers so we can
+        // cancel them when any device wins or when we tear down (#410).
+        this._pendingAdvAborts = new Set();
     }
 
     // Called by the FileTransferClient wrapper right before any mutating
@@ -93,12 +106,36 @@ class BLEWorkflow extends Workflow {
     async disconnectButtonHandler(e) {
         await super.disconnectButtonHandler(e);
         if (this.connectionStatus()) {
-            // Disconnect BlueTooth and Reset things
             if (this.bleDevice !== undefined && this.bleDevice.gatt.connected) {
+                // gatt.disconnect() fires gattserverdisconnected which calls
+                // onDisconnected via our listener — don't call onDisconnected
+                // again here or we double-log and double-fire UI updates.
+                // See #410.
                 this.bleDevice.gatt.disconnect();
+            } else {
+                // Already torn down at the GATT layer; run our cleanup directly.
+                await this.onDisconnected(e, false);
             }
-            await this.onDisconnected(e, false);
         }
+    }
+
+    async onDisconnected(e, reconnect = true) {
+        // Detach the gattserverdisconnected listener so a stale device handle
+        // can't fire onDisconnected later (the cause of the duplicate log
+        // accumulation in #410).
+        if (this.bleDevice) {
+            this.bleDevice.removeEventListener('gattserverdisconnected', this._onDisconnectedBound);
+        }
+        if (this.txCharacteristic) {
+            this.txCharacteristic.removeEventListener('characteristicvaluechanged', this._onSerialReceiveBound);
+        }
+        // Cancel any in-flight watchAdvertisements so a subsequent reconnect
+        // doesn't pile up Chrome's per-device watch quota (#410).
+        for (const ctrl of this._pendingAdvAborts) {
+            ctrl.abort();
+        }
+        this._pendingAdvAborts.clear();
+        await super.onDisconnected(e, reconnect);
     }
 
     async showConnect(documentState) {
@@ -114,8 +151,10 @@ class BLEWorkflow extends Workflow {
             request: btnRequestBluetoothDevice
         };
 
-        btnRequestBluetoothDevice.addEventListener('click', this.onRequestBluetoothDeviceButtonClick.bind(this));
-        btnReconnect.addEventListener('click', this.reconnectButtonHandler.bind(this));
+        btnRequestBluetoothDevice.removeEventListener('click', this._onRequestBluetoothDeviceClick);
+        btnRequestBluetoothDevice.addEventListener('click', this._onRequestBluetoothDeviceClick);
+        btnReconnect.removeEventListener('click', this._onReconnectClick);
+        btnReconnect.addEventListener('click', this._onReconnectClick);
 
         // Check if Web Bluetooth is available
         if (!(await this.available() instanceof Error)) {
@@ -155,9 +194,9 @@ class BLEWorkflow extends Workflow {
             this.txCharacteristic = await this.serialService.getCharacteristic(bleNusCharTXUUID);
             this.rxCharacteristic = await this.serialService.getCharacteristic(bleNusCharRXUUID);
 
-            // Remove any existing event listeners to prevent multiple reads
-            this.txCharacteristic.removeEventListener('characteristicvaluechanged', this.onSerialReceive.bind(this));
-            this.txCharacteristic.addEventListener('characteristicvaluechanged', this.onSerialReceive.bind(this));
+            // Use cached bound handler so removeEventListener actually matches.
+            this.txCharacteristic.removeEventListener('characteristicvaluechanged', this._onSerialReceiveBound);
+            this.txCharacteristic.addEventListener('characteristicvaluechanged', this._onSerialReceiveBound);
             await this.txCharacteristic.startNotifications();
             return true;
         } catch (e) {
@@ -197,11 +236,25 @@ class BLEWorkflow extends Workflow {
 
     async connectToBluetoothDevice(device) {
         const abortController = new AbortController();
+        this._pendingAdvAborts.add(abortController);
+        let advHandled = false;
 
         async function onAdvertisementReceived(event) {
+            // Multiple ads can land in the same event-loop tick before
+            // abortController.abort() takes effect on the listener. Guard
+            // so we only run the connect flow once per device. See #410.
+            if (advHandled) {
+                return;
+            }
+            advHandled = true;
             console.log('> Received advertisement from "' + device.name + '"...');
-            // Stop watching advertisements to conserve battery life.
-            abortController.abort();
+            // This device won. Abort ALL pending watchAdvertisements
+            // (including this one) so other paired devices stop scanning
+            // and don't pile up Chrome's per-device watch quota.
+            for (const ctrl of this._pendingAdvAborts) {
+                ctrl.abort();
+            }
+            this._pendingAdvAborts.clear();
             console.log('Connecting to GATT Server from "' + device.name + '"...');
             try {
                 this.bleServer = await device.gatt.connect();
@@ -220,8 +273,12 @@ class BLEWorkflow extends Workflow {
             }
         }
 
-        device.removeEventListener('advertisementreceived', onAdvertisementReceived.bind(this));
-        device.addEventListener('advertisementreceived', onAdvertisementReceived.bind(this));
+        // Use the abortController signal so we don't need to manage the
+        // handler reference manually — the listener is auto-removed when
+        // onAdvertisementReceived calls abortController.abort().
+        device.addEventListener('advertisementreceived',
+            onAdvertisementReceived.bind(this),
+            {signal: abortController.signal});
 
         this.debugLog("Attempting to connect to " + device.name + "...");
         try {
@@ -253,8 +310,8 @@ class BLEWorkflow extends Workflow {
 
     async switchToDevice(device) {
         this.bleDevice = device;
-        this.bleDevice.removeEventListener("gattserverdisconnected", this.onDisconnected.bind(this));
-        this.bleDevice.addEventListener("gattserverdisconnected", this.onDisconnected.bind(this));
+        this.bleDevice.removeEventListener("gattserverdisconnected", this._onDisconnectedBound);
+        this.bleDevice.addEventListener("gattserverdisconnected", this._onDisconnectedBound);
         console.log("connected", this.bleServer);
 
         try {
@@ -368,9 +425,9 @@ class BLEWorkflow extends Workflow {
 
     // Rebind characteristics after silent reconnect without rebuilding fileHelper.
     async _rebindAfterSilentReconnect() {
-        // Re-attach disconnect listener (idempotent).
-        this.bleDevice.removeEventListener('gattserverdisconnected', this.onDisconnected.bind(this));
-        this.bleDevice.addEventListener('gattserverdisconnected', this.onDisconnected.bind(this));
+        // Re-attach disconnect listener (idempotent thanks to cached bound ref).
+        this.bleDevice.removeEventListener('gattserverdisconnected', this._onDisconnectedBound);
+        this.bleDevice.addEventListener('gattserverdisconnected', this._onDisconnectedBound);
 
         // NUS serial chars need re-fetch; BLE-FT chars re-fetched lazily by checkConnection().
         await this.connectToSerial();
