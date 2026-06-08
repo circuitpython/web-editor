@@ -1,10 +1,53 @@
 import {FileTransferClient as BLEFileTransferClient} from '@adafruit/ble-file-transfer-js';
 //import {FileTransferClient as BLEFileTransferClient} from '../../../ble-file-transfer-js/adafruit-ble-file-transfer.js';
 
-// Wrapper for BLEFileTransferClient to add additional functionality
+// Wrapper that holds mutating-op promises open across the firmware
+// autoreload + silent reconnect, so callers see a live GATT on return.
+// See circuitpython/web-editor#377.
 class FileTransferClient extends BLEFileTransferClient {
-    constructor(bleDevice, bufferSize) {
+    constructor(bleDevice, bufferSize, workflow = null) {
         super(bleDevice, bufferSize);
+        this._workflow = workflow;
+    }
+
+    _signalMutatingOp() {
+        if (this._workflow && typeof this._workflow.markMutatingOp === 'function') {
+            this._workflow.markMutatingOp();
+        }
+    }
+
+    async _awaitReconnectIfNeeded() {
+        if (this._workflow && typeof this._workflow.awaitPostOpReconnect === 'function') {
+            await this._workflow.awaitPostOpReconnect();
+        }
+    }
+
+    async writeFile(path, offset, contents, modificationTime, raw) {
+        this._signalMutatingOp();
+        const result = await super.writeFile(path, offset, contents, modificationTime, raw);
+        await this._awaitReconnectIfNeeded();
+        return result;
+    }
+
+    async move(oldPath, newPath) {
+        this._signalMutatingOp();
+        const result = await super.move(oldPath, newPath);
+        await this._awaitReconnectIfNeeded();
+        return result;
+    }
+
+    async delete(path) {
+        this._signalMutatingOp();
+        const result = await super.delete(path);
+        await this._awaitReconnectIfNeeded();
+        return result;
+    }
+
+    async makeDir(path, modificationTime) {
+        this._signalMutatingOp();
+        const result = await super.makeDir(path, modificationTime);
+        await this._awaitReconnectIfNeeded();
+        return result;
     }
 
     async readOnly() {

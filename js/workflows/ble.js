@@ -3,7 +3,7 @@
  */
 
 import {FileTransferClient} from '../common/ble-file-transfer.js';
-import {CONNTYPE} from '../constants.js';
+import {CONNTYPE, CONNSTATE} from '../constants.js';
 import {Workflow} from './workflow.js';
 import {GenericModal, DeviceInfoModal} from '../common/dialogs.js';
 import {sleep} from '../common/utilities.js';
@@ -13,6 +13,17 @@ const bleNusCharRXUUID = 'adaf0002-4369-7263-7569-74507974686e';
 const bleNusCharTXUUID = 'adaf0003-4369-7263-7569-74507974686e';
 
 const BYTES_PER_WRITE = 20;
+
+// Tunables for silent auto-reconnect after firmware autoreload.
+// CircuitPython's BLE file transfer triggers an autoreload after every
+// mutating op (write/move/delete/mkdir), which tears down the GATT
+// Silent reconnect after firmware autoreload. See #377.
+const RECONNECT_DELAYS_MS = [1500, 2500, 4000];
+const POST_OP_RECONNECT_WINDOW_MS = 8000;
+// How long to wait for the post-op disconnect to fire (~2s observed).
+const POST_OP_DISCONNECT_GRACE_MS = 4000;
+// Wait after GATT reconnects so the VM finishes booting before the next op.
+const POST_RECONNECT_SETTLE_MS = 2000;
 
 let btnRequestBluetoothDevice, btnReconnect;
 
@@ -34,6 +45,48 @@ class BLEWorkflow extends Workflow {
             {reconnect: false, request: true},
             {reconnect: true, request: true},
         ];
+        // Mutating-op disconnects within this window trigger silent reconnect.
+        this._lastMutatingOpAt = 0;
+        this._silentReconnectInFlight = false;
+        this._silentReconnectPromise = null;
+    }
+
+    // Called by the FileTransferClient wrapper right before any mutating
+    // BLE-FT op (write/move/delete/mkdir). Marks the moment so that the
+    // disconnect handler can recognize the next disconnect as an expected
+    // autoreload and recover silently.
+    markMutatingOp() {
+        this._lastMutatingOpAt = Date.now();
+    }
+
+    _wasMutatingOpRecent() {
+        return (Date.now() - this._lastMutatingOpAt) < POST_OP_RECONNECT_WINDOW_MS;
+    }
+
+    // Awaited by mutating-op wrappers so callers see a live GATT before proceeding.
+    async awaitPostOpReconnect() {
+        const startedAt = Date.now();
+        while (Date.now() - startedAt < POST_OP_DISCONNECT_GRACE_MS) {
+            // gatt.connected flips false before gattserverdisconnected fires.
+            if (this.bleDevice && this.bleDevice.gatt && !this.bleDevice.gatt.connected) {
+                const waitForPromise = Date.now();
+                while (!this._silentReconnectPromise && Date.now() - waitForPromise < POST_OP_DISCONNECT_GRACE_MS) {
+                    await sleep(25);
+                }
+                break;
+            }
+            if (this._silentReconnectPromise) {
+                break;
+            }
+            await sleep(25);
+        }
+        if (this._silentReconnectPromise) {
+            try {
+                await this._silentReconnectPromise;
+            } catch (e) {
+                console.log('awaitPostOpReconnect: silent reconnect rejected:', e);
+            }
+        }
     }
 
     // This is called when a user clicks the main disconnect button
@@ -213,7 +266,7 @@ class BLEWorkflow extends Workflow {
         }
 
         console.log('Initializing File Transfer Client...');
-        this.initFileClient(new FileTransferClient(this.bleDevice, 65536));
+        this.initFileClient(new FileTransferClient(this.bleDevice, 65536, this));
         await this.fileHelper.bond();
         await this.connectToSerial();
 
@@ -248,10 +301,26 @@ class BLEWorkflow extends Workflow {
     }
 
     async connect() {
-        let result;
-        if (result = await super.connect() instanceof Error) {
+        const result = await super.connect();
+        if (result instanceof Error) {
             return result;
         }
+
+        // Disconnect right after a mutating op = firmware autoreload. Reconnect silently.
+        if (this.bleDevice && this._wasMutatingOpRecent()) {
+            this._silentReconnectPromise = this._attemptSilentReconnect();
+            let ok = false;
+            try {
+                ok = await this._silentReconnectPromise;
+            } finally {
+                this._silentReconnectPromise = null;
+            }
+            if (ok) {
+                return;
+            }
+            // Silent reconnect failed; fall through to normal reconnect.
+        }
+
         // Is this a new connection?
         if (!this.bleDevice) {
             try {
@@ -264,6 +333,49 @@ class BLEWorkflow extends Workflow {
                 this.showConnectStatus(this._suggestBLEConnectActions(error));
             }
         }
+    }
+
+    // Reconnect to the same paired device after firmware autoreload.
+    // Reuses the existing FileTransferClient so FileDialog bindings stay live;
+    // upstream checkConnection() re-fetches characteristics on next op.
+    async _attemptSilentReconnect() {
+        if (this._silentReconnectInFlight) {
+            return false;
+        }
+        this._silentReconnectInFlight = true;
+        try {
+            for (const delay of RECONNECT_DELAYS_MS) {
+                await sleep(delay);
+                try {
+                    console.log(`Silent reconnect: attempting after ${delay}ms…`);
+                    this.bleServer = await this.bleDevice.gatt.connect();
+                    if (this.bleServer && this.bleServer.connected) {
+                        console.log('Silent reconnect: GATT reconnected, rebinding characteristics…');
+                        await this._rebindAfterSilentReconnect();
+                        console.log('Silent reconnect succeeded.');
+                        return true;
+                    }
+                } catch (error) {
+                    console.log(`Silent reconnect attempt failed: ${error}. Retrying…`);
+                }
+            }
+            console.log('Silent reconnect exhausted; falling back to manual reconnect UI.');
+            return false;
+        } finally {
+            this._silentReconnectInFlight = false;
+        }
+    }
+
+    // Rebind characteristics after silent reconnect without rebuilding fileHelper.
+    async _rebindAfterSilentReconnect() {
+        // Re-attach disconnect listener (idempotent).
+        this.bleDevice.removeEventListener('gattserverdisconnected', this.onDisconnected.bind(this));
+        this.bleDevice.addEventListener('gattserverdisconnected', this.onDisconnected.bind(this));
+
+        // NUS serial chars need re-fetch; BLE-FT chars re-fetched lazily by checkConnection().
+        await this.connectToSerial();
+
+        this.updateConnected(CONNSTATE.connected);
     }
 
     updateConnected(connectionState) {
