@@ -17,23 +17,12 @@ const BYTES_PER_WRITE = 20;
 // Tunables for silent auto-reconnect after firmware autoreload.
 // CircuitPython's BLE file transfer triggers an autoreload after every
 // mutating op (write/move/delete/mkdir), which tears down the GATT
-// connection. We wait briefly, then reconnect to the same already-paired
-// device without a user gesture. See circuitpython/web-editor#377.
+// Silent reconnect after firmware autoreload. See #377.
 const RECONNECT_DELAYS_MS = [1500, 2500, 4000];
 const POST_OP_RECONNECT_WINDOW_MS = 8000;
-// How long awaitPostOpReconnect() waits for the disconnect to fire after
-// a mutating op completes. Observed up to ~2s on CLUE / nRF52840 between
-// MOVE_STATUS=OK arriving over BLE and the firmware's VM reset actually
-// tearing down the GATT server. If no disconnect happens by then, assume
-// the firmware didn't autoreload (e.g. some future CP version) and proceed.
+// How long to wait for the post-op disconnect to fire (~2s observed).
 const POST_OP_DISCONNECT_GRACE_MS = 4000;
-// After GATT reconnects post-autoreload, the firmware VM is still
-// booting. boot.py runs, code.py may start, BLE service finishes
-// initializing, and the CIRCUITPY filesystem mount/lock settles. If we
-// let the next mutating op fire too early, the firmware returns
-// STATUS_ERROR_READONLY because filesystem_lock() can't be acquired
-// during this window. Empirically ~1.5s is enough on CLUE / nRF52840;
-// budget 2s for slower boards.
+// Wait after GATT reconnects so the VM finishes booting before the next op.
 const POST_RECONNECT_SETTLE_MS = 2000;
 
 let btnRequestBluetoothDevice, btnReconnect;
@@ -56,16 +45,9 @@ class BLEWorkflow extends Workflow {
             {reconnect: false, request: true},
             {reconnect: true, request: true},
         ];
-        // Tracks when we last issued a mutating BLE-FT op. If we lose the
-        // GATT connection within POST_OP_RECONNECT_WINDOW_MS after one of
-        // those, treat it as an expected firmware autoreload and silently
-        // reconnect. See circuitpython/web-editor#377.
+        // Mutating-op disconnects within this window trigger silent reconnect.
         this._lastMutatingOpAt = 0;
         this._silentReconnectInFlight = false;
-        // Resolved by _attemptSilentReconnect; awaited by
-        // awaitPostOpReconnect() so callers can block on the reconnect
-        // before issuing follow-up BLE-FT calls (e.g. listDir to refresh
-        // the file dialog).
         this._silentReconnectPromise = null;
     }
 
@@ -81,26 +63,12 @@ class BLEWorkflow extends Workflow {
         return (Date.now() - this._lastMutatingOpAt) < POST_OP_RECONNECT_WINDOW_MS;
     }
 
-    // Called by the FileTransferClient wrapper after a mutating op's
-    // upstream call resolves. Waits long enough for the disconnect to
-    // fire (it usually arrives ~10-100ms after MOVE_STATUS), then for
-    // the silent reconnect to complete, so any follow-up BLE-FT call
-    // (e.g. listDir for file-dialog refresh) sees a live GATT.
-    //
-    // If no disconnect fires within POST_OP_DISCONNECT_GRACE_MS, assume
-    // the firmware did NOT autoreload and return immediately. This keeps
-    // the wrapper safe against future firmware that fixes the autoreload
-    // behavior on its own.
+    // Awaited by mutating-op wrappers so callers see a live GATT before proceeding.
     async awaitPostOpReconnect() {
         const startedAt = Date.now();
         while (Date.now() - startedAt < POST_OP_DISCONNECT_GRACE_MS) {
-            // bleDevice.gatt.connected flips false BEFORE the
-            // gattserverdisconnected event fires on the next tick. Catch
-            // that earlier so we never let the caller continue on a dead
-            // GATT while we wait for the event-loop hop.
+            // gatt.connected flips false before gattserverdisconnected fires.
             if (this.bleDevice && this.bleDevice.gatt && !this.bleDevice.gatt.connected) {
-                // Wait up to grace window for the connect() flow to
-                // wire up _silentReconnectPromise.
                 const waitForPromise = Date.now();
                 while (!this._silentReconnectPromise && Date.now() - waitForPromise < POST_OP_DISCONNECT_GRACE_MS) {
                     await sleep(25);
@@ -110,7 +78,6 @@ class BLEWorkflow extends Workflow {
             if (this._silentReconnectPromise) {
                 break;
             }
-            // gattserverdisconnected hasn't fired yet. Yield briefly.
             await sleep(25);
         }
         if (this._silentReconnectPromise) {
@@ -334,20 +301,13 @@ class BLEWorkflow extends Workflow {
     }
 
     async connect() {
-        // Note: parentheses fix an operator-precedence bug from the original
-        // code, where `instanceof` bound tighter than `=`, leaving `result`
-        // as a boolean rather than the actual super.connect() return value.
         const result = await super.connect();
         if (result instanceof Error) {
             return result;
         }
 
-        // Unexpected disconnect right after a mutating BLE-FT op: this is
-        // almost certainly the firmware autoreload. Reconnect silently to
-        // the same device handle without prompting the user.
+        // Disconnect right after a mutating op = firmware autoreload. Reconnect silently.
         if (this.bleDevice && this._wasMutatingOpRecent()) {
-            // Expose the in-flight reconnect to awaitPostOpReconnect so
-            // mutating-op promises chain correctly through the reload.
             this._silentReconnectPromise = this._attemptSilentReconnect();
             let ok = false;
             try {
@@ -358,8 +318,7 @@ class BLEWorkflow extends Workflow {
             if (ok) {
                 return;
             }
-            // Fell through: silent reconnect failed. Fall back to the
-            // normal reconnect-to-permitted-devices path below.
+            // Silent reconnect failed; fall through to normal reconnect.
         }
 
         // Is this a new connection?
@@ -376,17 +335,9 @@ class BLEWorkflow extends Workflow {
         }
     }
 
-    // Try to reconnect to the same already-paired device, after a brief
-    // delay to let the firmware finish its autoreload. We skip the
-    // watchAdvertisements dance because CircuitPython starts advertising
-    // immediately on boot and we already have a permitted device handle.
-    //
-    // Unlike switchToDevice(), this path REUSES the existing
-    // FileTransferClient / FileHelper so that callers holding bound
-    // references (e.g. FileDialog grabbed fileHelper.move at open time)
-    // keep working. The upstream FileTransferClient.checkConnection()
-    // method re-fetches its characteristics on the next op when its
-    // internal _transfer is null (which onDisconnected sets it to).
+    // Reconnect to the same paired device after firmware autoreload.
+    // Reuses the existing FileTransferClient so FileDialog bindings stay live;
+    // upstream checkConnection() re-fetches characteristics on next op.
     async _attemptSilentReconnect() {
         if (this._silentReconnectInFlight) {
             return false;
@@ -415,22 +366,15 @@ class BLEWorkflow extends Workflow {
         }
     }
 
-    // Re-establish characteristic references AFTER a silent reconnect,
-    // without rebuilding fileHelper / FileTransferClient. Caller has
-    // already confirmed this.bleServer.connected is true.
+    // Rebind characteristics after silent reconnect without rebuilding fileHelper.
     async _rebindAfterSilentReconnect() {
-        // Re-attach the disconnect listener (some browsers detach it on
-        // GATT teardown, others don't — idempotent re-add is safe).
+        // Re-attach disconnect listener (idempotent).
         this.bleDevice.removeEventListener('gattserverdisconnected', this.onDisconnected.bind(this));
         this.bleDevice.addEventListener('gattserverdisconnected', this.onDisconnected.bind(this));
 
-        // Re-fetch the NUS serial characteristics. The BLE file-transfer
-        // client's characteristics get re-fetched lazily by its own
-        // checkConnection() on next op, so we don't touch fileHelper.
+        // NUS serial chars need re-fetch; BLE-FT chars re-fetched lazily by checkConnection().
         await this.connectToSerial();
 
-        // Mark the workflow as connected so the UI clears any
-        // "disconnected" flicker without closing the active dialog.
         this.updateConnected(CONNSTATE.connected);
     }
 

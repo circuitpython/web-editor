@@ -1,17 +1,9 @@
 import {FileTransferClient as BLEFileTransferClient} from '@adafruit/ble-file-transfer-js';
 //import {FileTransferClient as BLEFileTransferClient} from '../../../ble-file-transfer-js/adafruit-ble-file-transfer.js';
 
-// Wrapper for BLEFileTransferClient to add additional functionality.
-// Optionally accepts a workflow reference so that mutating ops can notify
-// the workflow about the impending firmware autoreload (see
-// circuitpython/web-editor#377).
-//
-// Mutating ops (write/move/delete/mkdir) trigger a CircuitPython VM
-// autoreload, which kills the GATT connection. We hold the op's promise
-// open until either (a) the connection is restored, or (b) the silent
-// reconnect window expires, so callers like FileDialog can chain
-// `await fileHelper.move(...); await this._openFolder();` without
-// blowing up on a torn-down GATT in the second await.
+// Wrapper that holds mutating-op promises open across the firmware
+// autoreload + silent reconnect, so callers see a live GATT on return.
+// See circuitpython/web-editor#377.
 class FileTransferClient extends BLEFileTransferClient {
     constructor(bleDevice, bufferSize, workflow = null) {
         super(bleDevice, bufferSize);
