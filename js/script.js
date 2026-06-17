@@ -317,8 +317,11 @@ async function newFile() {
 
 async function saveRunFile() {
     if (await checkConnected()) {
+        // workflow.saveFile() now propagates the real save result -- only
+        // soft-restart / re-import once the PUT actually succeeded. Otherwise
+        // we would reboot the board running the old code.py while the editor
+        // still had the unsaved edits (issue #460).
         if (await workflow.saveFile()) {
-            setSaved(true);
             await workflow.runCurrentCode();
         }
     }
@@ -415,7 +418,18 @@ async function checkReadOnly() {
         await showMessage(readOnly);
         return false;
     } else if (readOnly) {
-        await showMessage("Warning: File System is in read only mode. Disable the USB drive to allow write access.");
+        // Concise connect-time notice that the filesystem is read-only,
+        // with a link to the Learn guide for users who want the fix now.
+        // The cause is the board's USB Mass Storage support being
+        // enabled (the default on most boards) — saving from web
+        // workflow stays blocked whether or not a host actively has
+        // CIRCUITPY mounted.
+        const learnUrl = "https://learn.adafruit.com/getting-started-with-web-workflow-using-the-code-editor/device-setup#disabling-usb-mass-storage-3125964";
+        await showMessage(
+            "Filesystem is read-only — you can browse files, but saving " +
+            "will fail while USB Mass Storage is enabled on the board. " +
+            `<a href="${learnUrl}" target="_blank" rel="noopener noreferrer">How to fix</a>.`
+        );
     }
     return true;
 }
@@ -666,49 +680,129 @@ async function loadEditor() {
 }
 
 var editor;
-var currentTimeout = null;
-var saveRetryCount = 0;
 const MAX_SAVE_RETRIES = 3;
+const SAVE_RETRY_DELAY_MS = 2000;
+let saveInFlight = false;
 
-// Save the File Contents and update the UI
+function sleep(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// Save the File Contents and update the UI. Returns true on success, false
+// on final failure (after all retries). Retries inline so callers (Save+Run,
+// hotkeys, dialogs) can actually await the outcome -- previously this used
+// a fire-and-forget setTimeout, which let Save+Run soft-restart the board
+// before the PUT had succeeded (issue #460).
 async function saveFileContents(path) {
+<<<<<<< HEAD
     // If this is a different file, we write everything. The language
     // plugin is refreshed by setFilename below (it routes through
     // setEditorLanguageForPath), so no extra dispatch is needed here.
     if (path !== workflow.currentFilename) {
         unchanged = 0;
+=======
+    if (saveInFlight) {
+        // Re-entrant save (e.g. user mashing Ctrl-S / Save+Run). The first
+        // call will report success/failure; the second would race the same
+        // bytes onto the wire and confuse partialWrites bookkeeping.
+        console.log("saveFileContents: already in flight, ignoring re-entry");
+        return false;
+>>>>>>> origin/main
     }
-    let doc = editor.state.doc;
-    let offset = 0;
-    let contents = doc.sliceString(0);
-    if (workflow.partialWrites) {
-        offset = unchanged;
-        console.log("sync starting at", unchanged, "to", editor.state.doc.length);
-    }
-    let oldUnchanged = unchanged;
-    unchanged = doc.length;
+    saveInFlight = true;
     try {
-        if (await workflow.writeFile(path, contents, offset)) {
-            setFilename(workflow.currentFilename);
-            setSaved(true);
-            saveRetryCount = 0;
-        } else {
-            await showMessage(`Saving file '${workflow.currentFilename}' failed.`);
+        // If this is a different file, we write everything
+        if (path !== workflow.currentFilename) {
+            unchanged = 0;
         }
-    } catch (e) {
-        console.error("write failed", e, e.stack);
-        unchanged = Math.min(oldUnchanged, unchanged);
-        if (currentTimeout != null) {
-            clearTimeout(currentTimeout);
+        let doc = editor.state.doc;
+        let contents = doc.sliceString(0);
+        let baseUnchanged = unchanged;
+        let docLengthAtStart = doc.length;
+
+        for (let attempt = 1; attempt <= MAX_SAVE_RETRIES; attempt++) {
+            // Recompute offset each attempt -- if onTextChange fired between
+            // retries, `unchanged` may have shrunk and we need to resend more.
+            let offset = 0;
+            if (workflow.partialWrites) {
+                offset = Math.min(baseUnchanged, unchanged);
+                console.log("sync starting at", offset, "to", editor.state.doc.length);
+            }
+            // Optimistically mark the bytes-being-sent as unchanged. If the
+            // write throws we'll roll back to baseUnchanged for the next try.
+            unchanged = docLengthAtStart;
+            try {
+                if (await workflow.writeFile(path, contents, offset)) {
+                    setFilename(workflow.currentFilename);
+                    setSaved(true);
+                    return true;
+                }
+                // writeFile returned a falsy value without throwing -- treat
+                // as a soft failure and surface a message immediately.
+                await showMessage(`Saving file '${workflow.currentFilename}' failed.`);
+                setSaved(false);
+                return false;
+            } catch (e) {
+                console.error(`write failed (attempt ${attempt} of ${MAX_SAVE_RETRIES})`, e, e.stack);
+                unchanged = Math.min(baseUnchanged, unchanged);
+                // If the device cleanly told us the filesystem is held by
+                // someone else (most commonly USB-MSC: the host has
+                // CIRCUITPY mounted), retrying won't help -- surface an
+                // actionable hint immediately and bail. Older CircuitPython
+                // firmware returns 500 for this case, newer firmware
+                // returns 409 Conflict; web-file-transfer.js tags both
+                // with `writeProtected` so we can treat them the same way.
+                if (e && e.writeProtected) {
+                    setSaved(false);
+                    const learnUrl = e.helpUrl || "https://learn.adafruit.com/getting-started-with-web-workflow-using-the-code-editor/device-setup#disabling-usb-mass-storage-3125964";
+                    const learnLabel = e.helpLabel || "Disabling USB Mass Storage (Adafruit Learn)";
+                    // MessageModal renders via innerHTML, so real markup
+                    // (sections, list, link) is fine. Sections separate the
+                    // 'what happened', 'why', and 'how to fix' so users can
+                    // scan instead of parsing a wall of prose.
+                    //
+                    // We intentionally don't assert that a host has
+                    // CIRCUITPY mounted: the board's filesystem becomes
+                    // read-only to web workflow whenever USB Mass
+                    // Storage is enabled on the board (the default for
+                    // most CircuitPython boards), even on a power-only
+                    // USB connection or a wall adapter. See #460 for
+                    // the full discussion.
+                    await showMessage(
+                        `<p><strong>Could not save '${workflow.currentFilename}'.</strong></p>` +
+                        `<p>The board's filesystem is in read-only mode for web workflow. ` +
+                        `This happens whenever USB Mass Storage is enabled on the board ` +
+                        `(the default for most CircuitPython boards), whether or not a ` +
+                        `host computer is actively using it.</p>` +
+                        `<p><strong>To fix:</strong></p>` +
+                        `<ul style="margin: 0.25em 0 0.5em 1.25em; padding: 0;">` +
+                            `<li>Disable USB Mass Storage in <code>boot.py</code>, then reset the board, <em>or</em></li>` +
+                            `<li>If a computer has CIRCUITPY mounted, eject the drive and disconnect the USB data connection.</li>` +
+                        `</ul>` +
+                        `<p><em>Heads up:</em> disabling USB Mass Storage in <code>boot.py</code> means the CIRCUITPY drive won't appear on a host computer either — you'll edit through web workflow only. Many makers use a button or pin check in <code>boot.py</code> to choose between the two modes at startup.</p>` +
+                        `<p><em>Note:</em> on macOS, ejecting the drive in Finder doesn't always release the board-side lock on its own.</p>` +
+                        `<p><a href="${learnUrl}" target="_blank" rel="noopener noreferrer">${learnLabel}</a></p>` +
+                        `<p>Your edits are still here — save again once the filesystem is writable.</p>`
+                    );
+                    return false;
+                }
+                if (attempt < MAX_SAVE_RETRIES) {
+                    await sleep(SAVE_RETRY_DELAY_MS);
+                    // Bail out if the user disconnected mid-retry.
+                    if (!workflow || !workflow.connectionStatus()) {
+                        setSaved(false);
+                        return false;
+                    }
+                }
+            }
         }
-        saveRetryCount++;
-        if (saveRetryCount < MAX_SAVE_RETRIES) {
-            console.log(`Save retry ${saveRetryCount} of ${MAX_SAVE_RETRIES}...`);
-            currentTimeout = setTimeout(() => saveFileContents(path), 2000);
-        } else {
-            saveRetryCount = 0;
-            await showMessage(`Saving file '${workflow.currentFilename}' failed after multiple attempts. Check your connection and try again.`);
-        }
+        // All retries exhausted. Leave the editor marked dirty so the user
+        // knows the file on the board is still stale.
+        setSaved(false);
+        await showMessage(`Saving file '${workflow.currentFilename}' failed after multiple attempts. Check your connection and try again.`);
+        return false;
+    } finally {
+        saveInFlight = false;
     }
 }
 
@@ -744,20 +838,22 @@ async function onTextChange(update) {
         unchanged = 0;
     }
 
-    if (currentTimeout != null) {
-        clearTimeout(currentTimeout);
-    }
-
     setSaved(false);
 }
 
 function disconnectCallback() {
+<<<<<<< HEAD
     if (currentTimeout != null) {
         clearTimeout(currentTimeout);
         currentTimeout = null;
     }
     saveRetryCount = 0;
     shownDeviceInfoForCurrentSession = false;
+=======
+    // saveInFlight is intentionally not forced here -- the in-flight
+    // saveFileContents loop checks connectionStatus() between retries and
+    // exits cleanly on its own, then clears the flag in its finally block.
+>>>>>>> origin/main
     updateUIConnected(false);
 }
 

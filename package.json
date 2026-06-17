@@ -9,9 +9,9 @@
     "preview": "vite preview"
   },
   "devDependencies": {
-    "sass": "^1.99.0",
-    "vite": "^8.0.13",
-    "vite-plugin-mkcert": "^2.0.0"
+    "sass": "^1.101.0",
+    "vite": "^8.0.16",
+    "vite-plugin-mkcert": "^2.1.0"
   },
   "dependencies": {
     "@adafruit/ble-file-transfer-js": "adafruit/ble-file-transfer-js#1.0.5",
@@ -31,10 +31,10 @@
     "codemirror": "^6.0.2",
     "file-saver": "^2.0.5",
     "focus-trap": "^8.2.1",
-    "idb-keyval": "^6.2.2",
+    "idb-keyval": "^6.2.5",
     "jszip": "^3.10.1"
   },
   "optionalDependencies": {
-    "@rollup/rollup-linux-x64-gnu": "^4.60.4"
+    "@rollup/rollup-linux-x64-gnu": "^4.62.0"
   }
 }
