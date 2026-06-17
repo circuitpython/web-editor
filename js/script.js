@@ -694,24 +694,18 @@ function sleep(ms) {
 // a fire-and-forget setTimeout, which let Save+Run soft-restart the board
 // before the PUT had succeeded (issue #460).
 async function saveFileContents(path) {
-<<<<<<< HEAD
-    // If this is a different file, we write everything. The language
-    // plugin is refreshed by setFilename below (it routes through
-    // setEditorLanguageForPath), so no extra dispatch is needed here.
-    if (path !== workflow.currentFilename) {
-        unchanged = 0;
-=======
     if (saveInFlight) {
         // Re-entrant save (e.g. user mashing Ctrl-S / Save+Run). The first
         // call will report success/failure; the second would race the same
         // bytes onto the wire and confuse partialWrites bookkeeping.
         console.log("saveFileContents: already in flight, ignoring re-entry");
         return false;
->>>>>>> origin/main
     }
     saveInFlight = true;
     try {
-        // If this is a different file, we write everything
+        // If this is a different file, we write everything. The language
+        // plugin is refreshed by setFilename below (it routes through
+        // setEditorLanguageForPath), so no extra dispatch is needed here.
         if (path !== workflow.currentFilename) {
             unchanged = 0;
         }
@@ -842,18 +836,10 @@ async function onTextChange(update) {
 }
 
 function disconnectCallback() {
-<<<<<<< HEAD
-    if (currentTimeout != null) {
-        clearTimeout(currentTimeout);
-        currentTimeout = null;
-    }
-    saveRetryCount = 0;
-    shownDeviceInfoForCurrentSession = false;
-=======
     // saveInFlight is intentionally not forced here -- the in-flight
     // saveFileContents loop checks connectionStatus() between retries and
     // exits cleanly on its own, then clears the flag in its finally block.
->>>>>>> origin/main
+    shownDeviceInfoForCurrentSession = false;
     updateUIConnected(false);
 }
 

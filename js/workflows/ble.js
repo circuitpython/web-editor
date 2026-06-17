@@ -45,12 +45,6 @@ class BLEWorkflow extends Workflow {
             {reconnect: false, request: true},
             {reconnect: true, request: true},
         ];
-<<<<<<< HEAD
-
-        // Store bound event handlers so they can be properly removed
-        this._boundOnDisconnected = this.onDisconnected.bind(this);
-        this._boundOnSerialReceive = this.onSerialReceive.bind(this);
-=======
         // Mutating-op disconnects within this window trigger silent reconnect.
         this._lastMutatingOpAt = 0;
         this._silentReconnectInFlight = false;
@@ -106,7 +100,6 @@ class BLEWorkflow extends Workflow {
                 console.log('awaitPostOpReconnect: silent reconnect rejected:', e);
             }
         }
->>>>>>> origin/main
     }
 
     // This is called when a user clicks the main disconnect button
@@ -201,15 +194,9 @@ class BLEWorkflow extends Workflow {
             this.txCharacteristic = await this.serialService.getCharacteristic(bleNusCharTXUUID);
             this.rxCharacteristic = await this.serialService.getCharacteristic(bleNusCharRXUUID);
 
-<<<<<<< HEAD
-            // Remove any existing event listeners to prevent multiple reads
-            this.txCharacteristic.removeEventListener('characteristicvaluechanged', this._boundOnSerialReceive);
-            this.txCharacteristic.addEventListener('characteristicvaluechanged', this._boundOnSerialReceive);
-=======
             // Use cached bound handler so removeEventListener actually matches.
             this.txCharacteristic.removeEventListener('characteristicvaluechanged', this._onSerialReceiveBound);
             this.txCharacteristic.addEventListener('characteristicvaluechanged', this._onSerialReceiveBound);
->>>>>>> origin/main
             await this.txCharacteristic.startNotifications();
             return true;
         } catch (e) {
@@ -252,14 +239,6 @@ class BLEWorkflow extends Workflow {
         this._pendingAdvAborts.add(abortController);
         let advHandled = false;
 
-<<<<<<< HEAD
-        // Remove previous advertisement listener if one was stored
-        if (this._boundOnAdvertisementReceived) {
-            device.removeEventListener('advertisementreceived', this._boundOnAdvertisementReceived);
-        }
-
-        this._boundOnAdvertisementReceived = (async function onAdvertisementReceived(event) {
-=======
         async function onAdvertisementReceived(event) {
             // Multiple ads can land in the same event-loop tick before
             // abortController.abort() takes effect on the listener. Guard
@@ -268,7 +247,6 @@ class BLEWorkflow extends Workflow {
                 return;
             }
             advHandled = true;
->>>>>>> origin/main
             console.log('> Received advertisement from "' + device.name + '"...');
             // This device won. Abort ALL pending watchAdvertisements
             // (including this one) so other paired devices stop scanning
@@ -293,18 +271,14 @@ class BLEWorkflow extends Workflow {
             } else {
                 console.log('Unable to connect to bluetooth device "' +  device.name + '.');
             }
-        }).bind(this);
+        }
 
-<<<<<<< HEAD
-        device.addEventListener('advertisementreceived', this._boundOnAdvertisementReceived);
-=======
         // Use the abortController signal so we don't need to manage the
         // handler reference manually — the listener is auto-removed when
         // onAdvertisementReceived calls abortController.abort().
         device.addEventListener('advertisementreceived',
             onAdvertisementReceived.bind(this),
             {signal: abortController.signal});
->>>>>>> origin/main
 
         this.debugLog("Attempting to connect to " + device.name + "...");
         try {
@@ -336,13 +310,8 @@ class BLEWorkflow extends Workflow {
 
     async switchToDevice(device) {
         this.bleDevice = device;
-<<<<<<< HEAD
-        this.bleDevice.removeEventListener("gattserverdisconnected", this._boundOnDisconnected);
-        this.bleDevice.addEventListener("gattserverdisconnected", this._boundOnDisconnected);
-=======
         this.bleDevice.removeEventListener("gattserverdisconnected", this._onDisconnectedBound);
         this.bleDevice.addEventListener("gattserverdisconnected", this._onDisconnectedBound);
->>>>>>> origin/main
         console.log("connected", this.bleServer);
 
         try {
