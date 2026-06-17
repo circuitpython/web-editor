@@ -437,7 +437,9 @@ class BLEWorkflow extends Workflow {
 
     updateConnected(connectionState) {
         super.updateConnected(connectionState);
-        this.connectionStep(2);
+        if (this.connectDialog && this.connectDialog.isOpen()) {
+            this.connectionStep(2);
+        }
     }
 
     async available() {

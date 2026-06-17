@@ -1,10 +1,17 @@
 import { basicSetup } from "codemirror";
 import { EditorView, keymap } from "@codemirror/view";
-import { EditorState } from "@codemirror/state";
+import { EditorState, Compartment } from "@codemirror/state";
 import { indentWithTab } from "@codemirror/commands"
 import { python } from "@codemirror/lang-python";
+import { json } from "@codemirror/lang-json";
+import { html } from "@codemirror/lang-html";
+import { css } from "@codemirror/lang-css";
+import { javascript } from "@codemirror/lang-javascript";
+import { xml } from "@codemirror/lang-xml";
+import { markdown } from "@codemirror/lang-markdown";
 import { syntaxHighlighting, indentUnit } from "@codemirror/language";
 import { classHighlighter } from "@lezer/highlight";
+import { circuitpythonHighlight } from "./common/circuitpython_highlight.js";
 import { getFileIcon } from "./common/file_dialog.js";
 
 import { Terminal } from '@xterm/xterm';
@@ -82,6 +89,87 @@ function rememberLastBackend(workflowType) {
 }
 
 const editorTheme = EditorView.theme({}, {dark: getCssVar('editor-theme-dark').trim() === '1'});
+
+// Map file extensions to a CodeMirror 6 language extension factory.
+// Anything not in this map falls back to plain text (no language plugin).
+// Python is handled separately because it also gets the CircuitPython
+// highlight overlay.
+const LANGUAGE_EXTENSION_MAP = {
+    "css":  css,
+    "htm":  html,
+    "html": html,
+    "js":   javascript,
+    "json": json,
+    "md":   markdown,
+    "xml":  xml,
+};
+
+function getFileExtensionFromPath(path) {
+    if (!path) return null;
+    // Use the basename so a dotted directory in the path doesn't fool us.
+    const base = path.split("/").pop();
+    if (!base || base.indexOf(".") < 0) return null;
+    return base.split(".").pop().toLowerCase();
+}
+
+// Pick the CodeMirror language extensions to use for a given file path.
+// Returns an array so callers can spread it directly into the editor's
+// extension list. New (untitled) docs default to Python so the editor
+// behaves the same as before for the common "create code.py" case.
+function languageExtensionsForPath(path) {
+    if (path === null || path === undefined) {
+        return [python(), circuitpythonHighlight];
+    }
+    const ext = getFileExtensionFromPath(path);
+    if (ext === "py") {
+        return [python(), circuitpythonHighlight];
+    }
+    if (ext && Object.prototype.hasOwnProperty.call(LANGUAGE_EXTENSION_MAP, ext)) {
+        return [LANGUAGE_EXTENSION_MAP[ext]()];
+    }
+    return [];
+}
+
+// Compartment used so we can hot-swap the language plugin when the
+// active file's extension changes (e.g. user opens an .html file, or
+// uses Save As to rename code.py to test.html).
+const languageCompartment = new Compartment();
+
+// Track which path the editor's language plugin is currently configured
+// for, so we can decide whether a reconfigure is actually needed. We
+// can't compare against `workflow.currentFilename` because
+// `workflow.saveFileAs()` mutates that BEFORE the post-save
+// `setFilename` callback runs, so by the time we'd see it the
+// "old" path is already gone.
+let editorLanguagePath = null;
+
+function extensionKey(path) {
+    if (path === null || path === undefined) return "__null__";
+    const ext = getFileExtensionFromPath(path);
+    return ext || "__noext__";
+}
+
+// Apply the language plugin matching `path` to the running editor.
+// Safe to call before `editor` exists (the initial state already gets
+// the correct language via languageCompartment.of(...) below).
+function setEditorLanguageForPath(path) {
+    if (!editor) {
+        editorLanguagePath = path;
+        return;
+    }
+    if (extensionKey(path) === extensionKey(editorLanguagePath)) {
+        // Same language plugin would be installed — skip the
+        // reconfigure to avoid needlessly resetting language-internal
+        // state (folds, parser caches, etc.).
+        return;
+    }
+    editorLanguagePath = path;
+    editor.dispatch({
+        effects: languageCompartment.reconfigure(
+            languageExtensionsForPath(path),
+        ),
+    });
+}
 
 document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('mobile-menu-button').addEventListener('click', handleMobileToggle);
@@ -276,10 +364,9 @@ async function checkConnected() {
         if (!workflow.connectionStatus()) {
             // Display the appropriate connection dialog
             await workflow.showConnect(getDocState());
-        } else if (workflow.type === CONNTYPE.Web) {
-            // We're connected, local, and using Web Workflow
-            await workflow.showInfo(getDocState());
         }
+        // Note: the Device Info dialog is now opened from loadEditor() so that
+        // BLE/USB/Web all behave the same way after a fresh connect.
     }
 
     return true;
@@ -349,6 +436,12 @@ async function checkReadOnly() {
 
 /* Update the filename and update the UI */
 function setFilename(path) {
+    // Refresh the CodeMirror language plugin whenever the active file
+    // changes — this is the single chokepoint that all filename
+    // changes route through (Open File, New File, Save As, backend
+    // load), so it's the right place to keep the language in sync.
+    setEditorLanguageForPath(path);
+
     // Use the extension_map to figure out the file icon
     let filename = path;
 
@@ -470,16 +563,26 @@ const hotkeyMap = [
     { key: "Alt-n", run: newFile },
     { key: "Mod-r", run: saveRunFile },
 ];
-const editorExtensions = [
+// Extensions that are always present, regardless of file type. The
+// per-file language extensions live in `languageCompartment` so they
+// can be swapped at runtime (e.g. on Save As to a different
+// extension).
+const baseEditorExtensions = [
     basicSetup,
     keymap.of([indentWithTab]),
     keymap.of(hotkeyMap),
     indentUnit.of("    "),
-    python(),
     editorTheme,
     syntaxHighlighting(classHighlighter),
     EditorView.updateListener.of(onTextChange)
 ];
+
+function buildEditorExtensions(path) {
+    return [
+        ...baseEditorExtensions,
+        languageCompartment.of(languageExtensionsForPath(path)),
+    ];
+}
 
 // Use the editor's function to check if anything has changed
 function isDirty() {
@@ -487,11 +590,15 @@ function isDirty() {
     return true;
 }
 
-function loadEditorContents(content) {
+function loadEditorContents(content, path = null) {
     editor.setState(EditorState.create({
         doc: content,
-        extensions: editorExtensions
+        extensions: buildEditorExtensions(path)
     }));
+    // Keep our tracked language path in sync with the fresh state's
+    // compartment contents so the next setEditorLanguageForPath call
+    // can correctly skip a no-op reconfigure.
+    editorLanguagePath = path;
     unchanged = editor.state.doc.length;
     //console.log("doc length", unchanged);
 }
@@ -537,6 +644,12 @@ window.onbeforeunload = () => {
     }
 };
 
+// Tracks whether we've already shown the post-connect Device Info dialog
+// for the current workflow. Reset to false in disconnectCallback() so that
+// a fresh connect always re-shows it, while silent reconnects (which also
+// run loadEditor) do not.
+let shownDeviceInfoForCurrentSession = false;
+
 async function loadEditor() {
     let documentState = loadParameterizedContent();
     if (documentState) {
@@ -546,6 +659,24 @@ async function loadEditor() {
     }
 
     updateUIConnected(true);
+
+    // Show the Device Info dialog once per fresh connect, regardless of
+    // workflow (Web / USB / BLE). This is where the firmware-update
+    // suggestion (issue #357) is surfaced, so the user notices it just
+    // after connecting without us introducing a new dialog.
+    //
+    // Fire-and-forget: we don't await the dialog because it stays open until
+    // the user dismisses it, and we don't want to block the rest of the
+    // post-connect flow (busy spinner, parameterized doc loading, etc.).
+    if (!shownDeviceInfoForCurrentSession
+            && workflow
+            && workflow.showInfo
+            && workflow.connectionStatus && workflow.connectionStatus()) {
+        shownDeviceInfoForCurrentSession = true;
+        Promise.resolve()
+            .then(() => workflow.showInfo(getDocState()))
+            .catch((err) => console.warn("Could not show device info dialog", err));
+    }
 }
 
 var editor;
@@ -572,7 +703,9 @@ async function saveFileContents(path) {
     }
     saveInFlight = true;
     try {
-        // If this is a different file, we write everything
+        // If this is a different file, we write everything. The language
+        // plugin is refreshed by setFilename below (it routes through
+        // setEditorLanguageForPath), so no extra dispatch is needed here.
         if (path !== workflow.currentFilename) {
             unchanged = 0;
         }
@@ -670,7 +803,7 @@ async function saveFileContents(path) {
 // Load the File Contents and Path into the UI
 function loadFileContents(path, contents, saved = true) {
     setFilename(path);
-    loadEditorContents(contents);
+    loadEditorContents(contents, path);
     if (saved !== null) {
         setSaved(saved);
     }
@@ -706,13 +839,14 @@ function disconnectCallback() {
     // saveInFlight is intentionally not forced here -- the in-flight
     // saveFileContents loop checks connectionStatus() between retries and
     // exits cleanly on its own, then clears the flag in its finally block.
+    shownDeviceInfoForCurrentSession = false;
     updateUIConnected(false);
 }
 
 editor = new EditorView({
     state: EditorState.create({
         doc: "",
-        extensions: editorExtensions
+        extensions: buildEditorExtensions(null)
     }),
     parent: document.querySelector('#editor')
 });
@@ -824,10 +958,10 @@ document.addEventListener('DOMContentLoaded', async (event) => {
         // If we don't have all the info we need to connect
         let returnVal = await workflow.parseParams();
         if (returnVal === true && await workflowConnect() && workflow.type === CONNTYPE.Web) {
-            if (await checkReadOnly()) {
-                // We're connected, local, no errors, and using Web Workflow
-                await workflow.showInfo(getDocState());
-            }
+            // We're connected, local, no errors, and using Web Workflow.
+            // The Device Info dialog is opened from loadEditor() now, so we
+            // just need to verify read-only state here.
+            await checkReadOnly();
         } else {
             if (returnVal instanceof Error) {
                 await showMessage(returnVal);
