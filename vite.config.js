@@ -3,6 +3,7 @@ import { defineConfig } from 'vite'
 import mkcert from 'vite-plugin-mkcert'
 
 export default defineConfig({
+    base: process.env.GITHUB_REPOSITORY === 'shima-nct/web-editor' ? '/web-editor/' : '/',
     build: {
         assetsInlineLimit: 0,
         chunkSizeWarningLimit: 1500,

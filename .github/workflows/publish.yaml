@@ -35,7 +35,13 @@ jobs:
       - run: npm ci
       - run: npm run build
       - uses: peaceiris/actions-gh-pages@v4
+        if: github.repository == 'circuitpython/web-editor'
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: './dist'
           cname: code.circuitpython.org
+      - uses: peaceiris/actions-gh-pages@v4
+        if: github.repository != 'circuitpython/web-editor'
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: './dist'
