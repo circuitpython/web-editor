@@ -437,7 +437,7 @@ print(binascii.hexlify(microcontroller.cpu.uid).decode('ascii').upper())`
             while (true) {
                 const {value, done} = await this.reader.read();
                 if (value) {
-                    messageEvent.data = decoder.decode(value);
+                    messageEvent.data = decoder.decode(value, {stream: true});
                     this._serialDevice.dispatchEvent(messageEvent);
                 }
                 if (done) {
