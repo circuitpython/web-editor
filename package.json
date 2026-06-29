@@ -31,7 +31,7 @@
     "codemirror": "^6.0.2",
     "file-saver": "^2.0.5",
     "focus-trap": "^8.2.1",
-    "idb-keyval": "^6.2.5",
+    "idb-keyval": "^6.2.6",
     "jszip": "^3.10.1"
   },
   "optionalDependencies": {
