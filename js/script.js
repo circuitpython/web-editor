@@ -29,6 +29,9 @@ import { CONNTYPE } from './constants.js';
 import './layout.js'; // load for side effects only
 import { setupPlotterChart } from "./common/plotter.js";
 import { mainContent, showSerial } from './layout.js';
+import { registerPWA } from "./common/pwa.js";
+
+registerPWA();
 
 // Instantiate workflows
 let workflows = {};
