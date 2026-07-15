@@ -11,6 +11,7 @@ import { xml } from "@codemirror/lang-xml";
 import { markdown } from "@codemirror/lang-markdown";
 import { syntaxHighlighting, indentUnit } from "@codemirror/language";
 import { classHighlighter } from "@lezer/highlight";
+import initRuffFormatter, { PositionEncoding, Workspace } from "@astral-sh/ruff-wasm-web";
 import { circuitpythonHighlight } from "./common/circuitpython_highlight.js";
 import { getFileIcon } from "./common/file_dialog.js";
 
@@ -40,6 +41,9 @@ let workflow = null;
 let unchanged = 0;
 let connectionPromise = null;
 let debugMessageAnsi = null;
+let formatterInitPromise = null;
+let formatterWorkspace = null;
+let currentEditorPath = null;
 
 const btnRestart = document.querySelector('.btn-restart');
 const btnHalt = document.querySelector('.btn-halt');
@@ -48,6 +52,7 @@ const btnClear = document.querySelector('.btn-clear');
 const btnConnect = document.querySelectorAll('.btn-connect');
 const btnNew = document.querySelectorAll('.btn-new');
 const btnOpen = document.querySelectorAll('.btn-open');
+const btnFormat = document.querySelectorAll('.btn-format');
 const btnSave = document.querySelectorAll('.btn-save');
 const btnSaveAs = document.querySelectorAll('.btn-save-as');
 const btnSaveRun = document.querySelectorAll('.btn-save-run');
@@ -110,6 +115,21 @@ function getFileExtensionFromPath(path) {
     const base = path.split("/").pop();
     if (!base || base.indexOf(".") < 0) return null;
     return base.split(".").pop().toLowerCase();
+}
+
+function isPythonFilePath(path) {
+    if (path === null || path === undefined) {
+        return true;
+    }
+    return getFileExtensionFromPath(path) === "py";
+}
+
+function updateFormatterButtonState(path) {
+    const enabled = isPythonFilePath(path);
+    btnFormat.forEach((element) => {
+        element.disabled = !enabled;
+        element.setAttribute("aria-disabled", enabled ? "false" : "true");
+    });
 }
 
 // Pick the CodeMirror language extensions to use for a given file path.
@@ -211,6 +231,15 @@ btnOpen.forEach((element) => {
     });
 });
 
+// Format Link/Button (Mobile and Desktop Layout)
+btnFormat.forEach((element) => {
+    element.addEventListener('click', async function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        await formatCurrentFile();
+    });
+});
+
 // Save Link/Button (Mobile and Desktop Layout)
 btnSave.forEach((element) => {
     element.addEventListener('click', async function(e) {
@@ -298,6 +327,53 @@ btnSettings.addEventListener('click', async function(e) {
 async function openFile() {
     if (await checkConnected()) {
         workflow.openFile();
+    }
+}
+
+async function initFormatter() {
+    if (!formatterInitPromise) {
+        formatterInitPromise = initRuffFormatter().then(() => {
+            formatterWorkspace = new Workspace(
+                {
+                    "line-length": 88,
+                    "indent-width": 4,
+                    format: {
+                        "indent-style": "space",
+                        "quote-style": "double",
+                    },
+                },
+                PositionEncoding.Utf16,
+            );
+        });
+    }
+    return formatterInitPromise;
+}
+
+async function formatCurrentFile() {
+    if (!isPythonFilePath(currentEditorPath)) {
+        await showMessage("Format is only available for Python files.");
+        return false;
+    }
+
+    try {
+        await initFormatter();
+        const contents = editor.state.doc.sliceString(0);
+        const formatted = formatterWorkspace.format(contents);
+
+        if (formatted !== contents) {
+            editor.dispatch({
+                changes: {
+                    from: 0,
+                    to: editor.state.doc.length,
+                    insert: formatted,
+                },
+            });
+        }
+        return true;
+    } catch (e) {
+        console.error("Could not format Python file", e);
+        await showMessage(`Could not format Python file. ${e.message || e}`);
+        return false;
     }
 }
 
@@ -436,6 +512,9 @@ async function checkReadOnly() {
 
 /* Update the filename and update the UI */
 function setFilename(path) {
+    currentEditorPath = path;
+    updateFormatterButtonState(path);
+
     // Refresh the CodeMirror language plugin whenever the active file
     // changes — this is the single chokepoint that all filename
     // changes route through (Open File, New File, Save As, backend
