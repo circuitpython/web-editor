@@ -151,7 +151,7 @@ function updatePageLayout(updateType) {
     }
 }
 
-function refitTerminal() {
+export function refitTerminal() {
     // Custom function to replace the terminal refit function as it was a bit buggy
 
     // Re-fitting the terminal requires a full re-layout of the DOM which can be tricky to time right.

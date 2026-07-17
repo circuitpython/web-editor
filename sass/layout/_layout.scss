@@ -155,15 +155,15 @@
     &.settings-dialog {
         #settings-content {
             padding-top: 10px;
-            display: flex;
-            justify-content: center;
+            display: grid;
+            grid-template-columns: max-content minmax(120px, 1fr);
+            gap: 12px 20px;
             align-items: center;
             min-width: 300px;
             label {
                 i {
                     margin-right: 3px;
                 }
-                margin-right: 20px;
                 white-space: nowrap;
             }
             input, select {
