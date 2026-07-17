@@ -1,0 +1,29 @@
+{
+    "name": "CircuitPython Code Editor",
+    "short_name": "CircuitPython",
+    "description": "Edit files and use the serial console on CircuitPython devices.",
+    "start_url": "/",
+    "scope": "/",
+    "display": "standalone",
+    "background_color": "#ffffff",
+    "theme_color": "#673ab7",
+    "icons": [
+        {
+            "src": "/assets/images/pwa-icon-180.png",
+            "sizes": "180x180",
+            "type": "image/png"
+        },
+        {
+            "src": "/assets/images/pwa-icon-192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "any maskable"
+        },
+        {
+            "src": "/assets/images/pwa-icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any maskable"
+        }
+    ]
+}
