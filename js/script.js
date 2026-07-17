@@ -29,7 +29,7 @@ import { Settings } from './common/settings.js';
 import { CONNTYPE } from './constants.js';
 import './layout.js'; // load for side effects only
 import { setupPlotterChart } from "./common/plotter.js";
-import { mainContent, showSerial } from './layout.js';
+import { mainContent, showSerial, refitTerminal } from './layout.js';
 import { registerPWA } from "./common/pwa.js";
 
 registerPWA();
@@ -68,6 +68,10 @@ const messageDialog = new MessageModal("message");
 const connectionType = new ButtonValueDialog("connection-type");
 const settings = new Settings();
 
+const DEFAULT_EDITOR_FONT_SIZE = 16;
+const MIN_EDITOR_FONT_SIZE = 8;
+const MAX_EDITOR_FONT_SIZE = 48;
+
 // localStorage key used to remember the most recently chosen backend
 // ("web" | "ble" | "usb"). When the user clicks Connect after a
 // disconnect, we prefer the last backend over re-prompting for one.
@@ -97,6 +101,23 @@ function rememberLastBackend(workflowType) {
 }
 
 const editorTheme = EditorView.theme({}, {dark: getCssVar('editor-theme-dark').trim() === '1'});
+const editorFontSizeCompartment = new Compartment();
+
+function getEditorFontSize() {
+    const fontSize = Number.parseInt(settings.getSetting('editorFontSize'), 10);
+    if (Number.isNaN(fontSize)) {
+        return DEFAULT_EDITOR_FONT_SIZE;
+    }
+    return Math.min(Math.max(fontSize, MIN_EDITOR_FONT_SIZE), MAX_EDITOR_FONT_SIZE);
+}
+
+function editorFontSizeTheme() {
+    return EditorView.theme({
+        "&": {
+            fontSize: `${getEditorFontSize()}px`,
+        },
+    });
+}
 
 // Map file extensions to a CodeMirror 6 language extension factory.
 // Anything not in this map falls back to plain text (no language plugin).
@@ -662,6 +683,7 @@ const baseEditorExtensions = [
 function buildEditorExtensions(path) {
     return [
         ...baseEditorExtensions,
+        editorFontSizeCompartment.of(editorFontSizeTheme()),
         languageCompartment.of(languageExtensionsForPath(path)),
     ];
 }
@@ -939,6 +961,7 @@ function getCssVar(varName) {
 
 async function setupXterm() {
     state.terminal = new Terminal({
+        fontSize: getEditorFontSize(),
         theme: {
             background: getCssVar('background-color'),
             foreground: getCssVar('terminal-text-color'),
@@ -999,6 +1022,9 @@ function applySettings() {
 
     // Apply to EditorView.theme dark parameter
     editor.darkTheme = getCssVar('editor-theme-dark').trim() === '1';
+    editor.dispatch({
+        effects: editorFontSizeCompartment.reconfigure(editorFontSizeTheme()),
+    });
 
     // Apply to xterm
     state.terminal.options.theme = {
@@ -1006,6 +1032,8 @@ function applySettings() {
         foreground: getCssVar('terminal-text-color'),
         cursor: getCssVar('terminal-text-color'),
     };
+    state.terminal.options.fontSize = getEditorFontSize();
+    refitTerminal();
 
     debugMessageAnsi = null;
 
