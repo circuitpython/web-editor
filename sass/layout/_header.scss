@@ -107,8 +107,33 @@
         & {
             background-color: transparent;
             margin: 0;
+            align-items: center;
+            display: inline-flex;
+            gap: 8px;
+            justify-content: center;
+            min-width: 118px;
         }
     }
+}
+
+.connection-indicator {
+    align-items: center;
+    display: inline-flex;
+    gap: 5px;
+    white-space: nowrap;
+
+    i {
+        font-size: 16px;
+        line-height: 1;
+    }
+}
+
+.connection-label {
+    font-size: 13px;
+}
+
+.connect-action {
+    white-space: nowrap;
 }
 
 .site-navigation {

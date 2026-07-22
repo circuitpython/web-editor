@@ -52,7 +52,7 @@ const btnRestart = document.querySelector('.btn-restart');
 const btnHalt = document.querySelector('.btn-halt');
 const btnPlotter = document.querySelector('.btn-plotter');
 const btnClear = document.querySelector('.btn-clear');
-const btnConnect = document.querySelectorAll('.btn-connect');
+let btnConnect = document.querySelectorAll('.btn-connect');
 const btnNew = document.querySelectorAll('.btn-new');
 const btnOpen = document.querySelectorAll('.btn-open');
 const btnFormat = document.querySelectorAll('.btn-format');
@@ -77,6 +77,21 @@ const MAX_EDITOR_FONT_SIZE = 48;
 // disconnect, we prefer the last backend over re-prompting for one.
 const LAST_BACKEND_KEY = "webeditor.lastBackend";
 
+const CONNECTION_DETAILS = {
+    [CONNTYPE.Web]: {
+        label: "WiFi",
+        iconClass: "fa-solid fa-wifi",
+    },
+    [CONNTYPE.Ble]: {
+        label: "Bluetooth",
+        iconClass: "fa-brands fa-bluetooth-b",
+    },
+    [CONNTYPE.Usb]: {
+        label: "USB",
+        iconClass: "fa-brands fa-usb",
+    },
+};
+
 function getLastBackend() {
     try {
         const name = window.localStorage.getItem(LAST_BACKEND_KEY);
@@ -98,6 +113,43 @@ function rememberLastBackend(workflowType) {
     } catch (e) {
         // ignore — non-fatal
     }
+}
+
+function getConnectionIndicatorType() {
+    if (workflow && workflow.type !== CONNTYPE.None) {
+        return workflow.type;
+    }
+    return getLastBackend();
+}
+
+function getConnectButtonContents(isConnected) {
+    const action = isConnected ? "Disconnect" : "Connect";
+    const connectionType = getConnectionIndicatorType();
+    const details = CONNECTION_DETAILS[connectionType];
+
+    if (!details) {
+        return {
+            html: action,
+            label: action,
+            title: action,
+        };
+    }
+
+    const status = isConnected ? "Connected via" : "Last connection";
+    const actionLabel = isConnected
+        ? `Disconnect ${details.label}`
+        : `Connect using ${details.label}`;
+
+    return {
+        html: `<span class="connection-indicator" aria-hidden="true"><i class="${details.iconClass}"></i><span class="connection-label">${details.label}</span></span> <span class="connect-action">${action}</span>`,
+        label: actionLabel,
+        title: `${status}: ${details.label}`,
+    };
+}
+
+function getConnectButtons() {
+    btnConnect = document.querySelectorAll('.btn-connect');
+    return btnConnect;
 }
 
 const editorTheme = EditorView.theme({}, {dark: getCssVar('editor-theme-dark').trim() === '1'});
@@ -629,6 +681,7 @@ async function loadWorkflow(workflowType = null) {
             }
             workflow = workflows[workflowType];
             rememberLastBackend(workflowType);
+            updateUIConnected(false);
             // Initialize the workflow
             await workflow.init({
                 terminal: state.terminal,
@@ -657,6 +710,7 @@ async function loadWorkflow(workflowType = null) {
         }
         // Unload workflow
         workflow = null;
+        updateUIConnected(false);
     }
 }
 
@@ -723,10 +777,13 @@ async function debugLog(msg) {
 }
 
 function updateUIConnected(isConnected) {
+    const buttonState = getConnectButtonContents(isConnected);
     if (isConnected) {
         // Set to Connected State
-        btnConnect.forEach((element) => {
-            element.innerHTML = "Disconnect";
+        getConnectButtons().forEach((element) => {
+            element.innerHTML = buttonState.html;
+            element.setAttribute("aria-label", buttonState.label);
+            element.title = buttonState.title;
             element.disabled = false;
         });
         if (workflow.showInfo !== undefined) {
@@ -734,8 +791,10 @@ function updateUIConnected(isConnected) {
         }
     } else {
         // Set to Disconnected State
-        btnConnect.forEach((element) => {
-            element.innerHTML = "Connect";
+        getConnectButtons().forEach((element) => {
+            element.innerHTML = buttonState.html;
+            element.setAttribute("aria-label", buttonState.label);
+            element.title = buttonState.title;
             element.disabled = false;
         });
         btnInfo.disabled = true;
@@ -1046,7 +1105,8 @@ function applySettings() {
 document.addEventListener('DOMContentLoaded', async (event) => {
     await setupXterm();
     applySettings();
-    btnConnect.forEach((element) => {
+    updateUIConnected(false);
+    getConnectButtons().forEach((element) => {
         element.addEventListener('click', async function(e) {
             e.preventDefault();
             e.stopPropagation();
