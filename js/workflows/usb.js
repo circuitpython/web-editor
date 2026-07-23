@@ -329,23 +329,8 @@ class USBWorkflow extends Workflow {
     }
 
     async _trySerialFileTransfer() {
-        const disabledMarker = "WEB_EDITOR_USB_DRIVE_DISABLED";
-        const unavailableMarker = "WEB_EDITOR_USB_DRIVE_UNAVAILABLE";
-        const code = `
-try:
-    import storage
-    if hasattr(storage, "unsafe_disable_usb_drive"):
-        storage.unsafe_disable_usb_drive()
-        print("${disabledMarker}")
-    else:
-        print("${unavailableMarker}")
-except Exception:
-    print("${unavailableMarker}")
-`;
-
         try {
-            const result = await this.showBusy(this.repl.runCode(code));
-            if (String(result || "").includes(disabledMarker)) {
+            if (await this.showBusy(this.repl.tryDisableUsbDrive())) {
                 this._usbDriveDisabled = true;
                 console.log("CIRCUITPY USB drive disabled; using serial file transfer");
                 return true;
@@ -362,11 +347,11 @@ except Exception:
         }
 
         try {
-            await this.repl.runCode(
-`import storage
-storage.enable_usb_drive()`
-            );
-            console.log("CIRCUITPY USB drive restored");
+            if (await this.repl.enableUsbDrive()) {
+                console.log("CIRCUITPY USB drive restored");
+            } else {
+                console.warn("CircuitPython could not restore the CIRCUITPY USB drive");
+            }
         } catch (error) {
             // A physical disconnect makes the REPL unavailable before this
             // cleanup can run. The next hard reset restores the firmware's
