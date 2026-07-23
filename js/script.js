@@ -63,6 +63,7 @@ const btnInfo = document.querySelector('.btn-info');
 const btnSettings = document.querySelector('.btn-settings');
 const terminalTitle = document.getElementById('terminal-title');
 const serialPlotter = document.getElementById('plotter');
+const connectionIndicator = document.getElementById('connection-indicator');
 
 const messageDialog = new MessageModal("message");
 const connectionType = new ButtonValueDialog("connection-type");
@@ -122,28 +123,28 @@ function getConnectionIndicatorType() {
     return getLastBackend();
 }
 
-function getConnectButtonContents(isConnected) {
-    const action = isConnected ? "Disconnect" : "Connect";
+function getConnectButtonState(isConnected) {
+    return {
+        label: isConnected ? "Disconnect" : "Connect",
+        title: isConnected ? "Disconnect" : "Connect",
+    };
+}
+
+function getConnectionIndicatorState(isConnected) {
     const connectionType = getConnectionIndicatorType();
     const details = CONNECTION_DETAILS[connectionType];
 
     if (!details) {
-        return {
-            html: action,
-            label: action,
-            title: action,
-        };
+        return null;
     }
 
-    const status = isConnected ? "Connected via" : "Last connection";
-    const actionLabel = isConnected
-        ? `Disconnect ${details.label}`
-        : `Connect using ${details.label}`;
+    const title = isConnected
+        ? `Connected with ${details.label}`
+        : `Last connection: ${details.label}`;
 
     return {
-        html: `<span class="connection-indicator" aria-hidden="true"><i class="${details.iconClass}"></i><span class="connection-label">${details.label}</span></span> <span class="connect-action">${action}</span>`,
-        label: actionLabel,
-        title: `${status}: ${details.label}`,
+        iconClass: details.iconClass,
+        title,
     };
 }
 
@@ -777,11 +778,27 @@ async function debugLog(msg) {
 }
 
 function updateUIConnected(isConnected) {
-    const buttonState = getConnectButtonContents(isConnected);
+    const buttonState = getConnectButtonState(isConnected);
+    const indicatorState = getConnectionIndicatorState(isConnected);
+
+    if (indicatorState) {
+        connectionIndicator.innerHTML = `<i class="${indicatorState.iconClass}"></i>`;
+        connectionIndicator.setAttribute("aria-label", indicatorState.title);
+        connectionIndicator.title = indicatorState.title;
+        connectionIndicator.hidden = false;
+        connectionIndicator.classList.toggle("connected", isConnected);
+    } else {
+        connectionIndicator.replaceChildren();
+        connectionIndicator.removeAttribute("aria-label");
+        connectionIndicator.removeAttribute("title");
+        connectionIndicator.hidden = true;
+        connectionIndicator.classList.remove("connected");
+    }
+
     if (isConnected) {
         // Set to Connected State
         getConnectButtons().forEach((element) => {
-            element.innerHTML = buttonState.html;
+            element.textContent = buttonState.label;
             element.setAttribute("aria-label", buttonState.label);
             element.title = buttonState.title;
             element.disabled = false;
@@ -792,7 +809,7 @@ function updateUIConnected(isConnected) {
     } else {
         // Set to Disconnected State
         getConnectButtons().forEach((element) => {
-            element.innerHTML = buttonState.html;
+            element.textContent = buttonState.label;
             element.setAttribute("aria-label", buttonState.label);
             element.title = buttonState.title;
             element.disabled = false;

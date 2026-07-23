@@ -15,6 +15,7 @@
         height: 4em;
         padding: 0 10px;
         display: flex;
+        align-items: center;
 
         .spacer {
             flex: auto;
@@ -192,6 +193,41 @@
     &.active {
         color: #fff;
         background-color: $purple;
+    }
+}
+
+#connection-indicator {
+    align-items: center;
+    color: $gray;
+    display: inline-flex;
+    font-size: 1.15em;
+    justify-content: center;
+    line-height: 1;
+    margin-right: 0.5em;
+    min-width: 1.75em;
+
+    &.connected {
+        color: $purple;
+    }
+
+    &[hidden] {
+        display: none;
+    }
+}
+
+@media (max-width: $screen-xs-max) {
+    .layout #footer-bar {
+        .purple-button {
+            font-size: 0;
+            margin-right: 0.35em;
+            padding-left: 0.75em;
+            padding-right: 0.75em;
+
+            i {
+                font-size: 16px;
+                margin-left: 0;
+            }
+        }
     }
 }
 
