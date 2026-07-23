@@ -109,14 +109,7 @@
         display: block !important;
     }
 
-    #mobile-header {
-        .get-started button {
-            gap: 6px;
-            min-width: 94px;
-        }
-
-        .connection-label {
-            display: none;
-        }
+    #mobile-header .get-started button {
+        min-width: auto;
     }
 }
