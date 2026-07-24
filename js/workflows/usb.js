@@ -330,7 +330,25 @@ class USBWorkflow extends Workflow {
 
     async _trySerialFileTransfer() {
         try {
-            if (await this.showBusy(this.repl.tryDisableUsbDrive())) {
+            let usbDriveDisabled;
+            if (typeof this.repl.tryDisableUsbDrive === "function") {
+                usbDriveDisabled = await this.showBusy(this.repl.tryDisableUsbDrive());
+            } else {
+                const disabledMarker = "WEB_EDITOR_USB_DRIVE_DISABLED";
+                const code = `
+try:
+    import storage
+    if hasattr(storage, "unsafe_disable_usb_drive"):
+        storage.unsafe_disable_usb_drive()
+        print("${disabledMarker}")
+except Exception:
+    pass
+`;
+                const result = await this.showBusy(this.repl.runCode(code));
+                usbDriveDisabled = String(result || "").includes(disabledMarker);
+            }
+
+            if (usbDriveDisabled) {
                 this._usbDriveDisabled = true;
                 console.log("CIRCUITPY USB drive disabled; using serial file transfer");
                 return true;
@@ -347,7 +365,18 @@ class USBWorkflow extends Workflow {
         }
 
         try {
-            if (await this.repl.enableUsbDrive()) {
+            let usbDriveRestored;
+            if (typeof this.repl.enableUsbDrive === "function") {
+                usbDriveRestored = await this.repl.enableUsbDrive();
+            } else {
+                await this.repl.runCode(
+`import storage
+storage.enable_usb_drive()`
+                );
+                usbDriveRestored = true;
+            }
+
+            if (usbDriveRestored) {
                 console.log("CIRCUITPY USB drive restored");
             } else {
                 console.warn("CircuitPython could not restore the CIRCUITPY USB drive");
