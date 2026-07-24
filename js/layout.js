@@ -99,6 +99,21 @@ export function showSerial() {
     updatePageLayout(UPDATE_TYPE_SERIAL);
 }
 
+function updateModeButtons() {
+    // Match the button state to the panel state to avoid getting out of sync
+    if (isEditorVisible()) {
+        btnModeEditor.classList.add('active');
+    } else {
+        btnModeEditor.classList.remove('active');
+    }
+
+    if (isSerialVisible()) {
+        btnModeSerial.classList.add('active');
+    } else {
+        btnModeSerial.classList.remove('active');
+    }
+}
+
 // update type is used to indicate which button was clicked
 function updatePageLayout(updateType) {
     // If both are visible, show the separator
@@ -110,6 +125,7 @@ function updatePageLayout(updateType) {
         editorPage.style.flex = null;
         serialPage.style.width = null;
         serialPage.style.flex = null;
+        updateModeButtons();
         return;
     }
 
@@ -133,18 +149,7 @@ function updatePageLayout(updateType) {
         serialPage.style.flex = 'none';
     }
 
-    // Match the button state to the panel state to avoid getting out of sync
-    if (isEditorVisible()) {
-        btnModeEditor.classList.add('active');
-    } else {
-        btnModeEditor.classList.remove('active');
-    }
-
-    if (isSerialVisible()) {
-        btnModeSerial.classList.add('active');
-    } else {
-        btnModeSerial.classList.remove('active');
-    }
+    updateModeButtons();
 
     if (isSerialVisible()) {
         refitTerminal();

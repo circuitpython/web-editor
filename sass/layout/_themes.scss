@@ -14,6 +14,13 @@
     --gutter-text-color: #ddd;
     --debug-message-color: #fce94f;
     --unsaved-file-color: #f60;
+    --tab-bar-background: #262626;
+    --tab-background: #262626;
+    --tab-hover-background: #333;
+    --tab-text-color: #ddd;
+    --tab-select-background: #3b3b3b;
+    --tab-select-border-color: rgba(255, 255, 255, 0.18);
+    --tab-select-text-color: #ddd;
 
     // Editor token colors. Defaults are tuned for the dark editor
     // background; the light theme below overrides any that would be
@@ -45,6 +52,13 @@
     --gutter-active-line-color: #ccc;
     --gutter-text-color: #222;
     --debug-message-color: #FF9900;
+    --tab-bar-background: #e2e2e2;
+    --tab-background: #e9e9e9;
+    --tab-hover-background: #dedede;
+    --tab-text-color: #222;
+    --tab-select-background: #f1f1f1;
+    --tab-select-border-color: #{$gray-border};
+    --tab-select-text-color: #222;
 
     // Darken token colors enough to stay readable on the
     // near-white editor background. Dark theme values above are
@@ -65,12 +79,6 @@
 }
 
 // Styles applied to both themes
-
-#main-content {
-    &.unsaved .file-path {
-        color: var(--unsaved-file-color);
-    }
-}
 
 #footer-bar {
     border-top: var(--border-style);
@@ -113,7 +121,8 @@
     background-color: var(--background-color);
     line-height: 1.5;
     font-family: 'Operator Mono', 'Source Code Pro', Menlo, Monaco, Consolas, Courier New, monospace;
-    max-height: calc(100vh - 2*4em - 5em);
+    height: 100%;
+    max-height: none;
 
     .cm-content {
         caret-color: orange;
@@ -168,6 +177,7 @@
     }
 
     .cm-scroller {
+        height: 100%;
         overflow: auto;
     }
 
