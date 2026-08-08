@@ -40,6 +40,11 @@ const ADVERTISEMENT_WAIT_MS = 2000;
 // measured from 0.5s (macOS, Windows) up to 26.6s (Linux), hence the generous
 // ceiling.
 const CONNECT_TIMEOUT_MS = 30000;
+// Per-attempt bound for the silent reconnect after a firmware autoreload.
+// Shorter than CONNECT_TIMEOUT_MS because this path runs once per entry in
+// RECONNECT_DELAYS_MS, and a reconnect that has not landed within ten seconds
+// has stopped being silent regardless of whether it eventually succeeds.
+const SILENT_RECONNECT_TIMEOUT_MS = 10000;
 
 let btnRequestBluetoothDevice, btnReconnect;
 
@@ -326,23 +331,33 @@ class BLEWorkflow extends Workflow {
     // Connect with a bound. gatt.connect() does not always reject on its own --
     // on Linux with a watch armed it never settles -- so race it against a timer
     // and cancel with gatt.disconnect(), which is the only way page JS can abort
-    // an in-flight connect.
-    async _connectToGattServer(device, reason) {
-        console.log(`Connecting to GATT Server from "${device.name}" (${reason})...`);
-        this.showConnectStatus("Connecting to " + device.name + "...");
-
+    // an in-flight connect. Chrome has honoured disconnect() as a cancel since
+    // M140; before that the attempt is orphaned rather than aborted, so treat a
+    // timeout as fatal rather than assuming the adapter is left clean.
+    async _connectWithTimeout(device, timeoutMs) {
         let connectTimer;
         try {
-            this.bleServer = await Promise.race([
+            return await Promise.race([
                 device.gatt.connect(),
                 new Promise((_, reject) => {
                     connectTimer = setTimeout(() => {
                         device.gatt.disconnect();
                         reject(new Error(
-                            `connect did not complete within ${CONNECT_TIMEOUT_MS / 1000}s`));
-                    }, CONNECT_TIMEOUT_MS);
+                            `connect did not complete within ${timeoutMs / 1000}s`));
+                    }, timeoutMs);
                 }),
             ]);
+        } finally {
+            clearTimeout(connectTimer);
+        }
+    }
+
+    async _connectToGattServer(device, reason) {
+        console.log(`Connecting to GATT Server from "${device.name}" (${reason})...`);
+        this.showConnectStatus("Connecting to " + device.name + "...");
+
+        try {
+            this.bleServer = await this._connectWithTimeout(device, CONNECT_TIMEOUT_MS);
         } catch (error) {
             console.log(error);
             // TODO(ericzundel): Add to suggestBLEConnectAction if we can determine the exception type
@@ -352,9 +367,6 @@ class BLEWorkflow extends Workflow {
             // Disable the reconnect button
             this.connectionStep(1);
             return;
-        }
-        finally {
-            clearTimeout(connectTimer);
         }
 
         if (this.bleServer && this.bleServer.connected) {
@@ -479,7 +491,11 @@ class BLEWorkflow extends Workflow {
                 await sleep(delay);
                 try {
                     console.log(`Silent reconnect: attempting after ${delay}ms…`);
-                    this.bleServer = await this.bleDevice.gatt.connect();
+                    // Bounded: an unbounded connect here stalls the whole
+                    // reconnect ladder, and every mutating op waits on it via
+                    // awaitPostOpReconnect(), so a save appears to hang.
+                    this.bleServer = await this._connectWithTimeout(
+                        this.bleDevice, SILENT_RECONNECT_TIMEOUT_MS);
                     if (this.bleServer && this.bleServer.connected) {
                         console.log('Silent reconnect: GATT reconnected, rebinding characteristics…');
                         await this._rebindAfterSilentReconnect();
