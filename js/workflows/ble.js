@@ -29,8 +29,11 @@ const POST_RECONNECT_SETTLE_MS = 2000;
 // BlueZ backend never delivers advertisementreceived, so on Linux this event
 // does not arrive at all and an unbounded wait leaves the connect dialog open
 // forever with no feedback. macOS delivers the first event within ~30ms, so a
-// few seconds is generous everywhere it works.
-const ADVERTISEMENT_WAIT_MS = 5000;
+// couple of seconds is generous everywhere it works. On Linux the wait is not
+// wasted even though nothing arrives: the discovery session that
+// watchAdvertisements() opens is what makes BlueZ (re)create its device object,
+// without which gatt.connect() rejects as "no longer in range".
+const ADVERTISEMENT_WAIT_MS = 2000;
 // How long to allow gatt.connect() before giving up. Chrome bounds this itself
 // at ~41s on Linux, but not while a watchAdvertisements() watch is armed -- in
 // that state the promise simply never settles. Successful connects have been
@@ -306,6 +309,9 @@ class BLEWorkflow extends Workflow {
         this.debugLog("Attempting to connect to " + device.name + "...");
         try {
             this.clearConnectStatus();
+            // Say something during the advertisement wait. On Linux it always
+            // runs to the full timeout, and silence looks like a hang.
+            this.showConnectStatus("Looking for " + device.name + "...");
             console.log('Watching advertisements from "' + device.name + '"...');
             console.log('If no advertisements are received, make sure the device is powered on and in range. You can also try resetting the device.');
             await device.watchAdvertisements({signal: abortController.signal});
