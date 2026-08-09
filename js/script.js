@@ -37,7 +37,11 @@ workflows[CONNTYPE.Usb] = new USBWorkflow();
 workflows[CONNTYPE.Web] = new WebWorkflow();
 
 let workflow = null;
+// Length of the leading run of bytes known to match what is on the device, used
+// as the offset for partial writes. It is only meaningful for one particular
+// file, so `unchangedPath` records which -- see saveFileContents().
 let unchanged = 0;
+let unchangedPath = null;
 let connectionPromise = null;
 let debugMessageAnsi = null;
 
@@ -600,6 +604,7 @@ function loadEditorContents(content, path = null) {
     // can correctly skip a no-op reconfigure.
     editorLanguagePath = path;
     unchanged = editor.state.doc.length;
+    unchangedPath = path;
     //console.log("doc length", unchanged);
 }
 
@@ -706,7 +711,14 @@ async function saveFileContents(path) {
         // If this is a different file, we write everything. The language
         // plugin is refreshed by setFilename below (it routes through
         // setEditorLanguageForPath), so no extra dispatch is needed here.
-        if (path !== workflow.currentFilename) {
+        //
+        // Compare against unchangedPath, not workflow.currentFilename:
+        // saveFileAs() assigns currentFilename *before* calling us, so by this
+        // point the two always match and the reset never fired. `unchanged`
+        // then still described the previously open file, and Save As did a
+        // partial write at that file's offset into a brand-new one, leaving
+        // everything before the offset as whatever the fresh cluster held.
+        if (path !== unchangedPath) {
             unchanged = 0;
         }
         let doc = editor.state.doc;
@@ -724,7 +736,9 @@ async function saveFileContents(path) {
             }
             // Optimistically mark the bytes-being-sent as unchanged. If the
             // write throws we'll roll back to baseUnchanged for the next try.
+            // Either way the offset now describes `path`, so record that.
             unchanged = docLengthAtStart;
+            unchangedPath = path;
             try {
                 if (await workflow.writeFile(path, contents, offset)) {
                     setFilename(workflow.currentFilename);
