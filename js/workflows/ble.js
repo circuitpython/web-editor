@@ -285,17 +285,21 @@ class BLEWorkflow extends Workflow {
             this._connectAttemptInFlight = true;
             clearTimeout(advTimer);
 
-            // This device won. Stop the OTHER devices' watches so they don't
-            // pile up Chrome's per-device watch quota. This device keeps its
-            // own watch until the connect settles: on Linux the kernel only
-            // takes the working connect path while a discovery session is
-            // active, and Chrome holds one for the lifetime of the watch.
-            this._abortAdvWatches(abortController);
+            // This device won. Stop every pending watch, this device's
+            // included, BEFORE connecting -- Chrome holds a BlueZ discovery
+            // session for as long as any watch is armed, and connecting while
+            // one is active is what fails on Linux. Measured by driving
+            // Device1.Connect() directly: discovery stopped 36/36, discovery
+            // active 18/52. Intermittent -- a host suspend/resume clears the
+            // failing state until the next boot, so it may not reproduce. In
+            // the failing case the HCI create-connection is identical to a
+            // working one and the controller simply transmits nothing until
+            // the attempt is cancelled ~20s later.
+            this._abortAdvWatches();
             try {
                 await this._connectToGattServer(device, reason);
             } finally {
                 this._connectAttemptInFlight = false;
-                this._abortAdvWatches();
             }
         };
 
