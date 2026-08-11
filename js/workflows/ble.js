@@ -36,9 +36,13 @@ const POST_RECONNECT_SETTLE_MS = 2000;
 const ADVERTISEMENT_WAIT_MS = 2000;
 // How long to allow gatt.connect() before giving up. Chrome bounds this itself
 // at ~41s on Linux, but not while a watchAdvertisements() watch is armed -- in
-// that state the promise simply never settles. Successful connects have been
-// measured from 0.5s (macOS, Windows) up to 26.6s (Linux), hence the generous
-// ceiling.
+// that state the promise simply never settles, which is the case this timeout
+// exists for. The ceiling is deliberately loose rather than tuned: a healthy
+// adapter connects in well under a second (0.5s on macOS and Windows, 0.7s
+// median on an Intel AX210 on Linux), but a user's host controller may be far
+// slower -- 26.6s was measured on a faulty MediaTek MT7920. The point is to
+// convert a never-settling promise into a reportable failure, not to enforce a
+// tight deadline.
 const CONNECT_TIMEOUT_MS = 30000;
 // Per-attempt bound for the silent reconnect after a firmware autoreload.
 // Shorter than CONNECT_TIMEOUT_MS because this path runs once per entry in
@@ -285,16 +289,27 @@ class BLEWorkflow extends Workflow {
             this._connectAttemptInFlight = true;
             clearTimeout(advTimer);
 
-            // This device won. Stop every pending watch, this device's
-            // included, BEFORE connecting -- Chrome holds a BlueZ discovery
-            // session for as long as any watch is armed, and connecting while
-            // one is active is what fails on Linux. Measured by driving
-            // Device1.Connect() directly: discovery stopped 36/36, discovery
-            // active 18/52. Intermittent -- a host suspend/resume clears the
-            // failing state until the next boot, so it may not reproduce. In
-            // the failing case the HCI create-connection is identical to a
-            // working one and the controller simply transmits nothing until
-            // the attempt is cancelled ~20s later.
+            // This device won, so stop every pending watch, this device's
+            // included. The reason is the one from #410: Chrome enforces a
+            // per-device watchAdvertisements quota, and leaving the losers
+            // armed piles up against it.
+            //
+            // An earlier version of this comment claimed the abort was needed
+            // because connecting while a BlueZ discovery session is active
+            // fails on Linux. That was investigated at length and does not
+            // hold: the connect failures it described were the host Bluetooth
+            // controller (a MediaTek MT7920, 0/40 while WiFi scanned), not the
+            // discovery state, and the same board connects 20/20 on an Intel
+            // AX210 with a watch armed or not. The kernel also disables
+            // scanning ~1.5ms before every create-connection regardless of
+            // what BlueZ believes, so aborting the watch does not change the
+            // controller's state at the moment of connect.
+            //
+            // Ordering it before the connect is therefore housekeeping, not a
+            // workaround, and on Linux it may even cost a little: Chrome's
+            // discovery session is what refreshes BlueZ's 30s sighting window,
+            // and gatt.connect() rejects with "no longer in range" once that
+            // window lapses.
             this._abortAdvWatches();
             try {
                 await this._connectToGattServer(device, reason);
