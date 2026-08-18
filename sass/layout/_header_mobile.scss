@@ -95,9 +95,6 @@
         float: right;
     }
 
-    .file-path {
-        float: left;
-    }
 }
 
 @media (max-width: $screen-xs-max) {
@@ -107,5 +104,9 @@
 
     #mobile-editor-bar {
         display: block !important;
+    }
+
+    #mobile-header .get-started button {
+        min-width: auto;
     }
 }

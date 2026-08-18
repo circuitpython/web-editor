@@ -4,8 +4,11 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#673ab7">
     <title>CircuitPython Code Editor</title>
     <link rel="icon" href="/assets/images/favicon.ico" type="image/x-icon" />
+    <link rel="apple-touch-icon" href="/assets/images/pwa-icon-180.png">
+    <link rel="manifest" href="/manifest.webmanifest">
     <link rel="stylesheet" href="/sass/style.scss">
 </head>
 
@@ -64,9 +67,9 @@
                 <div id="editor-bar">
                     <button class="purple-button btn-new">New<i class="fa-solid fa-plus"></i></button>
                     <button class="purple-button btn-open">Open<i class="fa-solid fa-folder-open"></i></button>
+                    <button class="purple-button btn-format">Format<i class="fa-solid fa-wand-magic-sparkles"></i></button>
                     <button class="purple-button btn-save">Save<i class="fa-solid fa-floppy-disk"></i></button>
                     <button class="purple-button btn-save-as">Save As<i class="fa-solid fa-download"></i></button>
-                    <div class="file-path"></div>
                     <button class="purple-button btn-save-run">Save + Run<i class="fa-solid fa-play"></i></button>
                 </div>
                 <div id="mobile-editor-bar">
@@ -78,17 +81,21 @@
                             </button>
                         </div>
                     </div>
-                    <div class="file-path"></div>
                     <a class="purple-button btn-save-run">Save + Run<i class="fa-solid fa-play"></i></a>
                     <div class="clear"></div>
                     <nav id="mobile-menu-contents" role="navigation" class="hidden" aria-expanded="false" aria-label="Mobile Menu">
                         <ul>
                             <li><a class="btn-new">New<i class="fa-solid fa-plus"></i></a></li>
                             <li><a class="btn-open">Open<i class="fa-solid fa-folder-open"></i></a></li>
+                            <li><a class="btn-format">Format<i class="fa-solid fa-wand-magic-sparkles"></i></a></li>
                             <li><a class="btn-save">Save<i class="fa-solid fa-floppy-disk"></i></a></li>
                             <li><a class="btn-save-as">Save As<i class="fa-solid fa-download"></i></a></li>
                         </ul>
                     </nav>
+                </div>
+                <div id="editor-tabs-wrapper">
+                    <div id="editor-tabs" role="tablist" aria-label="Open files"></div>
+                    <select id="editor-tab-select" aria-label="Switch open file" hidden></select>
                 </div>
                 <div id="editor" tabindex="0"></div>
             </div>
@@ -119,6 +126,7 @@
         <div id="footer-bar">
             <button id="btn-mode-editor" class="mode-button active">Editor</button>
             <button id="btn-mode-serial" class="mode-button">Serial</button>
+            <span id="connection-indicator" aria-label="" title="" hidden></span>
             <div class="spacer"></div>
             <button class="purple-button btn-settings">Settings<i class="fa-solid fa-gear"></i></button>
             <button class="purple-button btn-info" disabled>Info<i class="fa-solid fa-info-circle"></i></button>

@@ -11,6 +11,7 @@ import { xml } from "@codemirror/lang-xml";
 import { markdown } from "@codemirror/lang-markdown";
 import { syntaxHighlighting, indentUnit } from "@codemirror/language";
 import { classHighlighter } from "@lezer/highlight";
+import initRuffFormatter, { PositionEncoding, Workspace } from "@astral-sh/ruff-wasm-web";
 import { circuitpythonHighlight } from "./common/circuitpython_highlight.js";
 import { getFileIcon } from "./common/file_dialog.js";
 
@@ -22,13 +23,16 @@ import { BLEWorkflow } from './workflows/ble.js';
 import { USBWorkflow } from './workflows/usb.js';
 import { WebWorkflow } from './workflows/web.js';
 import { isValidBackend, getBackendWorkflow, getWorkflowBackendName } from './workflows/workflow.js';
-import { ButtonValueDialog, MessageModal } from './common/dialogs.js';
+import { ButtonValueDialog, MessageModal, UnsavedDialog } from './common/dialogs.js';
 import { isLocal, isMdns, isIp, switchUrl, getUrlParam } from './common/utilities.js';
 import { Settings } from './common/settings.js';
 import { CONNTYPE } from './constants.js';
 import './layout.js'; // load for side effects only
 import { setupPlotterChart } from "./common/plotter.js";
-import { mainContent, showSerial } from './layout.js';
+import { mainContent, showSerial, refitTerminal } from './layout.js';
+import { registerPWA } from "./common/pwa.js";
+
+registerPWA();
 
 // Instantiate workflows
 let workflows = {};
@@ -44,14 +48,21 @@ let unchanged = 0;
 let unchangedPath = null;
 let connectionPromise = null;
 let debugMessageAnsi = null;
+let formatterInitPromise = null;
+let formatterWorkspace = null;
+let currentEditorPath = null;
+let nextEditorTabId = 1;
+let editorTabs = [];
+let activeEditorTabId = null;
 
 const btnRestart = document.querySelector('.btn-restart');
 const btnHalt = document.querySelector('.btn-halt');
 const btnPlotter = document.querySelector('.btn-plotter');
 const btnClear = document.querySelector('.btn-clear');
-const btnConnect = document.querySelectorAll('.btn-connect');
+let btnConnect = document.querySelectorAll('.btn-connect');
 const btnNew = document.querySelectorAll('.btn-new');
 const btnOpen = document.querySelectorAll('.btn-open');
+const btnFormat = document.querySelectorAll('.btn-format');
 const btnSave = document.querySelectorAll('.btn-save');
 const btnSaveAs = document.querySelectorAll('.btn-save-as');
 const btnSaveRun = document.querySelectorAll('.btn-save-run');
@@ -59,15 +70,38 @@ const btnInfo = document.querySelector('.btn-info');
 const btnSettings = document.querySelector('.btn-settings');
 const terminalTitle = document.getElementById('terminal-title');
 const serialPlotter = document.getElementById('plotter');
+const connectionIndicator = document.getElementById('connection-indicator');
+const editorTabsElement = document.getElementById('editor-tabs');
+const editorTabSelect = document.getElementById('editor-tab-select');
 
 const messageDialog = new MessageModal("message");
 const connectionType = new ButtonValueDialog("connection-type");
+const closeTabDialog = new UnsavedDialog("unsaved");
 const settings = new Settings();
+
+const DEFAULT_EDITOR_FONT_SIZE = 16;
+const MIN_EDITOR_FONT_SIZE = 8;
+const MAX_EDITOR_FONT_SIZE = 48;
 
 // localStorage key used to remember the most recently chosen backend
 // ("web" | "ble" | "usb"). When the user clicks Connect after a
 // disconnect, we prefer the last backend over re-prompting for one.
 const LAST_BACKEND_KEY = "webeditor.lastBackend";
+
+const CONNECTION_DETAILS = {
+    [CONNTYPE.Web]: {
+        label: "WiFi",
+        iconClass: "fa-solid fa-wifi",
+    },
+    [CONNTYPE.Ble]: {
+        label: "Bluetooth",
+        iconClass: "fa-brands fa-bluetooth-b",
+    },
+    [CONNTYPE.Usb]: {
+        label: "USB",
+        iconClass: "fa-brands fa-usb",
+    },
+};
 
 function getLastBackend() {
     try {
@@ -92,7 +126,61 @@ function rememberLastBackend(workflowType) {
     }
 }
 
+function getConnectionIndicatorType() {
+    if (workflow && workflow.type !== CONNTYPE.None) {
+        return workflow.type;
+    }
+    return getLastBackend();
+}
+
+function getConnectButtonState(isConnected) {
+    return {
+        label: isConnected ? "Disconnect" : "Connect",
+        title: isConnected ? "Disconnect" : "Connect",
+    };
+}
+
+function getConnectionIndicatorState(isConnected) {
+    const connectionType = getConnectionIndicatorType();
+    const details = CONNECTION_DETAILS[connectionType];
+
+    if (!details) {
+        return null;
+    }
+
+    const title = isConnected
+        ? `Connected with ${details.label}`
+        : `Last connection: ${details.label}`;
+
+    return {
+        iconClass: details.iconClass,
+        title,
+    };
+}
+
+function getConnectButtons() {
+    btnConnect = document.querySelectorAll('.btn-connect');
+    return btnConnect;
+}
+
 const editorTheme = EditorView.theme({}, {dark: getCssVar('editor-theme-dark').trim() === '1'});
+const editorFontSizeCompartment = new Compartment();
+
+function getEditorFontSize() {
+    const fontSize = Number.parseInt(settings.getSetting('editorFontSize'), 10);
+    if (Number.isNaN(fontSize)) {
+        return DEFAULT_EDITOR_FONT_SIZE;
+    }
+    return Math.min(Math.max(fontSize, MIN_EDITOR_FONT_SIZE), MAX_EDITOR_FONT_SIZE);
+}
+
+function editorFontSizeTheme() {
+    return EditorView.theme({
+        "&": {
+            fontSize: `${getEditorFontSize()}px`,
+        },
+    });
+}
 
 // Map file extensions to a CodeMirror 6 language extension factory.
 // Anything not in this map falls back to plain text (no language plugin).
@@ -114,6 +202,21 @@ function getFileExtensionFromPath(path) {
     const base = path.split("/").pop();
     if (!base || base.indexOf(".") < 0) return null;
     return base.split(".").pop().toLowerCase();
+}
+
+function isPythonFilePath(path) {
+    if (path === null || path === undefined) {
+        return true;
+    }
+    return getFileExtensionFromPath(path) === "py";
+}
+
+function updateFormatterButtonState(path) {
+    const enabled = isPythonFilePath(path);
+    btnFormat.forEach((element) => {
+        element.disabled = !enabled;
+        element.setAttribute("aria-disabled", enabled ? "false" : "true");
+    });
 }
 
 // Pick the CodeMirror language extensions to use for a given file path.
@@ -175,12 +278,253 @@ function setEditorLanguageForPath(path) {
     });
 }
 
+function getActiveTab() {
+    return editorTabs.find((tab) => tab.id === activeEditorTabId) || null;
+}
+
+function getTabDocumentLength(tab) {
+    if (!tab) {
+        return 0;
+    }
+    if (tab.id === activeEditorTabId && editor) {
+        return editor.state.doc.length;
+    }
+    return tab.editorState.doc.length;
+}
+
+function isTabDirty(tab) {
+    return !!tab && tab.unchanged !== getTabDocumentLength(tab);
+}
+
+function hasDirtyTabs() {
+    return editorTabs.some((tab) => isTabDirty(tab));
+}
+
+function captureActiveEditorState() {
+    const activeTab = getActiveTab();
+    if (activeTab && editor) {
+        activeTab.editorState = editor.state;
+        activeTab.unchanged = unchanged;
+        activeTab.scrollPosition = getEditorScrollPosition();
+    }
+}
+
+function getEditorScroller() {
+    return editor?.scrollDOM || document.querySelector("#editor .cm-scroller");
+}
+
+function getEditorScrollPosition() {
+    const scroller = getEditorScroller();
+    return {
+        left: scroller ? scroller.scrollLeft : 0,
+        top: scroller ? scroller.scrollTop : 0,
+    };
+}
+
+function restoreEditorScrollPosition(tab) {
+    const scrollPosition = tab?.scrollPosition;
+    if (!scrollPosition) {
+        return;
+    }
+
+    window.requestAnimationFrame(() => {
+        const scroller = getEditorScroller();
+        if (!scroller) {
+            return;
+        }
+        scroller.scrollLeft = scrollPosition.left;
+        scroller.scrollTop = scrollPosition.top;
+    });
+}
+
+function getTabLabel(tab) {
+    if (!tab.path) {
+        return "New Document";
+    }
+    return tab.path.split("/").pop() || tab.path;
+}
+
+function renderEditorTabs() {
+    if (!editorTabsElement) {
+        return;
+    }
+
+    const tabButtons = editorTabs.map((tab) => {
+        const tabButton = document.createElement("div");
+        tabButton.className = "editor-tab";
+        tabButton.setAttribute("role", "tab");
+        tabButton.setAttribute("aria-selected", tab.id === activeEditorTabId ? "true" : "false");
+        tabButton.tabIndex = tab.id === activeEditorTabId ? 0 : -1;
+        tabButton.title = tab.path || "New Document";
+        tabButton.dataset.tabId = tab.id;
+        tabButton.classList.toggle("active", tab.id === activeEditorTabId);
+        tabButton.classList.toggle("unsaved", isTabDirty(tab));
+
+        const [style, icon] = getFileIcon(tab.path);
+        const iconElement = document.createElement("i");
+        iconElement.className = `${style} ${icon}`;
+        iconElement.setAttribute("aria-hidden", "true");
+
+        const labelElement = document.createElement("span");
+        labelElement.className = "editor-tab-label";
+        labelElement.textContent = getTabLabel(tab);
+
+        const dirtyElement = document.createElement("span");
+        dirtyElement.className = "editor-tab-dirty";
+        dirtyElement.textContent = "*";
+        dirtyElement.title = "Unsaved changes";
+        dirtyElement.setAttribute("aria-label", "Unsaved changes");
+
+        const closeButton = document.createElement("button");
+        closeButton.type = "button";
+        closeButton.className = "editor-tab-close";
+        closeButton.title = `Close ${getTabLabel(tab)}`;
+        closeButton.setAttribute("aria-label", `Close ${getTabLabel(tab)}`);
+        closeButton.innerHTML = '<i class="fa-solid fa-xmark" aria-hidden="true"></i>';
+        closeButton.addEventListener("click", async (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            await closeEditorTab(tab.id);
+        });
+
+        tabButton.addEventListener("click", (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            activateEditorTab(tab.id);
+        });
+        tabButton.addEventListener("keydown", (event) => {
+            if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                activateEditorTab(tab.id);
+            }
+        });
+
+        tabButton.append(iconElement, labelElement, dirtyElement, closeButton);
+        return tabButton;
+    });
+
+    editorTabsElement.replaceChildren(...tabButtons);
+    renderEditorTabSelect();
+    mainContent.classList.toggle("unsaved", !!getActiveTab() && isDirty());
+}
+
+function renderEditorTabSelect() {
+    if (!editorTabSelect) {
+        return;
+    }
+
+    const options = editorTabs.map((tab) => {
+        const option = document.createElement("option");
+        option.value = tab.id;
+        option.textContent = `${isTabDirty(tab) ? "* " : ""}${tab.path || "New Document"}`;
+        return option;
+    });
+
+    editorTabSelect.replaceChildren(...options);
+    editorTabSelect.value = activeEditorTabId || "";
+    editorTabSelect.hidden = editorTabs.length < 2;
+}
+
+function createEditorTab(path = null, contents = "", saved = true, activate = true) {
+    const savedPosition = saved === true ? contents.length : saved === false ? 0 : saved;
+    const tab = {
+        id: String(nextEditorTabId++),
+        path,
+        unchanged: savedPosition,
+        scrollPosition: { left: 0, top: 0 },
+        editorState: EditorState.create({
+            doc: contents,
+            extensions: buildEditorExtensions(path),
+        }),
+    };
+    editorTabs.push(tab);
+    if (activate) {
+        activateEditorTab(tab.id);
+    } else {
+        renderEditorTabs();
+    }
+    return tab;
+}
+
+function findTabByPath(path) {
+    if (path === null) {
+        return null;
+    }
+    return editorTabs.find((tab) => tab.path === path) || null;
+}
+
+function activateEditorTab(tabId) {
+    const nextTab = editorTabs.find((tab) => tab.id === tabId);
+    if (!nextTab) {
+        return false;
+    }
+
+    if (activeEditorTabId === tabId) {
+        renderEditorTabs();
+        return true;
+    }
+
+    captureActiveEditorState();
+    activeEditorTabId = tabId;
+    editor.setState(nextTab.editorState);
+    editorLanguagePath = nextTab.path;
+    unchanged = nextTab.unchanged;
+    setFilename(nextTab.path);
+    renderEditorTabs();
+    editor.focus();
+    restoreEditorScrollPosition(nextTab);
+    return true;
+}
+
+async function closeEditorTab(tabId) {
+    const tab = editorTabs.find((entry) => entry.id === tabId);
+    if (!tab) {
+        return false;
+    }
+
+    if (isTabDirty(tab)) {
+        if (tab.id !== activeEditorTabId) {
+            activateEditorTab(tab.id);
+        }
+        const result = await closeTabDialog.open("Current changes will be lost. Do you want to save?");
+        if (result === null) {
+            return false;
+        }
+        if (result && !await saveFile()) {
+            return false;
+        }
+    }
+
+    const closingIndex = editorTabs.findIndex((entry) => entry.id === tabId);
+    editorTabs.splice(closingIndex, 1);
+
+    if (editorTabs.length < 1) {
+        createEditorTab(null, "", true, true);
+        return true;
+    }
+
+    if (activeEditorTabId === tabId) {
+        const nextIndex = Math.min(closingIndex, editorTabs.length - 1);
+        activeEditorTabId = null;
+        activateEditorTab(editorTabs[nextIndex].id);
+    } else {
+        renderEditorTabs();
+    }
+    return true;
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('mobile-menu-button').addEventListener('click', handleMobileToggle);
     document.querySelectorAll('#mobile-menu-contents li a').forEach((element) => {
         element.addEventListener('click', handleMobileToggle);
     });
 });
+
+if (editorTabSelect) {
+    editorTabSelect.addEventListener('change', (event) => {
+        activateEditorTab(event.target.value);
+    });
+}
 
 function handleMobileToggle(event) {
     event.preventDefault();
@@ -212,6 +556,15 @@ btnOpen.forEach((element) => {
         e.preventDefault();
         e.stopPropagation();
         await openFile();
+    });
+});
+
+// Format Link/Button (Mobile and Desktop Layout)
+btnFormat.forEach((element) => {
+    element.addEventListener('click', async function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        await formatCurrentFile();
     });
 });
 
@@ -301,7 +654,65 @@ btnSettings.addEventListener('click', async function(e) {
 // Basic functions used for buttons and hotkeys
 async function openFile() {
     if (await checkConnected()) {
-        workflow.openFile();
+        await workflow.openFileDialog(async (path) => {
+            if (path === null) {
+                return;
+            }
+            const existingTab = findTabByPath(path);
+            if (existingTab) {
+                activateEditorTab(existingTab.id);
+                return;
+            }
+            const contents = await workflow.readFile(path);
+            loadFileContents(path, contents);
+        });
+    }
+}
+
+async function initFormatter() {
+    if (!formatterInitPromise) {
+        formatterInitPromise = initRuffFormatter().then(() => {
+            formatterWorkspace = new Workspace(
+                {
+                    "line-length": 88,
+                    "indent-width": 4,
+                    format: {
+                        "indent-style": "space",
+                        "quote-style": "double",
+                    },
+                },
+                PositionEncoding.Utf16,
+            );
+        });
+    }
+    return formatterInitPromise;
+}
+
+async function formatCurrentFile() {
+    if (!isPythonFilePath(currentEditorPath)) {
+        await showMessage("Format is only available for Python files.");
+        return false;
+    }
+
+    try {
+        await initFormatter();
+        const contents = editor.state.doc.sliceString(0);
+        const formatted = formatterWorkspace.format(contents);
+
+        if (formatted !== contents) {
+            editor.dispatch({
+                changes: {
+                    from: 0,
+                    to: editor.state.doc.length,
+                    insert: formatted,
+                },
+            });
+        }
+        return true;
+    } catch (e) {
+        console.error("Could not format Python file", e);
+        await showMessage(`Could not format Python file. ${e.message || e}`);
+        return false;
     }
 }
 
@@ -313,9 +724,7 @@ async function saveFile() {
 
 async function newFile() {
     if (await checkConnected()) {
-        if (await workflow.checkSaved()) {
-            loadFileContents(null, "");
-        }
+        createEditorTab(null, "", true, true);
     }
 }
 
@@ -332,11 +741,18 @@ async function saveRunFile() {
 }
 
 function setSaved(saved) {
+    const activeTab = getActiveTab();
     if (saved) {
+        if (activeTab && editor) {
+            activeTab.unchanged = editor.state.doc.length;
+            activeTab.editorState = editor.state;
+            unchanged = activeTab.unchanged;
+        }
         mainContent.classList.remove("unsaved");
     } else {
         mainContent.classList.add("unsaved");
     }
+    renderEditorTabs();
 }
 
 async function checkConnected() {
@@ -440,21 +856,24 @@ async function checkReadOnly() {
 
 /* Update the filename and update the UI */
 function setFilename(path) {
+    const activeTab = getActiveTab();
+    if (activeTab) {
+        activeTab.path = path;
+        activeTab.editorState = editor.state;
+    }
+    currentEditorPath = path;
+    updateFormatterButtonState(path);
+
     // Refresh the CodeMirror language plugin whenever the active file
     // changes — this is the single chokepoint that all filename
     // changes route through (Open File, New File, Save As, backend
     // load), so it's the right place to keep the language in sync.
     setEditorLanguageForPath(path);
-
-    // Use the extension_map to figure out the file icon
-    let filename = path;
-
-    // Prepend an icon to the path
-    const [style, icon] = getFileIcon(path);
-    filename = `<i class="${style} ${icon}"></i> ` + filename;
+    if (activeTab) {
+        activeTab.editorState = editor.state;
+    }
 
     if (path === null) {
-        filename = "[New Document]";
         btnSave.forEach((b) => b.style.display = 'none');
     } else if (!workflow) {
         throw Error("Unable to set path when no workflow is loaded");
@@ -464,8 +883,7 @@ function setFilename(path) {
     if (workflow) {
         workflow.currentFilename = path;
     }
-    document.querySelector('#editor-bar .file-path').innerHTML = filename;
-    document.querySelector('#mobile-editor-bar .file-path').innerHTML = path === null ? filename : filename.split("/")[filename.split("/").length - 1];
+    renderEditorTabs();
 }
 
 async function chooseConnection() {
@@ -496,7 +914,7 @@ async function chooseConnection() {
 
 // Dynamically Load a Workflow (where the magic happens)
 async function loadWorkflow(workflowType = null) {
-    let currentFilename = null;
+    let currentFilename = currentEditorPath;
 
     if (workflow && workflowType == null) {
         // Get the last workflow
@@ -530,6 +948,7 @@ async function loadWorkflow(workflowType = null) {
             }
             workflow = workflows[workflowType];
             rememberLastBackend(workflowType);
+            updateUIConnected(false);
             // Initialize the workflow
             await workflow.init({
                 terminal: state.terminal,
@@ -558,6 +977,7 @@ async function loadWorkflow(workflowType = null) {
         }
         // Unload workflow
         workflow = null;
+        updateUIConnected(false);
     }
 }
 
@@ -584,17 +1004,24 @@ const baseEditorExtensions = [
 function buildEditorExtensions(path) {
     return [
         ...baseEditorExtensions,
+        editorFontSizeCompartment.of(editorFontSizeTheme()),
         languageCompartment.of(languageExtensionsForPath(path)),
     ];
 }
 
 // Use the editor's function to check if anything has changed
-function isDirty() {
-    if (unchanged == editor.state.doc.length) return false;
+function isDirty(tab = getActiveTab()) {
+    if (!tab) {
+        return false;
+    }
+    if (tab.id === activeEditorTabId && editor) {
+        return unchanged !== editor.state.doc.length;
+    }
+    if (tab.unchanged == tab.editorState.doc.length) return false;
     return true;
 }
 
-function loadEditorContents(content, path = null) {
+function loadEditorContents(content, path = null, saved = true) {
     editor.setState(EditorState.create({
         doc: content,
         extensions: buildEditorExtensions(path)
@@ -603,12 +1030,19 @@ function loadEditorContents(content, path = null) {
     // compartment contents so the next setEditorLanguageForPath call
     // can correctly skip a no-op reconfigure.
     editorLanguagePath = path;
+<<<<<<< HEAD
     unchanged = editor.state.doc.length;
     unchangedPath = path;
+=======
+    unchanged = saved === true ? editor.state.doc.length : saved === false ? 0 : saved;
+    const activeTab = getActiveTab();
+    if (activeTab) {
+        activeTab.editorState = editor.state;
+        activeTab.unchanged = unchanged;
+    }
+>>>>>>> d404fa5ded26121b555568775942720469143d4a
     //console.log("doc length", unchanged);
 }
-
-setFilename(null);
 
 async function showMessage(message) {
     return await messageDialog.open(message);
@@ -624,10 +1058,29 @@ async function debugLog(msg) {
 }
 
 function updateUIConnected(isConnected) {
+    const buttonState = getConnectButtonState(isConnected);
+    const indicatorState = getConnectionIndicatorState(isConnected);
+
+    if (indicatorState) {
+        connectionIndicator.innerHTML = `<i class="${indicatorState.iconClass}"></i>`;
+        connectionIndicator.setAttribute("aria-label", indicatorState.title);
+        connectionIndicator.title = indicatorState.title;
+        connectionIndicator.hidden = false;
+        connectionIndicator.classList.toggle("connected", isConnected);
+    } else {
+        connectionIndicator.replaceChildren();
+        connectionIndicator.removeAttribute("aria-label");
+        connectionIndicator.removeAttribute("title");
+        connectionIndicator.hidden = true;
+        connectionIndicator.classList.remove("connected");
+    }
+
     if (isConnected) {
         // Set to Connected State
-        btnConnect.forEach((element) => {
-            element.innerHTML = "Disconnect";
+        getConnectButtons().forEach((element) => {
+            element.textContent = buttonState.label;
+            element.setAttribute("aria-label", buttonState.label);
+            element.title = buttonState.title;
             element.disabled = false;
         });
         if (workflow.showInfo !== undefined) {
@@ -635,8 +1088,10 @@ function updateUIConnected(isConnected) {
         }
     } else {
         // Set to Disconnected State
-        btnConnect.forEach((element) => {
-            element.innerHTML = "Connect";
+        getConnectButtons().forEach((element) => {
+            element.textContent = buttonState.label;
+            element.setAttribute("aria-label", buttonState.label);
+            element.title = buttonState.title;
             element.disabled = false;
         });
         btnInfo.disabled = true;
@@ -644,7 +1099,8 @@ function updateUIConnected(isConnected) {
 }
 
 window.onbeforeunload = () => {
-    if (isDirty()) {
+    captureActiveEditorState();
+    if (hasDirtyTabs()) {
         return "You have unsaved changed, exit anyways?";
     }
 };
@@ -658,8 +1114,7 @@ let shownDeviceInfoForCurrentSession = false;
 async function loadEditor() {
     let documentState = loadParameterizedContent();
     if (documentState) {
-        loadFileContents(documentState.path, documentState.contents, null);
-        unchanged = documentState.pos;
+        loadFileContents(documentState.path, documentState.contents, documentState.pos);
         setSaved(!isDirty());
     }
 
@@ -816,10 +1271,25 @@ async function saveFileContents(path) {
 
 // Load the File Contents and Path into the UI
 function loadFileContents(path, contents, saved = true) {
+    const existingTab = findTabByPath(path);
+    if (existingTab) {
+        activateEditorTab(existingTab.id);
+        console.log("Current File Changed to: " + workflow.currentFilename);
+        return;
+    } else if (getActiveTab() && getActiveTab().path === null && !isDirty() && editorTabs.length === 1) {
+    } else {
+        createEditorTab(path, contents, saved, true);
+        console.log("Current File Changed to: " + workflow.currentFilename);
+        return;
+    }
     setFilename(path);
-    loadEditorContents(contents, path);
-    if (saved !== null) {
-        setSaved(saved);
+    loadEditorContents(contents, path, saved);
+    if (saved === true) {
+        setSaved(true);
+    } else if (saved === false) {
+        setSaved(false);
+    } else {
+        renderEditorTabs();
     }
     console.log("Current File Changed to: " + workflow.currentFilename);
 }
@@ -847,6 +1317,11 @@ async function onTextChange(update) {
     }
 
     setSaved(false);
+    const activeTab = getActiveTab();
+    if (activeTab) {
+        activeTab.unchanged = unchanged;
+        activeTab.editorState = update.state;
+    }
 }
 
 function disconnectCallback() {
@@ -864,6 +1339,7 @@ editor = new EditorView({
     }),
     parent: document.querySelector('#editor')
 });
+createEditorTab(null, "", true, true);
 
 function getCssVar(varName) {
     return window.getComputedStyle(document.body).getPropertyValue("--" + varName);
@@ -871,6 +1347,7 @@ function getCssVar(varName) {
 
 async function setupXterm() {
     state.terminal = new Terminal({
+        fontSize: getEditorFontSize(),
         theme: {
             background: getCssVar('background-color'),
             foreground: getCssVar('terminal-text-color'),
@@ -931,6 +1408,9 @@ function applySettings() {
 
     // Apply to EditorView.theme dark parameter
     editor.darkTheme = getCssVar('editor-theme-dark').trim() === '1';
+    editor.dispatch({
+        effects: editorFontSizeCompartment.reconfigure(editorFontSizeTheme()),
+    });
 
     // Apply to xterm
     state.terminal.options.theme = {
@@ -938,6 +1418,8 @@ function applySettings() {
         foreground: getCssVar('terminal-text-color'),
         cursor: getCssVar('terminal-text-color'),
     };
+    state.terminal.options.fontSize = getEditorFontSize();
+    refitTerminal();
 
     debugMessageAnsi = null;
 
@@ -950,7 +1432,8 @@ function applySettings() {
 document.addEventListener('DOMContentLoaded', async (event) => {
     await setupXterm();
     applySettings();
-    btnConnect.forEach((element) => {
+    updateUIConnected(false);
+    getConnectButtons().forEach((element) => {
         element.addEventListener('click', async function(e) {
             e.preventDefault();
             e.stopPropagation();

@@ -29,7 +29,7 @@ class SettingsDialog extends GenericModal {
             contentDiv.appendChild(label);
 
             const control = await this._createControl(setting);
-            control.value = settings[setting.key];
+            control.value = settings?.[setting.key] ?? setting.default;
             contentDiv.appendChild(control);
         }
 
@@ -40,7 +40,20 @@ class SettingsDialog extends GenericModal {
         let settings = {}
         for (const setting of this._settingsData) {
             const control = this._currentModal.querySelector(`#setting-${setting.key}`);
-            settings[setting.key] = control.value;
+            let value = control.value;
+            if (setting.type === 'number') {
+                value = Number.parseInt(value, 10);
+                if (Number.isNaN(value)) {
+                    value = setting.default;
+                }
+                if (setting.min !== undefined) {
+                    value = Math.max(value, setting.min);
+                }
+                if (setting.max !== undefined) {
+                    value = Math.min(value, setting.max);
+                }
+            }
+            settings[setting.key] = value;
         }
         this._returnValue(settings);
     }
@@ -56,6 +69,18 @@ class SettingsDialog extends GenericModal {
                 option.textContent = optionValue.charAt(0).toUpperCase() + optionValue.slice(1);
                 control.appendChild(option);
             }
+        } else if (settingData.type === 'number') {
+            control = document.createElement('input');
+            control.type = 'number';
+            if (settingData.min !== undefined) {
+                control.min = settingData.min;
+            }
+            if (settingData.max !== undefined) {
+                control.max = settingData.max;
+            }
+            if (settingData.step !== undefined) {
+                control.step = settingData.step;
+            }
         }
         control.id = `setting-${settingData.key}`;
 
@@ -70,7 +95,8 @@ class Settings {
     constructor() {
         // This will hold the layout/save data for the settings
         this._settingsData = [
-            { key: 'theme', type: 'select', label: 'Editor Theme', icon: 'palette', options: ['dark', 'light'], default: 'dark' }
+            { key: 'theme', type: 'select', label: 'Editor Theme', icon: 'palette', options: ['dark', 'light'], default: 'dark' },
+            { key: 'editorFontSize', type: 'number', label: 'Font Size', icon: 'text-height', min: 8, max: 48, step: 1, default: 16 }
         ];
         this._settings = {};
         this._loadSettings();
@@ -110,8 +136,9 @@ class Settings {
     }
 
     async showDialog() {
-        this._settings = await this._settingsDialog.open(this._settings);
-        if (this._settings) {
+        const updatedSettings = await this._settingsDialog.open(this._settings);
+        if (updatedSettings) {
+            this._settings = updatedSettings;
             this._saveSettings();
             return true;
         }

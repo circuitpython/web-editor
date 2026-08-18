@@ -25,6 +25,7 @@ class USBWorkflow extends Workflow {
         this._messageCallback = null;
         this._btnSelectHostFolderCallback = null;
         this._btnUseHostFolderCallback = null;
+        this._usbDriveDisabled = false;
         this.buttonStates = [
             {request: false, select: false},
             {request: true, select: false},
@@ -62,6 +63,12 @@ class USBWorkflow extends Workflow {
             return;
         }
         this._isDisconnecting = true;
+
+        // Newer CircuitPython firmware lets the editor temporarily make the
+        // filesystem writable over the REPL by taking the CIRCUITPY USB drive
+        // offline. Put the drive back before closing the serial connection so
+        // it is available to the host again after a clean disconnect.
+        await this._restoreUsbDrive();
 
         // If we got here because the underlying device was lost (NetworkError),
         // the writable stream is errored and any further writes will throw
@@ -321,6 +328,40 @@ class USBWorkflow extends Workflow {
         }
     }
 
+    async _trySerialFileTransfer() {
+        try {
+            if (await this.showBusy(this.repl.tryDisableUsbDrive())) {
+                this._usbDriveDisabled = true;
+                console.log("CIRCUITPY USB drive disabled; using serial file transfer");
+                return true;
+            }
+        } catch (error) {
+            console.warn("Unable to disable the CIRCUITPY USB drive:", error);
+        }
+        return false;
+    }
+
+    async _restoreUsbDrive() {
+        if (!this._usbDriveDisabled) {
+            return;
+        }
+
+        try {
+            if (await this.repl.enableUsbDrive()) {
+                console.log("CIRCUITPY USB drive restored");
+            } else {
+                console.warn("CircuitPython could not restore the CIRCUITPY USB drive");
+            }
+        } catch (error) {
+            // A physical disconnect makes the REPL unavailable before this
+            // cleanup can run. The next hard reset restores the firmware's
+            // default USB drive setting.
+            console.warn("Unable to restore the CIRCUITPY USB drive:", error);
+        } finally {
+            this._usbDriveDisabled = false;
+        }
+    }
+
     // Workflow specific Functions
     async _switchToDevice(device) {
         device.removeEventListener("message", this._messageCallback);
@@ -366,6 +407,12 @@ class USBWorkflow extends Workflow {
         // At this point we should see if we should init the file client and check if have a saved dir handle
         let fileops = new FileOps(this.repl, false);
         if (await this.showBusy(fileops.isReadOnly())) {
+            if (await this._trySerialFileTransfer()) {
+                this.initFileClient(new ReplFileTransferClient(this.connectionStatus.bind(this), this.repl));
+                this.onConnected();
+                return;
+            }
+
             // UID Only needed for matching the CIRCUITPY drive with the Serial Terminal
             await this.showBusy(this._getDeviceUid());
             let modal = this.connectDialog.getModal();

@@ -15,6 +15,7 @@
         height: 4em;
         padding: 0 10px;
         display: flex;
+        align-items: center;
 
         .spacer {
             flex: auto;
@@ -42,11 +43,13 @@
     flex: auto;
     display: flex;
     flex-direction: row;
+    min-height: 0;
 
     #editor-page, #serial-page {
         flex: 1 1 100%;
         display: none;
         flex-direction: column;
+        min-height: 0;
 
         &.active {
             display: flex;
@@ -67,8 +70,115 @@
 }
 
 #editor-page {
+    #editor-tabs-wrapper {
+        background: var(--tab-bar-background);
+        border-bottom: var(--border-style);
+        display: flex;
+        flex: 0 0 auto;
+        min-height: 38px;
+    }
+
+    #editor-tabs {
+        align-items: stretch;
+        display: flex;
+        flex: 1 1 auto;
+        min-width: 0;
+        overflow-x: auto;
+        overflow-y: hidden;
+        scrollbar-width: thin;
+    }
+
+    #editor-tab-select {
+        align-self: center;
+        background: var(--tab-select-background);
+        border: 1px solid var(--tab-select-border-color);
+        border-radius: 4px;
+        color: var(--tab-select-text-color);
+        flex: 0 0 auto;
+        font-size: 0.9em;
+        margin: 4px 6px;
+        max-width: 220px;
+        min-width: 0;
+        padding: 4px 24px 4px 8px;
+        width: fit-content;
+
+        &[hidden] {
+            display: none;
+        }
+    }
+
+    .editor-tab {
+        align-items: center;
+        background: var(--tab-background);
+        border: solid transparent;
+        border-width: 3px 1px 0;
+        color: var(--tab-text-color);
+        cursor: pointer;
+        display: inline-flex;
+        flex: 0 1 auto;
+        gap: 8px;
+        min-width: 0;
+        max-width: 260px;
+        padding: 0 8px 0 12px;
+
+        &:hover {
+            background: var(--tab-hover-background);
+        }
+
+        &:focus-visible {
+            outline: 2px solid $purple;
+            outline-offset: -2px;
+        }
+
+        &.active {
+            background: var(--background-color);
+            border-color: $purple $purple transparent;
+            color: var(--editor-text-color);
+        }
+
+        .editor-tab-dirty {
+            color: var(--unsaved-file-color);
+            display: none;
+            flex: 0 0 auto;
+            font-weight: 700;
+            line-height: 1;
+            margin-left: -4px;
+        }
+
+        &.unsaved .editor-tab-dirty {
+            display: inline;
+        }
+
+        .editor-tab-label {
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .editor-tab-close {
+            align-items: center;
+            background: transparent;
+            border: 0;
+            border-radius: 4px;
+            color: inherit;
+            cursor: pointer;
+            display: inline-flex;
+            flex: 0 0 24px;
+            height: 24px;
+            justify-content: center;
+            line-height: 1;
+            padding: 0;
+
+            &:hover {
+                background: rgba(255, 255, 255, 0.14);
+            }
+        }
+    }
+
     #editor {
         flex: 1 1 0%;
+        min-height: 0;
     }
 }
 
@@ -86,6 +196,7 @@
     }
     #terminal {
         flex: 1 1 0%;
+        min-height: 0;
         position: relative;
         width: 100%;
         overflow: hidden;
@@ -155,15 +266,15 @@
     &.settings-dialog {
         #settings-content {
             padding-top: 10px;
-            display: flex;
-            justify-content: center;
+            display: grid;
+            grid-template-columns: max-content minmax(120px, 1fr);
+            gap: 12px 20px;
             align-items: center;
             min-width: 300px;
             label {
                 i {
                     margin-right: 3px;
                 }
-                margin-right: 20px;
                 white-space: nowrap;
             }
             input, select {
@@ -192,6 +303,51 @@
     &.active {
         color: #fff;
         background-color: $purple;
+    }
+}
+
+#connection-indicator {
+    align-items: center;
+    color: $gray;
+    display: inline-flex;
+    font-size: 1.15em;
+    justify-content: center;
+    line-height: 1;
+    margin-right: 0.5em;
+    min-width: 1.75em;
+
+    &.connected {
+        color: $purple;
+    }
+
+    &[hidden] {
+        display: none;
+    }
+}
+
+@media (max-width: $screen-xs-max) {
+    #editor-page {
+        #editor-tab-select {
+            max-width: 150px;
+        }
+
+        .editor-tab {
+            max-width: 210px;
+        }
+    }
+
+    .layout #footer-bar {
+        .purple-button {
+            font-size: 0;
+            margin-right: 0.35em;
+            padding-left: 0.75em;
+            padding-right: 0.75em;
+
+            i {
+                font-size: 16px;
+                margin-left: 0;
+            }
+        }
     }
 }
 
