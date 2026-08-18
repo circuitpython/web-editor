@@ -240,6 +240,7 @@ class BLEWorkflow extends Workflow {
                 const devices = await navigator.bluetooth.getDevices();
 
                 console.log('> Found ' + devices.length + ' Bluetooth device(s).');
+                this._showSearchingStatus(devices);
                 // These devices may not be powered on or in range, so scan for
                 // advertisement packets from them before connecting.
                 for (const device of devices) {
@@ -259,6 +260,20 @@ class BLEWorkflow extends Workflow {
             filters: [{services: [0xfebb]},], // <- Prefer filters to save energy & show relevant devices.
             optionalServices: [0xfebb, bleNusServiceUUID]
         });
+    }
+
+    // Say something during the advertisement wait. On Linux it always runs to the
+    // full timeout, and silence looks like a hang. Naming a device is only honest
+    // when there is one: the reconnect paths race every permitted device and
+    // connect to whichever answers first, which need not be the one named.
+    _showSearchingStatus(devices) {
+        if (devices.length === 0) {
+            return;
+        }
+        this.clearConnectStatus();
+        this.showConnectStatus(devices.length === 1
+            ? "Looking for " + devices[0].name + "..."
+            : "Looking for " + devices.length + " previously connected boards...");
     }
 
     // Abort pending advertisement watches, optionally sparing one. Deleting
@@ -332,10 +347,10 @@ class BLEWorkflow extends Workflow {
 
         this.debugLog("Attempting to connect to " + device.name + "...");
         try {
-            this.clearConnectStatus();
-            // Say something during the advertisement wait. On Linux it always
-            // runs to the full timeout, and silence looks like a hang.
-            this.showConnectStatus("Looking for " + device.name + "...");
+            // No status message here. The caller has already said what it is
+            // looking for, and naming this device would be wrong: the reconnect
+            // paths arm a watch on every permitted device at once, so each call
+            // would overwrite the last and leave a loser's name on screen.
             console.log('Watching advertisements from "' + device.name + '"...');
             console.log('If no advertisements are received, make sure the device is powered on and in range. You can also try resetting the device.');
             await device.watchAdvertisements({signal: abortController.signal});
@@ -405,6 +420,7 @@ class BLEWorkflow extends Workflow {
         let device = await this.requestDevice();
 
         console.log('> Requested ' + device.name);
+        this._showSearchingStatus([device]);
         await this.connectToBluetoothDevice(device);
     }
 
@@ -487,6 +503,7 @@ class BLEWorkflow extends Workflow {
         if (!this.bleDevice) {
             try {
                 let devices = await navigator.bluetooth.getDevices();
+                this._showSearchingStatus(devices);
                 for (const device of devices) {
                     await this.connectToBluetoothDevice(device);
                 }
