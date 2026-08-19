@@ -8,52 +8,6 @@ class FileTransferClient extends BLEFileTransferClient {
     constructor(bleDevice, bufferSize, workflow = null) {
         super(bleDevice, bufferSize);
         this._workflow = workflow;
-        this._bleDevice = bleDevice;
-    }
-
-    // Reject a read if the GATT link is already down, or drops while it is in
-    // flight, instead of returning a promise that can never settle.
-    //
-    // Upstream readFile()/listDir() install their promise's reject handler
-    // AFTER writing the request:
-    //
-    //     await this._write(header);
-    //     await this._write(encoded);
-    //     let p = new Promise((resolve, reject) => {
-    //         this._resolve = resolve;
-    //         this._reject = reject;      // too late
-    //     });
-    //
-    // On a dead link `_transfer` is null, so both writes throw; _write()
-    // swallows the error and calls onDisconnected(), which has no `_reject` to
-    // call yet. checkConnection() likewise catches its own failure and returns
-    // normally rather than rethrowing, so the read proceeds regardless. The
-    // returned promise is then never settled by anyone and the caller hangs --
-    // which is what left the editor spinning on "Current Device Info".
-    //
-    // Bound on liveness rather than elapsed time: a large file read over BLE can
-    // legitimately take tens of seconds, so a stopwatch would produce false
-    // failures, while a dropped link is unambiguous.
-    _whileConnected(operation) {
-        const device = this._bleDevice;
-        if (!device || !device.gatt || !device.gatt.connected) {
-            return Promise.reject(new Error("Bluetooth device is not connected"));
-        }
-        return new Promise((resolve, reject) => {
-            const onDisconnected = () => reject(new Error("Bluetooth device disconnected"));
-            device.addEventListener("gattserverdisconnected", onDisconnected, {once: true});
-            operation().then(resolve, reject).finally(() => {
-                device.removeEventListener("gattserverdisconnected", onDisconnected);
-            });
-        });
-    }
-
-    async readFile(path, raw = false) {
-        return await this._whileConnected(() => super.readFile(path, raw));
-    }
-
-    async listDir(path) {
-        return await this._whileConnected(() => super.listDir(path));
     }
 
     _signalMutatingOp() {
