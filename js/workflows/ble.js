@@ -224,6 +224,21 @@ class BLEWorkflow extends Workflow {
             // Use cached bound handler so removeEventListener actually matches.
             this.txCharacteristic.removeEventListener('characteristicvaluechanged', this._onSerialReceiveBound);
             this.txCharacteristic.addEventListener('characteristicvaluechanged', this._onSerialReceiveBound);
+
+            // Stop before starting, so a CCCD write actually goes out. Reconnecting to a
+            // bonded board, startNotifications() can return without writing the
+            // descriptor, leaving the board with notifications disabled -- the terminal
+            // then stays silent for the rest of the session while file transfer works.
+            // Measured on a Feather nRF52840 and a Metro ESP32-S3, on Linux and Windows.
+            //
+            // No read is needed first here, unlike the file transfer client's own
+            // subscribe: switchToDevice() bonds through the file transfer client before
+            // calling this, so the link is already encrypted by now.
+            try {
+                await this.txCharacteristic.stopNotifications();
+            } catch (e) {
+                // Nothing was subscribed yet, which is the ordinary first connect.
+            }
             await this.txCharacteristic.startNotifications();
             return true;
         } catch (e) {
