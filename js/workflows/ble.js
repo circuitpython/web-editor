@@ -25,6 +25,31 @@ const POST_OP_DISCONNECT_GRACE_MS = 4000;
 // Wait after GATT reconnects so the VM finishes booting before the next op.
 const POST_RECONNECT_SETTLE_MS = 2000;
 
+// How long to wait for an advertisement before connecting anyway. Chrome's
+// BlueZ backend never delivers advertisementreceived, so on Linux this event
+// does not arrive at all and an unbounded wait leaves the connect dialog open
+// forever with no feedback. macOS delivers the first event within ~30ms, so a
+// couple of seconds is generous everywhere it works. On Linux the wait is not
+// wasted even though nothing arrives: the discovery session that
+// watchAdvertisements() opens is what makes BlueZ (re)create its device object,
+// without which gatt.connect() rejects as "no longer in range".
+const ADVERTISEMENT_WAIT_MS = 2000;
+// How long to allow gatt.connect() before giving up. Chrome bounds this itself
+// at ~41s on Linux, but not while a watchAdvertisements() watch is armed -- in
+// that state the promise simply never settles, which is the case this timeout
+// exists for. The ceiling is deliberately loose rather than tuned: a healthy
+// adapter connects in well under a second (0.5s on macOS and Windows, 0.7s
+// median on an Intel AX210 on Linux), but a user's host controller may be far
+// slower -- 26.6s was measured on a faulty MediaTek MT7920. The point is to
+// convert a never-settling promise into a reportable failure, not to enforce a
+// tight deadline.
+const CONNECT_TIMEOUT_MS = 30000;
+// Per-attempt bound for the silent reconnect after a firmware autoreload.
+// Shorter than CONNECT_TIMEOUT_MS because this path runs once per entry in
+// RECONNECT_DELAYS_MS, and a reconnect that has not landed within ten seconds
+// has stopped being silent regardless of whether it eventually succeeds.
+const SILENT_RECONNECT_TIMEOUT_MS = 10000;
+
 let btnRequestBluetoothDevice, btnReconnect;
 
 class BLEWorkflow extends Workflow {
@@ -62,6 +87,11 @@ class BLEWorkflow extends Workflow {
         // Track in-flight watchAdvertisements abort controllers so we can
         // cancel them when any device wins or when we tear down (#410).
         this._pendingAdvAborts = new Set();
+
+        // Only one device may attempt a connection at a time. Without this,
+        // several remembered devices whose advertisement waits expire together
+        // would all try to connect at once.
+        this._connectAttemptInFlight = false;
     }
 
     // Called by the FileTransferClient wrapper right before any mutating
@@ -131,10 +161,7 @@ class BLEWorkflow extends Workflow {
         }
         // Cancel any in-flight watchAdvertisements so a subsequent reconnect
         // doesn't pile up Chrome's per-device watch quota (#410).
-        for (const ctrl of this._pendingAdvAborts) {
-            ctrl.abort();
-        }
-        this._pendingAdvAborts.clear();
+        this._abortAdvWatches();
         await super.onDisconnected(e, reconnect);
     }
 
@@ -197,6 +224,21 @@ class BLEWorkflow extends Workflow {
             // Use cached bound handler so removeEventListener actually matches.
             this.txCharacteristic.removeEventListener('characteristicvaluechanged', this._onSerialReceiveBound);
             this.txCharacteristic.addEventListener('characteristicvaluechanged', this._onSerialReceiveBound);
+
+            // Stop before starting, so a CCCD write actually goes out. Reconnecting to a
+            // bonded board, startNotifications() can return without writing the
+            // descriptor, leaving the board with notifications disabled -- the terminal
+            // then stays silent for the rest of the session while file transfer works.
+            // Measured on a Feather nRF52840 and a Metro ESP32-S3, on Linux and Windows.
+            //
+            // No read is needed first here, unlike the file transfer client's own
+            // subscribe: switchToDevice() bonds through the file transfer client before
+            // calling this, so the link is already encrypted by now.
+            try {
+                await this.txCharacteristic.stopNotifications();
+            } catch (e) {
+                // Nothing was subscribed yet, which is the ordinary first connect.
+            }
             await this.txCharacteristic.startNotifications();
             return true;
         } catch (e) {
@@ -213,6 +255,7 @@ class BLEWorkflow extends Workflow {
                 const devices = await navigator.bluetooth.getDevices();
 
                 console.log('> Found ' + devices.length + ' Bluetooth device(s).');
+                this._showSearchingStatus(devices);
                 // These devices may not be powered on or in range, so scan for
                 // advertisement packets from them before connecting.
                 for (const device of devices) {
@@ -234,62 +277,154 @@ class BLEWorkflow extends Workflow {
         });
     }
 
+    // Say something during the advertisement wait. On Linux it always runs to the
+    // full timeout, and silence looks like a hang. Naming a device is only honest
+    // when there is one: the reconnect paths race every permitted device and
+    // connect to whichever answers first, which need not be the one named.
+    _showSearchingStatus(devices) {
+        if (devices.length === 0) {
+            return;
+        }
+        this.clearConnectStatus();
+        this.showConnectStatus(devices.length === 1
+            ? "Looking for " + devices[0].name + "..."
+            : "Looking for " + devices.length + " previously connected boards...");
+    }
+
+    // Abort pending advertisement watches, optionally sparing one. Deleting
+    // while iterating a Set is safe.
+    _abortAdvWatches(keep = null) {
+        for (const ctrl of this._pendingAdvAborts) {
+            if (ctrl !== keep) {
+                ctrl.abort();
+                this._pendingAdvAborts.delete(ctrl);
+            }
+        }
+    }
+
     async connectToBluetoothDevice(device) {
         const abortController = new AbortController();
         this._pendingAdvAborts.add(abortController);
         let advHandled = false;
 
-        async function onAdvertisementReceived(event) {
-            // Multiple ads can land in the same event-loop tick before
-            // abortController.abort() takes effect on the listener. Guard
-            // so we only run the connect flow once per device. See #410.
-            if (advHandled) {
+        // Runs either when an advertisement arrives or when we give up waiting
+        // for one. Guarded because multiple ads can land in the same event-loop
+        // tick before abortController.abort() takes effect on the listener, and
+        // because the timer can fire alongside a late advertisement. See #410.
+        const attemptConnect = async (reason) => {
+            if (advHandled || this._connectAttemptInFlight) {
                 return;
             }
             advHandled = true;
-            console.log('> Received advertisement from "' + device.name + '"...');
-            // This device won. Abort ALL pending watchAdvertisements
-            // (including this one) so other paired devices stop scanning
-            // and don't pile up Chrome's per-device watch quota.
-            for (const ctrl of this._pendingAdvAborts) {
-                ctrl.abort();
-            }
-            this._pendingAdvAborts.clear();
-            console.log('Connecting to GATT Server from "' + device.name + '"...');
+            this._connectAttemptInFlight = true;
+            clearTimeout(advTimer);
+
+            // This device won, so stop every pending watch, this device's
+            // included. The reason is the one from #410: Chrome enforces a
+            // per-device watchAdvertisements quota, and leaving the losers
+            // armed piles up against it.
+            //
+            // An earlier version of this comment claimed the abort was needed
+            // because connecting while a BlueZ discovery session is active
+            // fails on Linux. That was investigated at length and does not
+            // hold: the connect failures it described were the host Bluetooth
+            // controller (a MediaTek MT7920, 0/40 while WiFi scanned), not the
+            // discovery state, and the same board connects 20/20 on an Intel
+            // AX210 with a watch armed or not. The kernel also disables
+            // scanning ~1.5ms before every create-connection regardless of
+            // what BlueZ believes, so aborting the watch does not change the
+            // controller's state at the moment of connect.
+            //
+            // Ordering it before the connect is therefore housekeeping, not a
+            // workaround, and on Linux it may even cost a little: Chrome's
+            // discovery session is what refreshes BlueZ's 30s sighting window,
+            // and gatt.connect() rejects with "no longer in range" once that
+            // window lapses.
+            this._abortAdvWatches();
             try {
-                this.bleServer = await device.gatt.connect();
-            } catch (error) {
-                console.log(error);
-                // TODO(ericzundel): Add to suggestBLEConnectAction if we can determine the exception type
-                this.showConnectStatus("Failed to connect to device. Try forgetting device from OS bluetooth devices and try again.");
-                // Disable the reconnect button
-                this.connectionStep(1);
+                await this._connectToGattServer(device, reason);
+            } finally {
+                this._connectAttemptInFlight = false;
             }
-            if (this.bleServer && this.bleServer.connected) {
-                console.log('> Bluetooth device "' +  device.name + ' connected.');
-                await this.switchToDevice(device);
-            } else {
-                console.log('Unable to connect to bluetooth device "' +  device.name + '.');
-            }
-        }
+        };
+
+        const advTimer = setTimeout(
+            () => attemptConnect(`no advertisement within ${ADVERTISEMENT_WAIT_MS / 1000}s`),
+            ADVERTISEMENT_WAIT_MS);
 
         // Use the abortController signal so we don't need to manage the
         // handler reference manually — the listener is auto-removed when
-        // onAdvertisementReceived calls abortController.abort().
-        device.addEventListener('advertisementreceived',
-            onAdvertisementReceived.bind(this),
-            {signal: abortController.signal});
+        // abortController.abort() is called.
+        device.addEventListener('advertisementreceived', () => {
+            console.log('> Received advertisement from "' + device.name + '"...');
+            attemptConnect('advertisement received');
+        }, {signal: abortController.signal});
 
         this.debugLog("Attempting to connect to " + device.name + "...");
         try {
-            this.clearConnectStatus();
+            // No status message here. The caller has already said what it is
+            // looking for, and naming this device would be wrong: the reconnect
+            // paths arm a watch on every permitted device at once, so each call
+            // would overwrite the last and leave a loser's name on screen.
             console.log('Watching advertisements from "' + device.name + '"...');
             console.log('If no advertisements are received, make sure the device is powered on and in range. You can also try resetting the device.');
             await device.watchAdvertisements({signal: abortController.signal});
         }
         catch (error) {
+            clearTimeout(advTimer);
             console.error(error);
             this.showConnectStatus(this._suggestBLEConnectActions(error));
+        }
+    }
+
+    // Connect with a bound. gatt.connect() does not always reject on its own --
+    // on Linux with a watch armed it never settles -- so race it against a timer
+    // and cancel with gatt.disconnect(), which is the only way page JS can abort
+    // an in-flight connect. Chrome has honoured disconnect() as a cancel since
+    // M140; before that the attempt is orphaned rather than aborted, so treat a
+    // timeout as fatal rather than assuming the adapter is left clean.
+    async _connectWithTimeout(device, timeoutMs) {
+        let connectTimer;
+        try {
+            return await Promise.race([
+                device.gatt.connect(),
+                new Promise((_, reject) => {
+                    connectTimer = setTimeout(() => {
+                        device.gatt.disconnect();
+                        reject(new Error(
+                            `connect did not complete within ${timeoutMs / 1000}s`));
+                    }, timeoutMs);
+                }),
+            ]);
+        } finally {
+            clearTimeout(connectTimer);
+        }
+    }
+
+    async _connectToGattServer(device, reason) {
+        console.log(`Connecting to GATT Server from "${device.name}" (${reason})...`);
+        this.showConnectStatus("Connecting to " + device.name + "...");
+
+        try {
+            this.bleServer = await this._connectWithTimeout(device, CONNECT_TIMEOUT_MS);
+        } catch (error) {
+            console.log(error);
+            // TODO(ericzundel): Add to suggestBLEConnectAction if we can determine the exception type
+            this.showConnectStatus(
+                `Could not connect to ${device.name}. Try again. If it keeps failing, forget the ` +
+                `device in your operating system's Bluetooth settings, then reload this page.`);
+            // Disable the reconnect button
+            this.connectionStep(1);
+            return;
+        }
+
+        if (this.bleServer && this.bleServer.connected) {
+            console.log('> Bluetooth device "' + device.name + '" connected.');
+            await this.switchToDevice(device);
+        } else {
+            console.log('Unable to connect to bluetooth device "' + device.name + '".');
+            this.showConnectStatus(`Could not connect to ${device.name}. Try again.`);
+            this.connectionStep(1);
         }
     }
 
@@ -300,6 +435,7 @@ class BLEWorkflow extends Workflow {
         let device = await this.requestDevice();
 
         console.log('> Requested ' + device.name);
+        this._showSearchingStatus([device]);
         await this.connectToBluetoothDevice(device);
     }
 
@@ -382,6 +518,7 @@ class BLEWorkflow extends Workflow {
         if (!this.bleDevice) {
             try {
                 let devices = await navigator.bluetooth.getDevices();
+                this._showSearchingStatus(devices);
                 for (const device of devices) {
                     await this.connectToBluetoothDevice(device);
                 }
@@ -405,7 +542,11 @@ class BLEWorkflow extends Workflow {
                 await sleep(delay);
                 try {
                     console.log(`Silent reconnect: attempting after ${delay}ms…`);
-                    this.bleServer = await this.bleDevice.gatt.connect();
+                    // Bounded: an unbounded connect here stalls the whole
+                    // reconnect ladder, and every mutating op waits on it via
+                    // awaitPostOpReconnect(), so a save appears to hang.
+                    this.bleServer = await this._connectWithTimeout(
+                        this.bleDevice, SILENT_RECONNECT_TIMEOUT_MS);
                     if (this.bleServer && this.bleServer.connected) {
                         console.log('Silent reconnect: GATT reconnected, rebinding characteristics…');
                         await this._rebindAfterSilentReconnect();

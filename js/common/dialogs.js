@@ -340,9 +340,28 @@ class ButtonValueDialog extends GenericModal {
     }
 }
 
+// Report a failed device-info read in the dialog. Without this the read's
+// rejection escapes as an unhandled promise rejection and the dialog is simply
+// left blank, which reads as "the device answered with nothing" rather than
+// "we never reached the device".
+function showDeviceInfoError(modal, error) {
+    console.error("Unable to read device info:", error);
+    const msgElement = modal.querySelector("#message");
+    if (msgElement) {
+        msgElement.textContent =
+            "Could not read device information. The connection to the device was lost.";
+    }
+}
+
 class DiscoveryModal extends GenericModal {
     async _getVersionInfo() {
-        const deviceInfo = await this._showBusy(this._fileHelper.versionInfo());
+        let deviceInfo;
+        try {
+            deviceInfo = await this._showBusy(this._fileHelper.versionInfo());
+        } catch (error) {
+            showDeviceInfoError(this._currentModal, error);
+            return;
+        }
         this._currentModal.querySelector("#version").textContent = deviceInfo.version;
         const boardLink = this._currentModal.querySelector("#board");
         boardLink.href = `https://circuitpython.org/board/${deviceInfo.board_id}/`;
@@ -413,7 +432,13 @@ class DiscoveryModal extends GenericModal {
 
 class DeviceInfoModal extends GenericModal {
         async _getDeviceInfo() {
-        const deviceInfo = await this._showBusy(this._fileHelper.versionInfo());
+        let deviceInfo;
+        try {
+            deviceInfo = await this._showBusy(this._fileHelper.versionInfo());
+        } catch (error) {
+            showDeviceInfoError(this._currentModal, error);
+            return;
+        }
         this._currentModal.querySelector("#version").textContent = deviceInfo.version;
         const boardLink = this._currentModal.querySelector("#board");
         boardLink.href = `https://circuitpython.org/board/${deviceInfo.board_id}/`;
