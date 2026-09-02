@@ -31,14 +31,15 @@ class FileTransferClient {
 
     async readFile(path, raw = false) {
         await this._checkConnection();
-        let contents = await this._fileops.readFile(path, raw);
+        let contents = await this._fileops.readFile(path, true);
         if (contents === null) {
             return raw ? null : "";
         }
         if (raw) {
             return contents;
         }
-        return contents.replaceAll("\r\n", "\n");
+        let text = await contents.text();
+        return text.replaceAll("\r\n", "\n");
     }
 
     async writeFile(path, offset, contents, modificationTime, raw = false) {
