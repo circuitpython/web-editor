@@ -32,7 +32,7 @@
     "file-saver": "^2.0.5",
     "focus-trap": "^8.2.2",
     "idb-keyval": "^6.3.0",
-    "jszip": "^3.10.1"
+    "jszip": "^3.10.2"
   },
   "optionalDependencies": {
     "@rollup/rollup-linux-x64-gnu": "^4.63.1"
